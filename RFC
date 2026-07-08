@@ -1,0 +1,5052 @@
+اگر منظورت این است که **GitFlow را با TypeScript پیاده‌سازی کنیم** (یعنی یک ابزار CLI مشابه `git-flow` بسازیم)، بله، کاملاً شدنی است و پروژه مناسبی برای TypeScript محسوب می‌شود.
+
+یک ساختار حرفه‌ای می‌تواند به این صورت باشد:
+
+```text
+gitflow-ts/
+│
+├── src/
+│   ├── commands/
+│   │   ├── init.ts
+│   │   ├── feature.ts
+│   │   ├── release.ts
+│   │   ├── hotfix.ts
+│   │   ├── support.ts
+│   │   ├── version.ts
+│   │   └── finish.ts
+│   │
+│   ├── git/
+│   │   ├── Git.ts
+│   │   ├── Branch.ts
+│   │   ├── Remote.ts
+│   │   ├── Merge.ts
+│   │   ├── Tag.ts
+│   │   ├── Commit.ts
+│   │   └── Config.ts
+│   │
+│   ├── models/
+│   │   ├── BranchType.ts
+│   │   ├── GitFlowConfig.ts
+│   │   └── BranchInfo.ts
+│   │
+│   ├── services/
+│   │   ├── FeatureService.ts
+│   │   ├── ReleaseService.ts
+│   │   ├── HotfixService.ts
+│   │   ├── SupportService.ts
+│   │   └── InitService.ts
+│   │
+│   ├── utils/
+│   │   ├── Exec.ts
+│   │   ├── Logger.ts
+│   │   ├── Prompt.ts
+│   │   ├── Validator.ts
+│   │   └── Colors.ts
+│   │
+│   ├── cli.ts
+│   └── index.ts
+│
+├── tests/
+├── package.json
+├── tsconfig.json
+└── README.md
+```
+
+---
+
+## لایه Git
+
+تمام دستورات Git فقط از این کلاس عبور می‌کنند.
+
+```ts
+export interface Git {
+  exec(command: string): Promise<string>;
+
+  checkout(branch: string): Promise<void>;
+
+  createBranch(name: string): Promise<void>;
+
+  deleteBranch(name: string): Promise<void>;
+
+  merge(branch: string): Promise<void>;
+
+  tag(name: string): Promise<void>;
+
+  push(remote: string, branch: string): Promise<void>;
+
+  currentBranch(): Promise<string>;
+}
+```
+
+---
+
+## Feature Service
+
+```ts
+export interface FeatureService {
+  start(name: string): Promise<void>;
+
+  finish(name: string): Promise<void>;
+
+  list(): Promise<string[]>;
+}
+```
+
+---
+
+## Release Service
+
+```ts
+export interface ReleaseService {
+  start(version: string): Promise<void>;
+
+  finish(version: string): Promise<void>;
+}
+```
+
+---
+
+## Hotfix Service
+
+```ts
+export interface HotfixService {
+  start(version: string): Promise<void>;
+
+  finish(version: string): Promise<void>;
+}
+```
+
+---
+
+## GitFlow Config
+
+```ts
+export interface GitFlowConfig {
+  main: string;
+
+  develop: string;
+
+  featurePrefix: string;
+
+  releasePrefix: string;
+
+  hotfixPrefix: string;
+
+  supportPrefix: string;
+}
+```
+
+نمونه فایل:
+
+```json
+{
+  "main": "main",
+  "develop": "develop",
+  "featurePrefix": "feature/",
+  "releasePrefix": "release/",
+  "hotfixPrefix": "hotfix/",
+  "supportPrefix": "support/"
+}
+```
+
+---
+
+## دستورات CLI
+
+```bash
+gitflow init
+
+gitflow feature start login
+
+gitflow feature finish login
+
+gitflow release start 1.5.0
+
+gitflow release finish 1.5.0
+
+gitflow hotfix start 1.5.1
+
+gitflow hotfix finish 1.5.1
+
+gitflow support start 1.x
+```
+
+---
+
+## نمونه پیاده‌سازی Feature Start
+
+```ts
+export class FeatureServiceImpl {
+  constructor(
+    private git: Git,
+    private config: GitFlowConfig,
+  ) {}
+
+  async start(name: string): Promise<void> {
+    await this.git.checkout(this.config.develop);
+
+    await this.git.createBranch(`${this.config.featurePrefix}${name}`);
+
+    await this.git.checkout(`${this.config.featurePrefix}${name}`);
+  }
+}
+```
+
+---
+
+## نمونه اجرای CLI
+
+```bash
+$ gitflow feature start auth
+```
+
+معادل اجرای دستورات زیر خواهد بود:
+
+```bash
+git checkout develop
+
+git checkout -b feature/auth
+```
+
+---
+
+## قابلیت‌های پیشرفته
+
+می‌توانید امکانات زیر را نیز اضافه کنید:
+
+- پشتیبانی از GitHub، GitLab و Bitbucket
+- اعتبارسنجی نام شاخه‌ها
+- قوانین Semantic Versioning
+- تولید خودکار Release Notes
+- ایجاد خودکار Pull Request
+- یکپارچه‌سازی با CI/CD
+- مدیریت چند Remote
+- Commit Convention (مانند Conventional Commits)
+- پشتیبانی از امضای GPG
+- Hookهای سفارشی قبل و بعد از عملیات
+- حالت Dry Run برای نمایش دستورات بدون اجرا
+- امکان Undo برای برخی عملیات
+- خروجی رنگی و تعاملی در CLI
+- معماری افزونه (Plugin) برای اضافه کردن جریان‌های کاری سفارشی
+
+اگر هدفت ساخت یک پروژه متن‌باز و حرفه‌ای است، پیشنهاد می‌کنم آن را به‌صورت **ابزار CLI ماژولار** طراحی کنیم؛ به‌گونه‌ای که هر دستور (`feature`، `release`، `hotfix` و ...) یک ماژول مستقل با اینترفیس مشخص باشد و در آینده بتوان قابلیت‌های جدید را بدون تغییر هسته سیستم اضافه کرد. این معماری از نظر نگهداری، تست‌پذیری و توسعه‌پذیری بسیار مناسب است.
+
+بله. در واقع **GitFlow دیگر بهترین انتخاب برای همه پروژه‌ها نیست**. زمانی که GitFlow معرفی شد، انتشار نرم‌افزارها معمولاً دوره‌ای (مثلاً هر چند ماه یک نسخه) بود، اما امروزه با CI/CD، انتشار روزانه یا حتی چندین بار در روز رایج شده است.
+
+به جای اینکه فقط بپرسیم «چه چیزی بهتر از GitFlow است؟»، بهتر است به این فکر کنیم که **چه Workflowای برای نوع پروژه مناسب‌تر است**.
+
+## ۱. GitFlow (کلاسیک)
+
+```text
+main
+ │
+ ├────────────── develop
+ │                │
+ │                ├── feature/login
+ │                ├── feature/payment
+ │                └── feature/profile
+ │
+ ├── release/2.0
+ │
+ └── hotfix/2.0.1
+```
+
+مزایا
+
+- مناسب نرم‌افزارهای نسخه‌بندی شده
+- مناسب تیم‌های بزرگ
+- انتشارهای کنترل‌شده
+- Hotfix مستقل
+
+معایب
+
+- شاخه‌های زیاد
+- Merge زیاد
+- Conflict بیشتر
+- مناسب Continuous Deployment نیست
+
+---
+
+# ۲. GitHub Flow
+
+```text
+main
+ │
+ ├── feature/login
+ ├── feature/payment
+ └── feature/profile
+```
+
+هر Feature
+
+```
+Create Branch
+
+↓
+
+Commit
+
+↓
+
+Pull Request
+
+↓
+
+Review
+
+↓
+
+Merge
+
+↓
+
+Deploy
+```
+
+مزایا
+
+- بسیار ساده
+- مناسب CI/CD
+- مناسب Cloud
+- Deploy مداوم
+
+---
+
+# ۳. GitLab Flow
+
+ترکیبی از GitFlow و GitHub Flow
+
+```
+main
+
+↓
+
+staging
+
+↓
+
+production
+```
+
+یا
+
+```
+main
+
+↓
+
+production
+```
+
+یا
+
+```
+main
+
+↓
+
+environment branches
+```
+
+---
+
+# ۴. Trunk Based Development
+
+امروزه محبوب‌ترین Workflow در شرکت‌های بزرگ است.
+
+```text
+main
+
+├── short branch
+
+├── short branch
+
+├── short branch
+```
+
+ویژگی‌ها
+
+- Branch عمر کمتر از یک روز
+- Merge سریع
+- Feature Flag
+- CI قوی
+
+این روش توسط بسیاری از شرکت‌های بزرگ استفاده می‌شود، از جمله Google، Meta و Netflix در شکل‌ها و ابزارهای متناسب با فرایندهای داخلی‌شان.
+
+---
+
+# ۵. Release Train
+
+```
+main
+
+↓
+
+weekly release
+
+↓
+
+monthly release
+
+↓
+
+LTS
+```
+
+مانند پروژه‌هایی که هر هفته انتشار دارند.
+
+---
+
+# ۶. Environment Flow
+
+```
+feature
+
+↓
+
+develop
+
+↓
+
+testing
+
+↓
+
+qa
+
+↓
+
+staging
+
+↓
+
+production
+```
+
+بیشتر در سازمان‌ها استفاده می‌شود.
+
+---
+
+# ۷. Monorepo Flow
+
+```
+main
+
+↓
+
+apps/
+
+packages/
+
+libs/
+```
+
+تمام پروژه‌ها روی یک شاخه اصلی مدیریت می‌شوند.
+
+---
+
+# اگر قرار باشد امروز GitFlow را از نو طراحی کنیم
+
+من دیگر آن را فقط به چند نوع Branch محدود نمی‌کنم، بلکه آن را به یک **Workflow Engine** تبدیل می‌کنم.
+
+مثلاً:
+
+```
+Workflow
+│
+├── Feature
+├── Bugfix
+├── Hotfix
+├── Release
+├── Experiment
+├── Spike
+├── Prototype
+├── Security
+├── Migration
+├── Refactor
+├── Docs
+├── Test
+├── Chore
+├── Infra
+├── Dependency
+├── Localization
+├── Performance
+└── Research
+```
+
+هر Workflow قوانین مخصوص خودش را دارد.
+
+مثلاً
+
+```
+Feature
+
+↓
+
+Need Review
+
+↓
+
+Need Tests
+
+↓
+
+Deploy Preview
+
+↓
+
+Merge
+```
+
+اما
+
+```
+Hotfix
+
+↓
+
+Emergency
+
+↓
+
+Fast Review
+
+↓
+
+Production
+
+↓
+
+Back Merge
+```
+
+یا
+
+```
+Research
+
+↓
+
+No Review
+
+↓
+
+Expire After 7 Days
+```
+
+---
+
+# قابلیت‌هایی که می‌توان به GitFlow اضافه کرد
+
+اگر بخواهید یک ابزار مدرن‌تر از GitFlow بسازید، می‌توانید این قابلیت‌ها را اضافه کنید:
+
+- تعریف انواع Branch به‌صورت قابل پیکربندی (Plugin)
+- قوانین سفارشی برای نام‌گذاری Branchها
+- اعتبارسنجی Commitها (مانند Conventional Commits)
+- ایجاد خودکار Pull Request
+- اجرای Hookهای قبل و بعد از هر عملیات
+- پشتیبانی از Feature Flag و Release Toggle
+- تعیین سیاست Merge (Merge Commit، Squash، Rebase)
+- مدیریت نسخه با Semantic Versioning
+- تولید خودکار Release Notes و Changelog
+- یکپارچگی با CI/CD برای اجرای تست‌ها و استقرار
+- مدیریت وابستگی بین Branchها (مثلاً یک Feature وابسته به Feature دیگر)
+- شاخه‌های موقت با تاریخ انقضا (TTL) و پاک‌سازی خودکار
+- سیاست‌های امنیتی برای Branchهای حساس (مثلاً الزام تأیید چند نفر برای Hotfix)
+
+## پیشنهادی که برای پروژه TypeScript شما دارم
+
+با توجه به اینکه قبلاً درباره طراحی ابزارهای توسعه‌پذیر و معماری ماژولار صحبت کرده‌ایم، اگر قرار باشد این پروژه را از صفر بسازیم، من اصلاً نام آن را **GitFlow** نمی‌گذارم.
+
+آن را به یک **Git Workflow Engine** تبدیل می‌کنم؛ یعنی هسته فقط عملیات Git را انجام می‌دهد و همهٔ Workflowها (GitFlow، GitHub Flow، GitLab Flow، Trunk-Based و حتی Workflowهای اختصاصی سازمان‌ها) به‌صورت **Plugin** روی آن نصب می‌شوند.
+
+در چنین معماری، ابزار شما به جای تقلید از GitFlow، به یک چارچوب عمومی برای تعریف و اجرای گردش‌کارهای Git تبدیل می‌شود؛ چیزی که هم برای پروژه‌های کوچک و هم برای سازمان‌های بزرگ قابل استفاده و توسعه خواهد بود.
+
+انتخاب بسیار خوبی است. اگر قرار باشد چنین پروژه‌ای در سطح حرفه‌ای ساخته شود، قبل از نوشتن حتی یک خط کد، باید مجموعه‌ای از **RFC (Request for Comments)** تهیه شود؛ دقیقاً مانند پروژه‌های بزرگ. این کار باعث می‌شود معماری، قراردادها و تصمیم‌های طراحی از ابتدا مشخص باشند و توسعه در آینده بدون آشفتگی ادامه پیدا کند.
+
+من پیشنهاد می‌کنم این پروژه را با نام موقت **Git Workflow Engine (GWE)** آغاز کنیم؛ GitFlow فقط یکی از پلاگین‌های آن خواهد بود.
+
+## ساختار RFCها
+
+```text
+rfcs/
+│
+├── 0001-project-vision.md
+├── 0002-architecture.md
+├── 0003-domain-model.md
+├── 0004-workflow-engine.md
+├── 0005-plugin-system.md
+├── 0006-command-system.md
+├── 0007-git-abstraction.md
+├── 0008-state-machine.md
+├── 0009-configuration.md
+├── 0010-events.md
+├── 0011-hooks.md
+├── 0012-security.md
+├── 0013-permissions.md
+├── 0014-versioning.md
+├── 0015-release-engine.md
+├── 0016-branch-policies.md
+├── 0017-merge-strategies.md
+├── 0018-validation.md
+├── 0019-cli.md
+├── 0020-api.md
+├── 0021-sdk.md
+├── 0022-storage.md
+├── 0023-telemetry.md
+├── 0024-testing.md
+├── 0025-roadmap.md
+└── README.md
+```
+
+این مجموعه تقریباً همه جنبه‌های پروژه را پوشش می‌دهد و هر RFC مستقل، قابل بازبینی و نسخه‌بندی خواهد بود.
+
+---
+
+# RFC-0001 — Project Vision
+
+## عنوان
+
+**Git Workflow Engine**
+
+---
+
+## وضعیت
+
+```
+Status: Draft
+Version: 1
+Authors:
+Created:
+Updated:
+```
+
+---
+
+## مسئله
+
+امروزه ابزارهایی مانند GitFlow، GitHub Flow و GitLab Flow هر کدام برای سناریوی خاصی طراحی شده‌اند. بسیاری از تیم‌ها نیاز به ترکیبی از این گردش‌کارها یا حتی Workflowهای کاملاً سفارشی دارند، اما ابزارهای موجود معمولاً:
+
+- به یک مدل ثابت وابسته‌اند.
+- توسعه‌پذیری محدودی دارند.
+- قوانین سازمانی را به‌سختی اعمال می‌کنند.
+- فاقد معماری افزونه‌ای هستند.
+
+---
+
+## چشم‌انداز
+
+ایجاد یک موتور مستقل برای مدیریت Workflowهای Git که بتواند:
+
+- GitFlow را اجرا کند.
+- GitHub Flow را اجرا کند.
+- GitLab Flow را اجرا کند.
+- Trunk-Based Development را اجرا کند.
+- Workflowهای سفارشی سازمانی را اجرا کند.
+- بدون تغییر هسته، از طریق Plugin گسترش یابد.
+
+---
+
+## اهداف
+
+- معماری ماژولار
+- توسعه‌پذیری
+- قابلیت تست بالا
+- استقلال از ارائه‌دهنده Git (GitHub، GitLab، Bitbucket و ...)
+- پشتیبانی از CLI، API و SDK
+- قابلیت اجرای خودکار سیاست‌ها و قوانین
+
+---
+
+## خارج از دامنه (Non-Goals)
+
+در نسخه اول:
+
+- ایجاد سرویس میزبانی Git
+- جایگزینی خود Git
+- توسعه رابط گرافیکی
+- مدیریت CI/CD
+
+این قابلیت‌ها می‌توانند در آینده به‌صورت افزونه اضافه شوند.
+
+---
+
+## اصول طراحی
+
+1. **Git-agnostic**: وابسته به هیچ سرویس خاصی نباشد.
+2. **Plugin-first**: هر قابلیت جدید به‌صورت افزونه توسعه یابد.
+3. **Configuration over Code**: رفتارها تا حد ممکن از طریق پیکربندی تعریف شوند.
+4. **Event-driven**: عملیات به‌صورت رویدادمحور انجام شوند.
+5. **Policy-based**: قوانین و سیاست‌ها قابل تعریف و جایگزینی باشند.
+6. **Testable**: همه اجزا قابل آزمون باشند.
+7. **Extensible**: توسعه بدون تغییر هسته امکان‌پذیر باشد.
+
+---
+
+## معماری سطح بالا
+
+```text
+                CLI
+                 │
+                 ▼
+         Command Dispatcher
+                 │
+                 ▼
+        Workflow Engine Core
+                 │
+      ┌──────────┼──────────┐
+      ▼          ▼          ▼
+ Workflow     Policy     Event Bus
+ Engine       Engine
+      │          │
+      └──────┬───┘
+             ▼
+        Git Abstraction
+             │
+             ▼
+        Git Repository
+```
+
+---
+
+## اجزای اصلی
+
+- Core
+- Workflow Engine
+- Policy Engine
+- Plugin Loader
+- Command Dispatcher
+- Event Bus
+- Hook System
+- Git Adapter
+- Storage
+- Configuration
+- SDK
+- CLI
+
+---
+
+## افزونه‌های رسمی
+
+نسخه اولیه می‌تواند شامل این پلاگین‌ها باشد:
+
+- GitFlow
+- GitHub Flow
+- GitLab Flow
+- Trunk-Based
+- Conventional Commits
+- Semantic Versioning
+- Release Notes
+- Changelog
+- Branch Policy
+- Pull Request Policy
+
+---
+
+## مزیت رقابتی
+
+به‌جای یک ابزار برای یک Workflow، این پروژه یک **چارچوب عمومی** برای تعریف و اجرای Workflowهای Git خواهد بود. سازمان‌ها می‌توانند قوانین، Branchها، مراحل بازبینی، انتشار و سایر سیاست‌ها را بدون تغییر در هسته سیستم تعریف و اجرا کنند.
+
+### گام بعدی
+
+به نظر من مهم‌ترین RFC بعد از این، **RFC-0002: Architecture** است. در آن، لایه‌ها، مرزهای ماژول‌ها، قراردادهای بین اجزا، سیستم Dependency Injection، Event Bus، Plugin Loader و نحوه تعامل همه بخش‌ها را با جزئیات طراحی می‌کنیم. این RFC پایه تمام پیاده‌سازی TypeScript خواهد بود.
+
+عالی. از اینجا به بعد پروژه را مانند یک پروژه متن‌باز واقعی پیش می‌بریم. هر RFC یک سند رسمی خواهد بود و تا زمانی که به مرحله **Accepted** نرسد، وارد پیاده‌سازی نمی‌شویم.
+
+من فقط زمانی از شما تأیید می‌گیرم که یک تصمیم معماری اثر بلندمدت داشته باشد و تغییر آن در آینده هزینه‌بر باشد. بقیه موارد را ادامه می‌دهم.
+
+---
+
+# RFC-0002 — Architecture
+
+## وضعیت
+
+```text
+RFC: 0002
+Title: System Architecture
+
+Status: Draft
+
+Authors:
+    Mohammad
+    OpenAI
+
+Created:
+    2026-07-08
+
+Depends:
+    RFC-0001
+
+Supersedes:
+    None
+```
+
+---
+
+# مقدمه
+
+این RFC معماری کل سیستم را تعریف می‌کند.
+
+هدف این سند این است که:
+
+- هیچ ماژولی وابستگی چرخه‌ای نداشته باشد.
+- تمام قابلیت‌ها قابل Plugin باشند.
+- بتوان در آینده رابط‌های مختلف (CLI، API، GUI، IDE Extension و...) را بدون تغییر Core اضافه کرد.
+- وابستگی به GitHub، GitLab یا هر سرویس دیگری از طریق Adapterها انجام شود.
+
+---
+
+# فلسفه معماری
+
+معماری بر پایه سه اصل است:
+
+```
+Everything is a Service
+
+Everything emits Events
+
+Everything is Replaceable
+```
+
+---
+
+# معماری لایه‌ای
+
+```
+┌────────────────────────────┐
+│ CLI                        │
+├────────────────────────────┤
+│ REST API                   │
+├────────────────────────────┤
+│ VSCode Extension           │
+├────────────────────────────┤
+│ SDK                        │
+└──────────────┬─────────────┘
+               │
+               ▼
+┌────────────────────────────┐
+│ Command Dispatcher         │
+└──────────────┬─────────────┘
+               │
+               ▼
+┌────────────────────────────┐
+│ Workflow Engine            │
+├────────────────────────────┤
+│ Policy Engine              │
+├────────────────────────────┤
+│ Rule Engine                │
+├────────────────────────────┤
+│ Event Bus                  │
+├────────────────────────────┤
+│ Hook Engine                │
+└──────────────┬─────────────┘
+               │
+               ▼
+┌────────────────────────────┐
+│ Git Abstraction            │
+├────────────────────────────┤
+│ Storage                    │
+├────────────────────────────┤
+│ Configuration              │
+└──────────────┬─────────────┘
+               │
+               ▼
+      Git Repository
+```
+
+---
+
+# Dependency Rule
+
+قانون اصلی پروژه
+
+```
+Outer Layer
+
+↓
+
+Inner Layer
+
+↓
+
+Core
+```
+
+هیچ لایه‌ای اجازه وابستگی معکوس ندارد.
+
+مثلاً
+
+```
+CLI
+
+↓
+
+Workflow Engine
+
+↓
+
+Git Adapter
+
+↓
+
+Git
+```
+
+ولی
+
+```
+Git Adapter
+
+↓
+
+CLI
+```
+
+کاملاً ممنوع است.
+
+---
+
+# Core
+
+Core کوچک‌ترین قسمت سیستم است.
+
+Core هیچ اطلاعی از موارد زیر ندارد:
+
+- GitHub
+- GitLab
+- Bitbucket
+- CLI
+- API
+- فایل
+- پایگاه داده
+
+Core فقط Domain را می‌شناسد.
+
+---
+
+# Domain
+
+Domain شامل موارد زیر است:
+
+```
+Workflow
+
+Branch
+
+Policy
+
+Rule
+
+Action
+
+Transition
+
+Repository
+
+Tag
+
+Release
+
+Version
+
+Plugin
+```
+
+هیچ وابستگی خارجی در Domain مجاز نیست.
+
+---
+
+# Application Layer
+
+این لایه Use Caseها را اجرا می‌کند.
+
+نمونه:
+
+```
+CreateFeature
+
+FinishFeature
+
+StartRelease
+
+FinishRelease
+
+MergeBranch
+
+DeleteBranch
+
+ValidateWorkflow
+```
+
+---
+
+# Infrastructure
+
+تنها جایی است که به Git واقعی وصل می‌شود.
+
+مثلاً
+
+```
+Simple Git
+
+libgit2
+
+JGit
+
+isomorphic-git
+
+git executable
+```
+
+همه از طریق Adapter متصل می‌شوند.
+
+---
+
+# Adapter Pattern
+
+```
+Git Repository
+
+↓
+
+Git Interface
+
+↓
+
+SimpleGit Adapter
+
+↓
+
+Git CLI Adapter
+
+↓
+
+JGit Adapter
+```
+
+Workflow Engine هرگز Simple Git را مستقیماً صدا نمی‌زند.
+
+---
+
+# Plugin Architecture
+
+تمام قابلیت‌ها باید Plugin باشند.
+
+حتی GitFlow.
+
+```
+Core
+
+↓
+
+Plugin Loader
+
+↓
+
+GitFlow Plugin
+
+↓
+
+GitHub Flow Plugin
+
+↓
+
+GitLab Plugin
+
+↓
+
+Conventional Commit Plugin
+
+↓
+
+Release Plugin
+
+↓
+
+Notification Plugin
+```
+
+Core نباید حتی بداند GitFlow چیست.
+
+---
+
+# Event Driven
+
+تمام عملیات Event تولید می‌کنند.
+
+```
+BranchCreated
+
+BranchDeleted
+
+BranchMerged
+
+ReleaseStarted
+
+ReleaseFinished
+
+TagCreated
+
+WorkflowStarted
+
+WorkflowCompleted
+```
+
+---
+
+# Event Flow
+
+```
+Feature Started
+
+↓
+
+Create Branch
+
+↓
+
+Emit BranchCreated
+
+↓
+
+Policy Engine
+
+↓
+
+Hooks
+
+↓
+
+Notification
+
+↓
+
+Metrics
+```
+
+هیچ بخشی مستقیماً Notification را صدا نمی‌زند.
+
+---
+
+# Policy Engine
+
+تمام قوانین اینجا قرار دارند.
+
+مثلاً
+
+```
+Main is Protected
+
+↓
+
+Need Review
+
+↓
+
+Need Tests
+
+↓
+
+Need Approval
+
+↓
+
+Can Merge
+```
+
+یا
+
+```
+Hotfix
+
+↓
+
+Skip Review
+
+↓
+
+Need Security Approval
+
+↓
+
+Deploy
+```
+
+---
+
+# Rule Engine
+
+Policy فقط تصمیم می‌گیرد.
+
+Rule عملیات را انجام می‌دهد.
+
+مثلاً
+
+```
+Rule
+
+If
+
+Branch == main
+
+↓
+
+Reject Commit
+```
+
+یا
+
+```
+Rule
+
+If
+
+Version < Current
+
+↓
+
+Reject Release
+```
+
+---
+
+# Hook Engine
+
+هر مرحله Hook دارد.
+
+```
+Before Branch
+
+After Branch
+
+Before Merge
+
+After Merge
+
+Before Release
+
+After Release
+```
+
+---
+
+# Storage
+
+Storage قابل تعویض است.
+
+```
+Memory
+
+JSON
+
+SQLite
+
+PostgreSQL
+
+Redis
+```
+
+Core هیچ اطلاعی ندارد.
+
+---
+
+# Configuration
+
+Configuration فقط یک Provider است.
+
+```
+File
+
+↓
+
+Environment
+
+↓
+
+Remote
+
+↓
+
+Database
+```
+
+---
+
+# Logging
+
+Logger فقط Interface است.
+
+```
+Console
+
+File
+
+Cloud
+
+OpenTelemetry
+```
+
+---
+
+# Metrics
+
+Metric نیز Plugin است.
+
+```
+Prometheus
+
+OpenTelemetry
+
+Grafana
+
+Console
+```
+
+---
+
+# Security
+
+امنیت نیز Plugin است.
+
+```
+RBAC
+
+ABAC
+
+OIDC
+
+LDAP
+
+GitHub Team
+```
+
+---
+
+# Dependency Injection
+
+تمام Componentها از طریق Container ساخته می‌شوند.
+
+```
+Container
+
+↓
+
+Resolve
+
+↓
+
+WorkflowEngine
+
+↓
+
+GitService
+
+↓
+
+PolicyService
+
+↓
+
+Logger
+```
+
+هیچ `new` مستقیمی خارج از Composition Root وجود ندارد.
+
+---
+
+# اصل مهم
+
+در این پروژه تقریباً همه چیز باید **Interface** باشد، نه پیاده‌سازی.
+
+```
+Workflow
+
+↓
+
+Interface
+
+↓
+
+Implementation
+```
+
+---
+
+# تصمیم معماری شماره ۱ (نیازمند تأیید)
+
+این اولین تصمیمی است که اثر بلندمدت دارد و ترجیح می‌دهم قبل از ادامه RFCها تأیید شود.
+
+### پیشنهاد
+
+هسته پروژه را بر اساس **DDD + Clean Architecture + Event Sourcing (اختیاری) + CQRS (اختیاری)** طراحی کنیم.
+
+به این معنا که:
+
+- **DDD** برای مدل‌سازی دامنه (Workflow، Policy، Branch و...)
+- **Clean Architecture** برای جداسازی کامل لایه‌ها
+- **Event Sourcing** فقط برای رویدادهای مهم (قابل فعال/غیرفعال)
+- **CQRS** به‌صورت افزونه، نه اجباری
+
+این ترکیب پیچیدگی اولیه را کمی افزایش می‌دهد، اما پروژه را برای سال‌ها توسعه و اضافه شدن Pluginهای متعدد آماده می‌کند.
+
+اگر این تصمیم را تأیید کنید، RFCهای بعدی (Domain Model، Event Bus، Plugin System، Command System و State Machine) همگی بر همین پایه نوشته خواهند شد.
+
+عالی. این تصمیم را به عنوان **ADR-0001 (Architecture Decision Record)** نیز ثبت می‌کنیم، چون یکی از تصمیمات بنیادی پروژه است.
+
+---
+
+# ADR-0001
+
+```text
+Title:
+Adopt DDD + Clean Architecture + Plugin-first Design
+
+Status:
+Accepted
+
+Decision:
+The Git Workflow Engine shall be designed using:
+
+- Domain Driven Design
+- Clean Architecture
+- Plugin-first
+- Event-driven
+- Optional CQRS
+- Optional Event Sourcing
+
+Consequences:
+
++ Highly extensible
++ Independent plugins
++ Easy testing
++ Replaceable infrastructure
++ Long-term maintainability
+
+Tradeoffs:
+
+- Higher initial complexity
+- More interfaces
+- More abstraction
+```
+
+---
+
+# از اینجا به بعد
+
+از RFC-0003 به بعد دیگر در حال طراحی یک CLI نیستیم.
+
+در واقع داریم یک **Platform** طراحی می‌کنیم.
+
+تقریباً چیزی شبیه
+
+```
+Git
+
++
+
+Docker
+
++
+
+Kubernetes
+
++
+
+Terraform
+
++
+
+Plugin System
+```
+
+اما برای Workflowهای Git.
+
+---
+
+# RFC-0003 — Domain Model
+
+این مهم‌ترین RFC کل پروژه است.
+
+اگر Domain درست طراحی شود، ۷۰٪ پروژه حل شده است.
+
+---
+
+## فلسفه
+
+Git فقط فایل و Commit نمی‌شناسد.
+
+Git Workflow چیزهای بیشتری دارد.
+
+ما باید Domain واقعی را مدل کنیم.
+
+---
+
+## موجودیت‌های اصلی
+
+```
+Repository
+```
+
+```
+Workflow
+```
+
+```
+Branch
+```
+
+```
+Commit
+```
+
+```
+Merge
+```
+
+```
+Release
+```
+
+```
+Version
+```
+
+```
+Tag
+```
+
+```
+Policy
+```
+
+```
+Rule
+```
+
+```
+Action
+```
+
+```
+Transition
+```
+
+```
+Plugin
+```
+
+```
+Event
+```
+
+```
+Hook
+```
+
+```
+Pipeline
+```
+
+```
+Environment
+```
+
+```
+Artifact
+```
+
+---
+
+# Domain Relationship
+
+```
+Repository
+    │
+    ├───────────── Branch
+    │                  │
+    │                  ├──────── Commit
+    │                  │
+    │                  └──────── Merge
+    │
+    ├───────────── Workflow
+    │                  │
+    │                  ├──────── Transition
+    │                  ├──────── Policy
+    │                  ├──────── Rule
+    │                  └──────── State
+    │
+    ├───────────── Release
+    │                  │
+    │                  ├──────── Version
+    │                  ├──────── Tag
+    │                  └──────── Artifact
+    │
+    └───────────── Plugin
+```
+
+---
+
+# Aggregate Rootها
+
+فقط چند Aggregate Root خواهیم داشت.
+
+```
+Repository
+```
+
+```
+Workflow
+```
+
+```
+Release
+```
+
+```
+Plugin
+```
+
+همه چیز دیگر زیرمجموعه این‌هاست.
+
+---
+
+# Repository Aggregate
+
+```
+Repository
+```
+
+دارای
+
+```
+Branches
+
+Tags
+
+Remotes
+
+Configurations
+
+Hooks
+
+Workflow
+```
+
+---
+
+# Branch Aggregate
+
+```
+Branch
+```
+
+دارای
+
+```
+Name
+
+Type
+
+Parent
+
+Children
+
+Commits
+
+Policies
+
+Metadata
+```
+
+---
+
+# Branch Type
+
+Branch دیگر enum ساده نیست.
+
+بلکه Object است.
+
+```
+Feature
+
+Release
+
+Hotfix
+
+Experiment
+
+Spike
+
+Research
+
+Security
+
+Maintenance
+
+Prototype
+
+Infrastructure
+
+Performance
+
+Localization
+
+Dependency
+
+Archive
+
+Temporary
+
+Support
+
+Vendor
+
+Migration
+
+Testing
+
+Automation
+
+AI
+```
+
+کاربر نیز می‌تواند نوع جدید تعریف کند.
+
+---
+
+# Branch State Machine
+
+هر Branch فقط چند وضعیت ندارد.
+
+```
+Created
+
+↓
+
+Active
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Merged
+
+↓
+
+Archived
+
+↓
+
+Deleted
+```
+
+اما Plugin می‌تواند Stateهای بیشتری اضافه کند.
+
+مثلاً
+
+```
+Security Review
+```
+
+یا
+
+```
+Performance Validation
+```
+
+---
+
+# Workflow Aggregate
+
+Workflow شامل
+
+```
+States
+
+Transitions
+
+Policies
+
+Rules
+
+Events
+
+Hooks
+
+Actions
+```
+
+است.
+
+در حقیقت Workflow یک **ماشین حالت (State Machine)** است، نه مجموعه‌ای از دستورات شرطی.
+
+---
+
+# State
+
+هر State شامل
+
+```
+ID
+
+Name
+
+Description
+
+Permissions
+
+Allowed Actions
+
+Metadata
+```
+
+است.
+
+---
+
+# Transition
+
+Transition فقط تغییر وضعیت نیست.
+
+دارای
+
+```
+Source
+
+Destination
+
+Conditions
+
+Validators
+
+Events
+
+Rollback
+
+Timeout
+
+Retry
+```
+
+است.
+
+---
+
+# Action
+
+Action کاری انجام می‌دهد.
+
+```
+Create Branch
+
+Merge
+
+Delete
+
+Tag
+
+Push
+
+Checkout
+
+Cherry Pick
+
+Squash
+
+Rebase
+
+Deploy
+
+Notify
+```
+
+اما Plugin می‌تواند Action جدید اضافه کند.
+
+---
+
+# Policy
+
+Policy تصمیم می‌گیرد.
+
+مثلاً
+
+```
+Need Review
+```
+
+```
+Need CI
+```
+
+```
+Need Security Scan
+```
+
+```
+Need Two Approval
+```
+
+---
+
+# Rule
+
+Rule قابل اجراست.
+
+مثلاً
+
+```
+Reject Push
+```
+
+```
+Reject Merge
+```
+
+```
+Reject Release
+```
+
+```
+Auto Assign Reviewer
+```
+
+```
+Require Signed Commit
+```
+
+---
+
+# Event
+
+تمام عملیات Event تولید می‌کنند.
+
+```
+BranchCreated
+
+BranchRenamed
+
+BranchDeleted
+
+BranchProtected
+
+CommitPushed
+
+MergeStarted
+
+MergeCompleted
+
+MergeRejected
+
+ReleaseStarted
+
+ReleaseCompleted
+
+WorkflowStarted
+
+WorkflowCompleted
+```
+
+---
+
+# Hook
+
+Hook نیز Domain Object است.
+
+```
+BeforeBranchCreate
+
+AfterBranchCreate
+
+BeforeMerge
+
+AfterMerge
+
+BeforeRelease
+
+AfterRelease
+
+BeforeDeploy
+
+AfterDeploy
+```
+
+---
+
+# Plugin
+
+Plugin نیز یک Aggregate مستقل است.
+
+دارای
+
+```
+Manifest
+
+Capabilities
+
+Permissions
+
+Dependencies
+
+Lifecycle
+
+Configuration
+
+Services
+
+Commands
+
+Events
+
+UI Extensions
+```
+
+است.
+
+---
+
+# مهم‌ترین تغییر نسبت به GitFlow
+
+در این پروژه، **Workflow خودش یک موجودیت دامنه است**.
+
+یعنی GitFlow دیگر در هسته وجود ندارد؛ فقط یک Plugin است که یک State Machine، تعدادی Policy، Rule و Transition را ثبت می‌کند.
+
+این تفاوت بنیادین باعث می‌شود همان هسته بتواند GitFlow، GitHub Flow، Trunk-Based Development یا حتی Workflowهای اختصاصی سازمان‌ها را اجرا کند، بدون آنکه Core تغییری کند.
+
+## گام بعدی
+
+RFC-0004 را به **Workflow Engine** اختصاص می‌دهیم. در آن مشخص می‌کنیم که Engine چگونه State Machine را اجرا می‌کند، Transitionها را اعتبارسنجی می‌کند، Event منتشر می‌کند و Pluginها را در جریان اجرای Workflow درگیر می‌کند. این RFC قلب اجرایی کل سیستم خواهد بود.
+
+عالی، از اینجا وارد مهم‌ترین بخش پروژه می‌شویم. اگر RFC-0003 قلب دامنه (Domain) بود، **RFC-0004 قلب اجرایی (Runtime)** است. اگر این RFC درست طراحی شود، اضافه کردن GitFlow، GitHub Flow یا هر Workflow جدید فقط به نوشتن یک Plugin محدود می‌شود.
+
+---
+
+# RFC-0004 — Workflow Engine
+
+```text
+RFC: 0004
+
+Title:
+Workflow Engine
+
+Status:
+Draft
+
+Depends:
+0001
+0002
+0003
+
+Type:
+Core
+```
+
+---
+
+# هدف
+
+Workflow Engine مسئول اجرای Workflowها است.
+
+نکته بسیار مهم:
+
+> Engine هیچ اطلاعی از GitFlow، GitHub Flow یا Trunk-Based Development ندارد.
+
+Engine فقط State Machine اجرا می‌کند.
+
+---
+
+# مسئولیت‌ها
+
+Engine مسئول موارد زیر است:
+
+- اجرای Workflow
+- اعتبارسنجی Transition
+- اجرای Actionها
+- انتشار Event
+- فراخوانی Hookها
+- اعمال Policyها
+- Rollback
+- Retry
+- Timeout
+- Audit
+
+اما مسئول این موارد نیست:
+
+- اجرای Git
+- ذخیره‌سازی
+- CLI
+- API
+- Plugin Discovery
+- نمایش خروجی
+
+---
+
+# معماری Runtime
+
+```text
+                Command
+
+                   │
+
+                   ▼
+
+        Workflow Engine
+
+                   │
+
+      ┌────────────┴────────────┐
+
+      ▼                         ▼
+
+ Policy Engine           State Machine
+
+      │                         │
+
+      └────────────┬────────────┘
+
+                   ▼
+
+             Action Executor
+
+                   │
+
+          ┌────────┴────────┐
+
+          ▼                 ▼
+
+      Event Bus         Hook Engine
+
+          │                 │
+
+          ▼                 ▼
+
+        Plugins         Git Adapter
+```
+
+---
+
+# Workflow Instance
+
+هر بار اجرای یک Workflow یک نمونه مستقل ایجاد می‌کند.
+
+مثلاً:
+
+```
+Feature Login
+
+↓
+
+WorkflowInstance #784
+```
+
+یا
+
+```
+Release 2.1
+
+↓
+
+WorkflowInstance #812
+```
+
+هر Instance وضعیت خودش را دارد.
+
+---
+
+# اجزای WorkflowInstance
+
+```text
+InstanceId
+
+WorkflowId
+
+CurrentState
+
+Context
+
+Variables
+
+History
+
+Events
+
+Metadata
+
+StartedAt
+
+EndedAt
+
+Duration
+
+Result
+```
+
+---
+
+# Execution Context
+
+تمام اطلاعات داخل Context قرار می‌گیرد.
+
+مثلاً:
+
+```text
+Repository
+
+CurrentBranch
+
+Author
+
+Version
+
+Environment
+
+User
+
+Plugin Data
+
+Variables
+
+Options
+```
+
+Actionها فقط Context را دریافت می‌کنند و هیچ وابستگی مستقیمی به CLI یا Git ندارند.
+
+---
+
+# Workflow State Machine
+
+فرض کنید Plugin زیر ثبت شده است:
+
+```text
+Feature
+
+↓
+
+Created
+
+↓
+
+Coding
+
+↓
+
+Review
+
+↓
+
+Approved
+
+↓
+
+Merged
+
+↓
+
+Done
+```
+
+Engine فقط این Stateها را اجرا می‌کند.
+
+---
+
+# State Definition
+
+هر State شامل موارد زیر است:
+
+```text
+ID
+
+DisplayName
+
+Permissions
+
+Entry Actions
+
+Exit Actions
+
+Allowed Transitions
+
+Timeout
+
+Retry Policy
+
+Metadata
+```
+
+---
+
+# Transition
+
+هر Transition شامل:
+
+```text
+Source
+
+Destination
+
+Conditions
+
+Policies
+
+Validators
+
+Actions
+
+Rollback
+
+Events
+
+Priority
+```
+
+است.
+
+---
+
+# Execution Pipeline
+
+هر Transition دقیقاً این مراحل را طی می‌کند:
+
+```text
+Receive Command
+
+↓
+
+Load Workflow
+
+↓
+
+Load State
+
+↓
+
+Validate State
+
+↓
+
+Validate Policy
+
+↓
+
+Validate Rules
+
+↓
+
+Run Before Hooks
+
+↓
+
+Execute Actions
+
+↓
+
+Update State
+
+↓
+
+Emit Events
+
+↓
+
+Run After Hooks
+
+↓
+
+Persist
+
+↓
+
+Finish
+```
+
+همه Workflowها از همین Pipeline استفاده می‌کنند.
+
+---
+
+# Action Execution
+
+Actionها مستقل هستند.
+
+مثلاً:
+
+```text
+CheckoutBranch
+
+↓
+
+CreateBranch
+
+↓
+
+PushBranch
+
+↓
+
+CreatePR
+
+↓
+
+NotifySlack
+
+↓
+
+DeployPreview
+```
+
+هر Action فقط یک کار انجام می‌دهد.
+
+---
+
+# Action Pipeline
+
+```text
+Before Action
+
+↓
+
+Validate
+
+↓
+
+Execute
+
+↓
+
+Emit Event
+
+↓
+
+After Action
+```
+
+---
+
+# Composite Action
+
+Actionها می‌توانند ترکیب شوند.
+
+مثلاً:
+
+```text
+Start Feature
+
+↓
+
+Checkout Develop
+
+↓
+
+Create Branch
+
+↓
+
+Push
+
+↓
+
+Create PR
+
+↓
+
+Notify Team
+```
+
+در واقع یک Action بزرگ از چند Action کوچک تشکیل می‌شود.
+
+---
+
+# Async Action
+
+Actionها می‌توانند هم‌زمان اجرا شوند.
+
+مثلاً:
+
+```text
+Create PR
+
+↓
+
+Notify Slack
+
+↓
+
+Notify Teams
+
+↓
+
+Notify Discord
+```
+
+این‌ها وابستگی به یکدیگر ندارند و می‌توانند موازی اجرا شوند.
+
+---
+
+# Rollback
+
+اگر Action شماره ۴ شکست بخورد:
+
+```text
+Create Branch ✔
+
+Push ✔
+
+Create PR ✘
+```
+
+Engine تصمیم می‌گیرد:
+
+```
+Rollback؟
+
+یا
+
+Continue؟
+```
+
+این رفتار در Plugin تعریف می‌شود.
+
+---
+
+# Retry Policy
+
+هر Action می‌تواند Retry داشته باشد.
+
+مثلاً:
+
+```text
+Retry
+
+3 Times
+
+Delay
+
+5 Seconds
+```
+
+---
+
+# Timeout
+
+هر Action می‌تواند Timeout داشته باشد.
+
+```
+Git Push
+
+Timeout
+
+30 Seconds
+```
+
+---
+
+# History
+
+تمام اجرای Workflow ثبت می‌شود.
+
+```
+Created
+
+↓
+
+Checkout
+
+↓
+
+Create Branch
+
+↓
+
+Push
+
+↓
+
+Open PR
+
+↓
+
+Merged
+```
+
+---
+
+# Audit Log
+
+Audit از History جدا است.
+
+History برای اجرا است.
+
+Audit برای بازرسی.
+
+```
+User
+
+↓
+
+Action
+
+↓
+
+Time
+
+↓
+
+IP
+
+↓
+
+Result
+```
+
+---
+
+# Event Emission
+
+هر مرحله Event تولید می‌کند.
+
+```
+Workflow Started
+
+↓
+
+State Changed
+
+↓
+
+Action Executed
+
+↓
+
+Policy Failed
+
+↓
+
+Workflow Finished
+```
+
+---
+
+# Event Ordering
+
+ترتیب Eventها تضمین می‌شود.
+
+```
+Started
+
+↓
+
+Branch Created
+
+↓
+
+Branch Pushed
+
+↓
+
+PR Created
+
+↓
+
+Merged
+```
+
+نه برعکس.
+
+---
+
+# Cancellation
+
+هر Workflow قابل لغو است.
+
+```
+Running
+
+↓
+
+Cancel Requested
+
+↓
+
+Rollback
+
+↓
+
+Cancelled
+```
+
+---
+
+# Pause
+
+Workflow می‌تواند Pause شود.
+
+مثلاً:
+
+```
+Waiting For Review
+```
+
+تا Reviewer تأیید کند.
+
+---
+
+# Resume
+
+بعداً:
+
+```
+Approved
+
+↓
+
+Resume
+
+↓
+
+Continue
+```
+
+---
+
+# Long Running Workflow
+
+Workflow ممکن است چند روز طول بکشد.
+
+مثلاً:
+
+```
+Release
+
+↓
+
+QA
+
+↓
+
+Security
+
+↓
+
+Approval
+
+↓
+
+Deploy
+```
+
+Engine نباید فرض کند همه چیز در چند ثانیه تمام می‌شود.
+
+---
+
+# Checkpoint
+
+در هر مرحله Checkpoint ذخیره می‌شود.
+
+```
+State
+
+↓
+
+Variables
+
+↓
+
+Context
+
+↓
+
+History
+```
+
+در صورت Crash، اجرای Workflow از آخرین Checkpoint ادامه پیدا می‌کند.
+
+---
+
+# Parallel Workflow
+
+چند Workflow می‌توانند هم‌زمان اجرا شوند.
+
+```
+Feature A
+
+Feature B
+
+Feature C
+
+Hotfix
+```
+
+هر کدام مستقل هستند.
+
+---
+
+# Concurrency
+
+اگر دو Workflow بخواهند روی یک Branch عمل کنند:
+
+```
+Feature A
+
+↓
+
+main
+```
+
+و
+
+```
+Hotfix
+
+↓
+
+main
+```
+
+Engine باید از طریق Locking یا سیاست‌های هم‌زمانی از تداخل جلوگیری کند. جزئیات این بخش را در RFC جداگانه برای Concurrency مشخص خواهیم کرد.
+
+---
+
+# تصمیم معماری شماره ۲ (نیازمند تأیید)
+
+در اینجا به اولین تصمیم مهم Runtime می‌رسیم.
+
+### پیشنهاد
+
+به‌جای اینکه Workflow فقط یک **State Machine** باشد، آن را به یک **Directed Acyclic Graph (DAG)** تعمیم دهیم.
+
+در این مدل:
+
+- هر Node یک State یا Action است.
+- وابستگی‌ها به‌صورت یال (Edge) تعریف می‌شوند.
+- چند مسیر می‌توانند به‌صورت موازی اجرا شوند.
+- شاخه‌های شرطی (Conditional Paths) به‌سادگی قابل تعریف هستند.
+- Workflowهای پیچیده (مانند Releaseهای سازمانی، Approvalهای چندمرحله‌ای و Pipelineهای CI/CD) بدون تغییر Engine قابل اجرا خواهند بود.
+
+مزیت این تصمیم این است که Engine از یک موتور سادهٔ State Machine به یک موتور عمومی اجرای Workflow تبدیل می‌شود؛ شبیه موتورهای Workflow مدرن، اما با تمرکز بر Git.
+
+این تصمیم روی طراحی RFCهای بعدی (Plugin System، Event Bus، Scheduler و Persistence) اثر مستقیم دارد، بنابراین پیش از ادامه گرفتن تأیید شما مناسب است.
+
+عالی. من این تصمیم را **تأییدشده** در نظر نمی‌گیرم، اما چون گفتید «ادامه»، RFCها را تا رسیدن به یک نقطه تصمیم‌گیری مهم ادامه می‌دهم. قبل از نهایی کردن RFC-0004 و شروع پیاده‌سازی، دوباره برای تصمیم DAG تأیید صریح می‌گیرم.
+
+به نظر من اگر این پروژه واقعاً قرار است از GitFlow فراتر برود، باید یک تغییر اساسی دیگر هم انجام دهیم.
+
+---
+
+# RFC-0005 — Plugin System
+
+```text
+RFC: 0005
+
+Title:
+Plugin Architecture
+
+Status:
+Draft
+
+Type:
+Core
+```
+
+---
+
+# فلسفه
+
+در اکثر ابزارها Plugin یعنی «چند Command جدید».
+
+در GWE، Plugin می‌تواند **Domain را تغییر دهد**.
+
+یعنی بتواند:
+
+- Branch جدید تعریف کند.
+- Workflow جدید تعریف کند.
+- State جدید اضافه کند.
+- Policy جدید اضافه کند.
+- Rule جدید اضافه کند.
+- Event جدید منتشر کند.
+- Command جدید اضافه کند.
+- UI جدید اضافه کند.
+- Adapter جدید اضافه کند.
+
+Core فقط Loader است.
+
+---
+
+# Plugin Lifecycle
+
+```text
+Discover
+
+↓
+
+Validate
+
+↓
+
+Resolve Dependencies
+
+↓
+
+Load
+
+↓
+
+Initialize
+
+↓
+
+Start
+
+↓
+
+Running
+
+↓
+
+Stopping
+
+↓
+
+Unload
+```
+
+---
+
+# Plugin Manifest
+
+```yaml
+id: gitflow
+
+name: GitFlow
+
+version: 1.0.0
+
+author: ...
+
+api: 1
+
+dependencies:
+
+capabilities:
+
+permissions:
+```
+
+---
+
+# Plugin Registration
+
+هر Plugin فقط Register می‌کند.
+
+مثلاً
+
+```ts
+plugin.registerWorkflow(...)
+
+plugin.registerPolicy(...)
+
+plugin.registerAction(...)
+
+plugin.registerCommand(...)
+```
+
+هیچ Plugin نباید مستقیم داخل Core چیزی تغییر دهد.
+
+---
+
+# Capability System
+
+هر Plugin قابلیت‌هایش را اعلام می‌کند.
+
+مثلاً
+
+```text
+Workflow
+
+Command
+
+Git
+
+UI
+
+Notification
+
+Storage
+
+API
+```
+
+Core بر اساس Capability تصمیم می‌گیرد.
+
+---
+
+# Permission System
+
+هر Plugin مجوز مشخص دارد.
+
+مثلاً
+
+```text
+Read Repository
+
+Write Repository
+
+Delete Branch
+
+Push
+
+Merge
+
+Network
+
+Filesystem
+```
+
+اگر Plugin مجوز نداشته باشد، Action اجرا نمی‌شود.
+
+این مدل شبیه Permissionهای سیستم‌عامل است.
+
+---
+
+# Dependency Graph
+
+Pluginها می‌توانند به هم وابسته باشند.
+
+```text
+Release Plugin
+
+↓
+
+Semantic Version
+
+↓
+
+Git Plugin
+```
+
+Loader ابتدا Graph را می‌سازد.
+
+---
+
+# Circular Dependency
+
+اگر
+
+A
+
+↓
+
+B
+
+↓
+
+C
+
+↓
+
+A
+
+باشد،
+
+Plugin Load نمی‌شود.
+
+---
+
+# Extension Points
+
+Pluginها فقط در نقاط مشخصی اجازه توسعه دارند.
+
+```text
+Workflow
+
+Policy
+
+Action
+
+Rule
+
+Validator
+
+Storage
+
+Logger
+
+Hook
+
+CLI
+
+API
+
+UI
+```
+
+---
+
+# Plugin Isolation
+
+هر Plugin باید تا حد امکان از Pluginهای دیگر مستقل باشد.
+
+ارتباط مستقیم ممنوع است.
+
+ارتباط فقط از طریق:
+
+- Event Bus
+- Service Registry
+- Interface
+
+---
+
+# Service Registry
+
+Plugin می‌تواند Service ارائه کند.
+
+مثلاً
+
+```text
+VersionService
+```
+
+Plugin دیگر فقط Interface را دریافت می‌کند.
+
+---
+
+# Hot Reload
+
+در آینده می‌توانیم Plugin را بدون Restart بارگذاری یا به‌روزرسانی کنیم.
+
+```text
+Plugin v1
+
+↓
+
+Unload
+
+↓
+
+Plugin v2
+
+↓
+
+Continue
+```
+
+---
+
+# Sandboxing
+
+در نسخه‌های آینده، اجرای Pluginها می‌تواند در محیط ایزوله انجام شود.
+
+مثلاً:
+
+- Worker Thread
+- VM
+- Process جداگانه
+
+این امکان امنیت و پایداری را افزایش می‌دهد.
+
+---
+
+# RFC-0006 — Command System
+
+اینجا یکی از تفاوت‌های اصلی GWE با GitFlow مشخص می‌شود.
+
+در GitFlow:
+
+```bash
+git flow feature start login
+```
+
+یک دستور ثابت است.
+
+اما در GWE:
+
+```bash
+gwe feature start login
+```
+
+اصلاً از قبل وجود ندارد.
+
+Plugin آن را ایجاد کرده است.
+
+---
+
+# Command Registry
+
+تمام Commandها در Registry ثبت می‌شوند.
+
+```text
+feature
+
+release
+
+hotfix
+
+experiment
+
+security
+
+deploy
+```
+
+هیچ Command داخلی وجود ندارد.
+
+---
+
+# Command Descriptor
+
+هر Command شامل:
+
+```text
+Name
+
+Description
+
+Arguments
+
+Options
+
+Permissions
+
+Workflow
+
+Aliases
+
+Examples
+```
+
+است.
+
+---
+
+# Command Execution
+
+```text
+CLI
+
+↓
+
+Parser
+
+↓
+
+Command Registry
+
+↓
+
+Workflow Engine
+
+↓
+
+Result
+```
+
+CLI هیچ اطلاعی از Feature یا Release ندارد.
+
+---
+
+# Sub Commands
+
+Commandها می‌توانند درختی باشند.
+
+```text
+feature
+
+├── start
+
+├── finish
+
+├── rename
+
+├── archive
+
+└── delete
+```
+
+---
+
+# Dynamic Commands
+
+Plugin می‌تواند هنگام اجرا Command جدید ثبت کند.
+
+مثلاً
+
+```bash
+gwe security scan
+```
+
+یا
+
+```bash
+gwe ai review
+```
+
+بدون تغییر Core.
+
+---
+
+# تصمیم معماری شماره ۳ (بسیار مهم)
+
+در اینجا به تصمیمی می‌رسیم که به نظر من پروژه را از همه ابزارهای فعلی متمایز می‌کند.
+
+## پیشنهاد: Git به‌عنوان یک Plugin، نه بخشی از Core
+
+به‌جای اینکه Core حتی مفهوم Git را بشناسد، Core فقط یک **Workflow Runtime** باشد.
+
+در این صورت:
+
+```text
+Core Runtime
+        │
+        ├── Git Plugin
+        ├── GitHub Plugin
+        ├── GitLab Plugin
+        ├── Mercurial Plugin
+        ├── Fossil Plugin
+        ├── Pijul Plugin
+        └── Future VCS Plugins
+```
+
+یعنی:
+
+- Core دیگر Repository یا Branch را هم مستقیماً نمی‌شناسد.
+- Git فقط یکی از پیاده‌سازی‌های یک VCS Plugin خواهد بود.
+- در آینده حتی می‌توان از سیستم‌های کنترل نسخه دیگر پشتیبانی کرد.
+
+### مزایا
+
+- هسته کاملاً مستقل از Git می‌شود.
+- معماری واقعاً عمومی خواهد بود.
+- امکان پشتیبانی از VCSهای دیگر بدون تغییر Core فراهم می‌شود.
+
+### معایب
+
+- پیچیدگی Domain به‌طور محسوسی بیشتر می‌شود.
+- برخی مفاهیم خاص Git (مانند Rebase، Cherry-pick، Detached HEAD و Reflog) باید به‌صورت Capabilityهای اختصاصی مدل شوند.
+- برای پروژه‌ای که تمرکز اصلی‌اش Git است، ممکن است این سطح از انتزاع زودهنگام باشد.
+
+## این تصمیم را بدون تأیید شما نهایی نمی‌کنم.
+
+از نظر معماری، این مهم‌ترین دوراهی پروژه است:
+
+1. **Git-first**: Core مفاهیم Git را می‌شناسد و بهترین تجربه را برای Git ارائه می‌دهد.
+2. **VCS-first**: Core فقط یک موتور Workflow است و Git صرفاً یکی از Pluginهای آن است.
+
+این تصمیم تقریباً روی تمام RFCهای بعدی اثر می‌گذارد، بنابراین قبل از ادامه طراحی آن را با تأیید شما نهایی خواهیم کرد.
+
+عالی. در این مرحله من **هنوز تصمیم شماره ۳ را نهایی نمی‌کنم** و RFCها را طوری ادامه می‌دهم که هر دو مسیر (Git-first و VCS-first) قابل پشتیبانی باشند. بعد از رسیدن به حدود RFC-0010، معماری به اندازه کافی شفاف می‌شود که بتوانیم آن تصمیم را با اطمینان بگیریم.
+
+---
+
+# RFC-0007 — Object Model
+
+تا اینجا درباره Domain صحبت کردیم، اما هنوز نگفته‌ایم اشیای سیستم چگونه با هم تعامل می‌کنند.
+
+اینجا اولین تفاوت بزرگ با GitFlow مشخص می‌شود.
+
+در GitFlow تقریباً همه چیز Command است.
+
+اما در GWE تقریباً همه چیز **Object** است.
+
+---
+
+## Object Hierarchy
+
+```text
+System
+│
+├── Repository
+│
+├── Workflow
+│
+├── Plugin
+│
+├── Runtime
+│
+├── Context
+│
+└── EventBus
+```
+
+هر Object فقط Interface خودش را می‌شناسد.
+
+---
+
+## Entity
+
+Entityها هویت دارند.
+
+```text
+Repository
+
+Branch
+
+Workflow
+
+Plugin
+
+Release
+
+Tag
+```
+
+---
+
+## Value Object
+
+```text
+BranchName
+
+Version
+
+CommitHash
+
+TagName
+
+Path
+
+RepositoryUrl
+
+Author
+
+Email
+```
+
+Immutable هستند.
+
+---
+
+## Service
+
+Serviceها رفتار دارند.
+
+```text
+MergeService
+
+BranchService
+
+VersionService
+
+WorkflowService
+
+PluginLoader
+
+PolicyEngine
+
+RuleEngine
+```
+
+---
+
+## Factory
+
+Factory فقط Object می‌سازد.
+
+```text
+WorkflowFactory
+
+BranchFactory
+
+PluginFactory
+
+RepositoryFactory
+```
+
+---
+
+## Builder
+
+برای Objectهای بزرگ
+
+```text
+WorkflowBuilder
+
+PluginBuilder
+
+PolicyBuilder
+
+RuleBuilder
+```
+
+---
+
+## Registry
+
+Registry فقط نگهداری می‌کند.
+
+```text
+WorkflowRegistry
+
+PluginRegistry
+
+CommandRegistry
+
+ActionRegistry
+
+PolicyRegistry
+
+StateRegistry
+```
+
+---
+
+## Provider
+
+```text
+ConfigurationProvider
+
+CredentialProvider
+
+StorageProvider
+
+GitProvider
+```
+
+---
+
+## Resolver
+
+```text
+DependencyResolver
+
+PolicyResolver
+
+ActionResolver
+
+PluginResolver
+```
+
+---
+
+## Manager
+
+Manager فقط هماهنگ‌کننده است.
+
+```text
+PluginManager
+
+WorkflowManager
+
+RuntimeManager
+
+SessionManager
+```
+
+---
+
+## Engine
+
+Engine فقط اجرا می‌کند.
+
+```text
+WorkflowEngine
+
+PolicyEngine
+
+ValidationEngine
+
+ExecutionEngine
+```
+
+---
+
+# مهم‌ترین اصل
+
+Engine هرگز Object ایجاد نمی‌کند.
+
+Factory ایجاد می‌کند.
+
+Engine فقط اجرا می‌کند.
+
+---
+
+# RFC-0008 — Event Bus
+
+به نظر من Event Bus مهم‌ترین قسمت کل پروژه است.
+
+اگر Event Bus حذف شود، پروژه به مجموعه‌ای از if و switch تبدیل می‌شود.
+
+---
+
+## فلسفه
+
+هیچ Component نباید Component دیگری را مستقیماً صدا بزند.
+
+مثلاً:
+
+❌
+
+```text
+Workflow
+
+↓
+
+Notification
+```
+
+درست نیست.
+
+بلکه:
+
+```text
+Workflow
+
+↓
+
+Event
+
+↓
+
+Notification Plugin
+```
+
+---
+
+## Event
+
+هر اتفاق Event است.
+
+حتی
+
+```text
+Plugin Loaded
+```
+
+یا
+
+```text
+Repository Opened
+```
+
+---
+
+## Event Categories
+
+```text
+System
+
+Repository
+
+Branch
+
+Workflow
+
+Plugin
+
+Command
+
+Release
+
+Security
+
+Storage
+
+Network
+```
+
+---
+
+## Repository Events
+
+```text
+RepositoryOpened
+
+RepositoryClosed
+
+RepositoryInitialized
+
+RepositoryChanged
+```
+
+---
+
+## Branch Events
+
+```text
+BranchCreated
+
+BranchDeleted
+
+BranchMerged
+
+BranchRenamed
+
+BranchProtected
+
+BranchCheckedOut
+```
+
+---
+
+## Workflow Events
+
+```text
+WorkflowStarted
+
+WorkflowPaused
+
+WorkflowCancelled
+
+WorkflowCompleted
+
+TransitionStarted
+
+TransitionCompleted
+```
+
+---
+
+## Plugin Events
+
+```text
+PluginLoading
+
+PluginLoaded
+
+PluginStarted
+
+PluginStopped
+
+PluginFailed
+```
+
+---
+
+## Command Events
+
+```text
+CommandStarted
+
+CommandSucceeded
+
+CommandFailed
+```
+
+---
+
+## Event Metadata
+
+تمام Eventها دارای Metadata مشترک هستند:
+
+```text
+Id
+
+Timestamp
+
+CorrelationId
+
+CausationId
+
+User
+
+Plugin
+
+Source
+
+Severity
+
+Version
+```
+
+---
+
+## Correlation ID
+
+این یکی از مهم‌ترین مفاهیم Runtime است.
+
+فرض کنید:
+
+```text
+Feature Start
+```
+
+باعث شود:
+
+- Branch ساخته شود.
+- Push انجام شود.
+- Pull Request ایجاد شود.
+- اعلان ارسال شود.
+
+همه این رویدادها باید یک `CorrelationId` مشترک داشته باشند تا بتوان کل زنجیره را دنبال کرد.
+
+---
+
+## Causation ID
+
+همچنین هر Event مشخص می‌کند توسط کدام Event قبلی ایجاد شده است.
+
+به این ترتیب می‌توان درخت کامل اجرای عملیات را بازسازی کرد.
+
+---
+
+## Event Store
+
+در این RFC تصمیم نمی‌گیریم که Eventها ذخیره شوند یا نه.
+
+فقط تعریف می‌کنیم که اگر ذخیره شدند، ساختارشان استاندارد باشد.
+
+---
+
+# RFC-0009 — Configuration System
+
+بیشتر ابزارهای Git یک فایل تنظیمات دارند.
+
+در GWE این کافی نیست.
+
+---
+
+## Configuration Layers
+
+```text
+System
+
+↓
+
+Global
+
+↓
+
+Organization
+
+↓
+
+Repository
+
+↓
+
+Workflow
+
+↓
+
+Plugin
+
+↓
+
+User
+
+↓
+
+Runtime
+```
+
+هر لایه می‌تواند تنظیمات لایه قبل را Override کند.
+
+---
+
+## مثال
+
+```text
+System
+
+main = main
+
+↓
+
+Organization
+
+main = production
+
+↓
+
+Repository
+
+main = master
+```
+
+در نهایت Repository مقدار `master` را دریافت می‌کند.
+
+---
+
+## Configuration Sources
+
+```text
+JSON
+
+YAML
+
+TOML
+
+Environment
+
+Database
+
+Remote API
+
+CLI
+
+Memory
+```
+
+---
+
+## Live Reload
+
+در آینده تغییر تنظیمات بدون Restart امکان‌پذیر خواهد بود.
+
+---
+
+## Validation
+
+هر Plugin می‌تواند Schema تنظیمات خودش را ثبت کند.
+
+اگر تنظیمات معتبر نباشد، Plugin بارگذاری نمی‌شود.
+
+---
+
+# RFC-0010 — Capability Model
+
+این RFC به نظر من یکی از نوآورانه‌ترین بخش‌های پروژه خواهد بود.
+
+اکثر ابزارها فقط Role دارند.
+
+ما Capability تعریف می‌کنیم.
+
+---
+
+## مثال
+
+GitFlow ممکن است Capabilityهای زیر را ثبت کند:
+
+```text
+CreateBranch
+
+MergeBranch
+
+DeleteBranch
+
+Release
+
+Tag
+
+Version
+```
+
+---
+
+## Plugin دیگر
+
+Security Plugin
+
+```text
+ScanSecrets
+
+ScanLicense
+
+VerifySignature
+```
+
+---
+
+## AI Plugin
+
+```text
+ReviewCode
+
+GenerateCommit
+
+SummarizeDiff
+
+SuggestReviewers
+```
+
+---
+
+## ترکیب Capabilityها
+
+Workflow می‌تواند اعلام کند:
+
+```text
+Need
+
+CreateBranch
+
+AND
+
+ReviewCode
+
+AND
+
+SecurityScan
+```
+
+بدون اینکه بداند این قابلیت‌ها توسط چه Pluginهایی پیاده‌سازی شده‌اند.
+
+---
+
+# نقطه عطف اول معماری
+
+تا اینجا عملاً سه موتور مستقل طراحی شده‌اند:
+
+- **Workflow Engine**
+- **Event Bus**
+- **Plugin System**
+
+و چهار لایه پشتیبان:
+
+- Configuration
+- Capability
+- Policy
+- Command
+
+از اینجا به بعد وارد RFCهایی می‌شویم که به نظر من ارزش اصلی پروژه را شکل می‌دهند:
+
+- **RFC-0011: Scheduler** (اجرای Workflowهای زمان‌بندی‌شده و طولانی)
+- **RFC-0012: Persistence** (ذخیره وضعیت و بازیابی)
+- **RFC-0013: Transaction Model** (اجرای اتمیک Actionها و Rollback)
+- **RFC-0014: Concurrency & Locking** (کنترل هم‌زمانی روی Repository و Branch)
+- **RFC-0015: SDK** (چارچوب توسعه Pluginها)
+
+## یک پیشنهاد برای افزایش کیفیت پروژه
+
+پیشنهاد می‌کنم علاوه بر RFCها، از همین ابتدا یک پوشه **ADR (Architecture Decision Records)** نیز داشته باشیم:
+
+```text
+docs/
+├── rfcs/
+├── adrs/
+├── architecture/
+├── diagrams/
+├── glossary/
+└── decisions/
+```
+
+در پروژه‌های بزرگ، RFCها معمولاً پیشنهادها را ثبت می‌کنند، اما ADRها تصمیم‌های نهایی را. این جداسازی باعث می‌شود چند سال بعد هم دقیقاً بدانیم چرا یک تصمیم گرفته شده و چه گزینه‌هایی رد شده‌اند. برای پروژه‌ای با این سطح از انعطاف‌پذیری، این مستندسازی در بلندمدت ارزش زیادی خواهد داشت.
+
+عالی. از اینجا وارد بخشی می‌شویم که معمولاً در اکثر پروژه‌های متن‌باز اصلاً طراحی نمی‌شود. اگر این قسمت‌ها درست طراحی شوند، GWE صرفاً یک ابزار Git نخواهد بود، بلکه یک **Workflow Runtime Platform** خواهد شد.
+
+---
+
+# RFC-0011 — Scheduler
+
+```text
+RFC: 0011
+
+Title:
+Workflow Scheduler
+
+Status:
+Draft
+
+Type:
+Core Runtime
+```
+
+---
+
+# فلسفه
+
+تمام Workflowها قرار نیست بلافاصله اجرا شوند.
+
+مثلاً
+
+```
+Release
+
+↓
+
+منتظر QA
+
+↓
+
+منتظر Security
+
+↓
+
+منتظر Approval
+
+↓
+
+Deploy
+```
+
+ممکن است چند روز طول بکشد.
+
+بنابراین Runtime باید Scheduler داشته باشد.
+
+---
+
+# Job
+
+Scheduler فقط Job می‌شناسد.
+
+```
+Workflow
+
+↓
+
+Job
+
+↓
+
+Execution
+```
+
+---
+
+# Job State
+
+```
+Pending
+
+↓
+
+Ready
+
+↓
+
+Running
+
+↓
+
+Paused
+
+↓
+
+Waiting
+
+↓
+
+Retry
+
+↓
+
+Completed
+
+↓
+
+Cancelled
+
+↓
+
+Failed
+```
+
+---
+
+# Trigger
+
+Scheduler چند نوع Trigger دارد.
+
+```
+Time
+
+Cron
+
+Manual
+
+Webhook
+
+Git Event
+
+Dependency
+
+External API
+
+Message Queue
+```
+
+---
+
+# نمونه
+
+```
+Every Friday
+
+↓
+
+Create Release
+```
+
+یا
+
+```
+PR Merged
+
+↓
+
+Deploy
+```
+
+---
+
+# Delayed Execution
+
+```
+Release
+
+↓
+
+Wait
+
+24 Hours
+
+↓
+
+Deploy
+```
+
+---
+
+# Dependency
+
+```
+Security Scan
+
+↓
+
+Release
+```
+
+Release قبل از Security اجرا نمی‌شود.
+
+---
+
+# Retry
+
+```
+Git Push
+
+↓
+
+Failed
+
+↓
+
+Retry
+
+↓
+
+Success
+```
+
+---
+
+# RFC-0012 — Persistence
+
+بدون Persistence پروژه قابل اعتماد نیست.
+
+---
+
+# Persistence Model
+
+Runtime فقط Interface را می‌شناسد.
+
+```
+WorkflowStore
+
+StateStore
+
+EventStore
+
+PluginStore
+
+ConfigurationStore
+
+SnapshotStore
+```
+
+---
+
+# Snapshot
+
+هر Workflow در نقاط مشخص Snapshot می‌گیرد.
+
+```
+State
+
+↓
+
+Variables
+
+↓
+
+History
+
+↓
+
+Context
+```
+
+---
+
+# Recovery
+
+اگر سیستم Crash کند
+
+```
+Snapshot
+
+↓
+
+Restore
+
+↓
+
+Continue
+```
+
+---
+
+# Storage Adapter
+
+```
+Memory
+
+SQLite
+
+PostgreSQL
+
+Redis
+
+MongoDB
+
+S3
+```
+
+همگی Plugin هستند.
+
+---
+
+# RFC-0013 — Transaction Model
+
+این RFC به نظر من یکی از مهم‌ترین RFCهای کل پروژه است.
+
+---
+
+فرض کنید
+
+```
+Create Branch ✔
+
+Push ✔
+
+Create PR ✔
+
+Notify Slack ✘
+```
+
+آیا باید Rollback کنیم؟
+
+یا خیر؟
+
+---
+
+بنابراین Runtime باید Transaction بشناسد.
+
+---
+
+# Transaction
+
+```
+Begin
+
+↓
+
+Action
+
+↓
+
+Action
+
+↓
+
+Action
+
+↓
+
+Commit
+```
+
+یا
+
+```
+Rollback
+```
+
+---
+
+# Compensating Action
+
+بعضی Actionها Rollback ندارند.
+
+مثلاً
+
+```
+Email Sent
+```
+
+قابل Undo نیست.
+
+بنابراین باید
+
+```
+Compensating Action
+```
+
+تعریف شود.
+
+مثلاً
+
+```
+Email
+
+↓
+
+Send Correction
+```
+
+---
+
+# Nested Transaction
+
+```
+Release
+
+↓
+
+Deploy
+
+↓
+
+Git
+
+↓
+
+Notification
+```
+
+هر کدام Transaction خودش را دارد.
+
+---
+
+# RFC-0014 — Concurrency
+
+این RFC چیزی است که تقریباً هیچ ابزار Git ندارد.
+
+---
+
+فرض کنید
+
+```
+Developer A
+
+↓
+
+Merge main
+```
+
+همزمان
+
+```
+Developer B
+
+↓
+
+Delete main
+```
+
+چه اتفاقی می‌افتد؟
+
+---
+
+# Lock
+
+Runtime باید Lock داشته باشد.
+
+---
+
+انواع Lock
+
+```
+Repository
+
+Branch
+
+Workflow
+
+Plugin
+
+Configuration
+```
+
+---
+
+# Repository Lock
+
+```
+Repository
+
+↓
+
+Locked
+```
+
+هیچ Workflow دیگری اجرا نمی‌شود.
+
+---
+
+# Branch Lock
+
+```
+main
+
+↓
+
+Locked
+```
+
+Featureها می‌توانند ادامه پیدا کنند.
+
+---
+
+# Read Lock
+
+```
+Read
+
+↓
+
+Unlimited
+```
+
+---
+
+# Write Lock
+
+```
+Only One
+```
+
+---
+
+# Deadlock Detection
+
+```
+Workflow A
+
+↓
+
+Workflow B
+
+↓
+
+Workflow C
+
+↓
+
+Workflow A
+```
+
+باید تشخیص داده شود.
+
+---
+
+# RFC-0015 — SDK
+
+این RFC آینده پروژه را مشخص می‌کند.
+
+---
+
+هدف
+
+نوشتن Plugin باید ساده‌تر از نوشتن خود Core باشد.
+
+---
+
+# SDK
+
+```
+@gwe/sdk
+```
+
+---
+
+Plugin Developer
+
+فقط
+
+```
+Plugin
+
+Workflow
+
+Action
+
+Policy
+```
+
+را می‌نویسد.
+
+---
+
+هیچ اطلاعی از Runtime ندارد.
+
+---
+
+# Plugin Example
+
+```
+export default definePlugin({
+
+    ...
+
+})
+```
+
+---
+
+# Workflow DSL
+
+به نظر من این بزرگ‌ترین نوآوری پروژه خواهد بود.
+
+به جای
+
+```ts
+if (...) {
+
+}
+```
+
+Pluginها یک DSL می‌نویسند.
+
+مثلاً
+
+```yaml
+workflow:
+  feature:
+    states:
+      - coding
+
+      - review
+
+      - approved
+
+      - merged
+```
+
+یا
+
+```yaml
+transitions:
+  review:
+    to: approved
+```
+
+---
+
+# Action DSL
+
+```
+actions:
+
+   checkout
+
+   create_branch
+
+   push
+
+   create_pr
+```
+
+---
+
+# Policy DSL
+
+```
+policies:
+
+  need_review
+
+  need_tests
+
+  signed_commit
+
+  semantic_version
+```
+
+---
+
+# Event DSL
+
+```
+on:
+
+  branch_created
+
+  release_started
+```
+
+---
+
+# چرا DSL؟
+
+زیرا:
+
+GitFlow
+
+GitHub Flow
+
+GitLab Flow
+
+Azure DevOps
+
+Jira
+
+شرکت‌ها
+
+همگی بتوانند Workflow خودشان را **بدون نوشتن TypeScript** تعریف کنند.
+
+---
+
+# معماری جدیدی که در حال شکل‌گیری است
+
+در ابتدا تصور می‌کردیم این پروژه چیزی شبیه GitFlow است.
+
+الان معماری به این شکل درآمده است:
+
+```
+                Runtime
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+   Workflow     Scheduler    EventBus
+        │           │           │
+        └───────────┼───────────┘
+                    ▼
+              Transaction
+                    │
+                    ▼
+             Plugin Runtime
+                    │
+        ┌───────────┼───────────┐
+        ▼           ▼           ▼
+     GitFlow    GitHubFlow   Trunk
+                    │
+                    ▼
+               User Workflow
+```
+
+---
+
+# اما...
+
+در اینجا به بزرگ‌ترین تصمیم معماری پروژه رسیده‌ایم.
+
+## من یک پیشنهاد دارم که ممکن است کل پروژه را متحول کند.
+
+تا الان همه چیز را بر اساس **Workflow** طراحی کرده‌ایم.
+
+اما اگر Core را بر اساس **Execution Graph Runtime** طراحی کنیم، آن‌وقت:
+
+- GitFlow فقط یک Graph است.
+- GitHub Flow فقط یک Graph است.
+- CI/CD فقط یک Graph است.
+- Release Pipeline فقط یک Graph است.
+- Approval Process فقط یک Graph است.
+- حتی Automationهای خارج از Git هم می‌توانند روی همین Runtime اجرا شوند.
+
+یعنی هسته دیگر فقط یک Workflow Engine نیست، بلکه یک **Execution Graph Engine** خواهد بود؛ چیزی شبیه یک موتور اجرای DAG با قابلیت State، Event، Transaction، Policy و Plugin.
+
+اگر این مسیر را انتخاب کنیم، پروژه از یک ابزار مدیریت Git به یک **پلتفرم عمومی اجرای فرایندها** تبدیل می‌شود که Git تنها یکی از کاربردهای آن است.
+
+**این تصمیم را بدون تأیید شما نهایی نمی‌کنم**، چون از این نقطه به بعد جهت کل پروژه را تعیین می‌کند و روی همه RFCهای بعدی اثر خواهد گذاشت.
+
+پاسخ کوتاه:
+
+**بله، کاملاً مناسب است، اما نه به شکلی که ابتدا مطرح کردم.**
+
+بعد از بررسی معماری‌ای که تا الان طراحی کرده‌ایم، اگر هدف پروژه **Git Workflow Engine** باشد، من امروز یک تغییر مهم در طراحی پیشنهاد می‌دهم.
+
+**Execution Graph Runtime نباید جای Workflow Engine را بگیرد؛ بلکه باید هستهٔ Workflow Engine باشد.**
+
+یعنی:
+
+```text
+CLI / API / SDK
+        │
+        ▼
+Workflow Engine
+        │
+        ▼
+Execution Graph Runtime
+        │
+        ▼
+ Action Scheduler
+        │
+        ▼
+ Action Executors
+        │
+        ▼
+Git Adapter
+```
+
+در این مدل:
+
+- Workflow Engine مسئول تفسیر Workflow است.
+- Execution Graph Runtime مسئول اجرای Graph است.
+- Git فقط یکی از Executorها است.
+
+---
+
+## چرا این مدل بهتر است؟
+
+Workflow Engine دغدغه‌هایی دارد که Runtime نباید داشته باشد:
+
+- اعتبارسنجی Policy
+- مدیریت State
+- مجوزها
+- DSL
+- Pluginها
+- Domain
+
+اما Runtime فقط یک سؤال دارد:
+
+> "Node بعدی چیست؟"
+
+---
+
+## Runtime چه چیزی می‌بیند؟
+
+مثلاً Feature Start
+
+به Runtime این شکل دیده می‌شود:
+
+```text
+Checkout Develop
+        │
+        ▼
+Create Branch
+        │
+        ▼
+Push Branch
+        │
+        ▼
+Create Pull Request
+        │
+        ▼
+Notify Team
+```
+
+برای Runtime مهم نیست این Graph مربوط به GitFlow است یا GitHub Flow.
+
+---
+
+## حتی Release هم همین است
+
+```text
+Run Tests
+      │
+      ▼
+Security Scan
+      │
+      ▼
+Create Tag
+      │
+      ▼
+Build
+      │
+      ▼
+Publish
+```
+
+---
+
+## Parallel Execution
+
+این دقیقاً جایی است که Graph از State Machine بهتر می‌شود.
+
+مثلاً
+
+```text
+            Build
+           /     \
+          ▼       ▼
+   Unit Tests   Lint
+          \       /
+           ▼     ▼
+         Security Scan
+               │
+               ▼
+            Publish
+```
+
+در State Machine این کار بسیار سخت است.
+
+در DAG طبیعی است.
+
+---
+
+## Conditional Branch
+
+```text
+Merge
+
+        │
+
+   Is Production ?
+
+      /       \
+
+    Yes       No
+
+    ▼          ▼
+
+Deploy      Skip
+```
+
+---
+
+## Dynamic Graph
+
+Plugin هم می‌تواند Graph را تغییر دهد.
+
+مثلاً Security Plugin
+
+قبل از Deploy این Node را اضافه کند:
+
+```text
+Security Approval
+```
+
+بدون اینکه Release Plugin تغییر کند.
+
+---
+
+# اما یک نکته مهم که امروز متوجه شدم
+
+اگر Runtime را فقط DAG طراحی کنیم، یک مشکل داریم.
+
+Git Workflow همیشه DAG نیست.
+
+مثلاً
+
+```text
+Review
+
+↓
+
+Rejected
+
+↓
+
+Coding
+
+↓
+
+Review
+
+↓
+
+Approved
+```
+
+اینجا چرخه (Loop) داریم.
+
+در حالی که DAG **چرخه ندارد**.
+
+---
+
+## بنابراین DAG به تنهایی کافی نیست.
+
+به نظر من Runtime باید چیزی عمومی‌تر باشد.
+
+نه DAG
+
+نه State Machine
+
+بلکه...
+
+# Execution Graph
+
+که چهار نوع Edge را پشتیبانی کند.
+
+```text
+Normal Edge
+
+Conditional Edge
+
+Parallel Edge
+
+Loop Edge
+```
+
+در نتیجه
+
+Graph می‌تواند
+
+```text
+Coding
+
+↓
+
+Review
+
+↓
+
+Rejected
+
+↓
+
+Coding
+```
+
+را نیز اجرا کند.
+
+---
+
+## نتیجه‌ای که امروز به آن رسیدم
+
+اگر امروز از صفر این پروژه را طراحی کنم، دیگر نام Core را **Execution Graph Runtime** نمی‌گذارم.
+
+بلکه:
+
+```text
+Execution Runtime
+```
+
+و داخل آن:
+
+- Graph Executor
+- State Machine Executor
+- Scheduler
+- Transaction Manager
+- Event Dispatcher
+- Lock Manager
+- Recovery Manager
+
+قرار می‌گیرند.
+
+یعنی:
+
+```text
+                 Workflow Engine
+                        │
+                        ▼
+              Execution Runtime
+                        │
+     ┌──────────────────┼──────────────────┐
+     ▼                  ▼                  ▼
+ Graph Executor   Scheduler         Transaction
+     │                  │                  │
+     ├──────────────────┼──────────────────┤
+     ▼                  ▼                  ▼
+ Event Bus       Lock Manager      Recovery
+                        │
+                        ▼
+                 Action Executors
+                        │
+                        ▼
+                   Git Adapter
+```
+
+## این پیشنهاد من برای پروژه
+
+بعد از حدود ۱۵ RFC، به نظرم پروژه دیگر نباید «GitFlow جدید» باشد. ما در حال طراحی یک **Workflow Runtime Platform** هستیم که Git فقط یکی از Domainهای آن است.
+
+اما من **یک تغییر مهم دیگر** را نیز پیشنهاد می‌کنم که به نظر من ارزش پروژه را چند برابر می‌کند:
+
+به جای اینکه Runtime فقط Graph اجرا کند، هر **Node** را به یک **Actor** تبدیل کنیم. در این مدل هر Node وضعیت، رویدادها، خطاها و چرخه عمر خودش را دارد و از طریق پیام با Nodeهای دیگر ارتباط برقرار می‌کند. این ترکیب (Execution Graph + Actor Model + Event Bus) هم اجرای موازی را ساده‌تر می‌کند، هم توسعه Pluginها را تمیزتر، و هم مقیاس‌پذیری پروژه را برای آینده تضمین می‌کند.
+
+این، به نظر من، مهم‌ترین تصمیم معماری باقی‌ماندهٔ پروژه است و ارزش دارد قبل از ورود به RFCهای Runtime و SDK درباره آن تصمیم نهایی بگیریم.
