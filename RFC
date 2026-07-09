@@ -5050,3 +5050,2148 @@ Execution Runtime
 به جای اینکه Runtime فقط Graph اجرا کند، هر **Node** را به یک **Actor** تبدیل کنیم. در این مدل هر Node وضعیت، رویدادها، خطاها و چرخه عمر خودش را دارد و از طریق پیام با Nodeهای دیگر ارتباط برقرار می‌کند. این ترکیب (Execution Graph + Actor Model + Event Bus) هم اجرای موازی را ساده‌تر می‌کند، هم توسعه Pluginها را تمیزتر، و هم مقیاس‌پذیری پروژه را برای آینده تضمین می‌کند.
 
 این، به نظر من، مهم‌ترین تصمیم معماری باقی‌ماندهٔ پروژه است و ارزش دارد قبل از ورود به RFCهای Runtime و SDK درباره آن تصمیم نهایی بگیریم.
+
+عالی. با این تأیید، به نظر من معماری پروژه وارد مرحله‌ای می‌شود که دیگر یک **GitFlow Replacement** نیست، بلکه یک **Workflow Runtime Platform** است.
+
+این تصمیم را به عنوان مهم‌ترین ADR پروژه ثبت می‌کنیم.
+
+---
+
+# ADR-0002
+
+```text
+Title:
+Adopt Actor-based Execution Runtime
+
+Status:
+Accepted
+
+Decision:
+
+The execution engine shall be based on:
+
+- Actor Model
+- Execution Graph
+- Event Bus
+- Message Passing
+- Scheduler
+- Transaction Manager
+
+instead of
+
+- Stateful Workflow Engine
+
+Reason:
+
+Better concurrency
+
+Better isolation
+
+Better plugin system
+
+Better fault tolerance
+
+Better scalability
+
+Future distributed execution
+
+Consequences:
+
+Every executable node becomes an Actor.
+```
+
+---
+
+# اما...
+
+از اینجا به بعد باید یک اشتباه معماری که تا الان خودم مرتکب شدم را اصلاح کنیم.
+
+## اشتباه
+
+تا الان می‌گفتیم
+
+```
+Workflow
+
+↓
+
+State
+
+↓
+
+Action
+```
+
+ولی این اشتباه است.
+
+چرا؟
+
+چون Action هم State دارد.
+
+مثلاً
+
+```
+Push
+
+Running
+
+Retry
+
+Waiting
+
+Success
+```
+
+پس Action فقط یک تابع نیست.
+
+خودش یک Runtime Object است.
+
+---
+
+# RFC-0016
+
+# Unified Execution Model
+
+این RFC به نظر من مهم‌ترین RFC کل پروژه خواهد شد.
+
+---
+
+## فلسفه
+
+در Runtime فقط یک چیز وجود دارد.
+
+Execution Node
+
+نه
+
+Action
+
+نه
+
+Workflow
+
+نه
+
+State
+
+همه یک Node هستند.
+
+---
+
+# Node
+
+```text
+Node
+
+↓
+
+Input
+
+↓
+
+Output
+
+↓
+
+Events
+
+↓
+
+State
+
+↓
+
+Lifecycle
+
+↓
+
+Permissions
+
+↓
+
+Metadata
+```
+
+---
+
+# Node Types
+
+```text
+Action
+
+Decision
+
+Parallel
+
+Loop
+
+Delay
+
+Wait
+
+Trigger
+
+Merge
+
+Fork
+
+SubWorkflow
+
+Plugin
+
+External
+
+Human Approval
+
+Timer
+
+Event
+
+Script
+```
+
+تقریباً همه چیز Node است.
+
+---
+
+# نمونه
+
+Feature
+
+```
+Start
+
+↓
+
+Checkout
+
+↓
+
+Create Branch
+
+↓
+
+Push
+
+↓
+
+Create PR
+
+↓
+
+Notify
+
+↓
+
+End
+```
+
+در واقع
+
+همه اینها Node هستند.
+
+---
+
+# Decision Node
+
+```
+Tests Passed?
+
+        │
+
+   Yes      No
+
+    │        │
+
+    ▼        ▼
+
+ Deploy   Notify
+```
+
+---
+
+# Parallel Node
+
+```
+           Build
+
+             │
+
+      ┌──────┴──────┐
+
+      ▼             ▼
+
+   Test          Lint
+
+      ▼             ▼
+
+      └──────┬──────┘
+
+             ▼
+
+         Publish
+```
+
+---
+
+# Wait Node
+
+```
+Review
+
+↓
+
+WAIT
+
+↓
+
+Reviewer Approved
+
+↓
+
+Continue
+```
+
+---
+
+# Human Node
+
+```
+Need Approval
+
+↓
+
+Ali
+
+↓
+
+Approve
+```
+
+Runtime متوقف می‌شود.
+
+---
+
+# Timer Node
+
+```
+Deploy
+
+↓
+
+Wait
+
+24h
+
+↓
+
+Notify
+```
+
+---
+
+# Retry Node
+
+```
+Push
+
+↓
+
+Retry
+
+↓
+
+Retry
+
+↓
+
+Retry
+
+↓
+
+Failed
+```
+
+---
+
+# Script Node
+
+Plugin می‌تواند
+
+TypeScript
+
+Lua
+
+JavaScript
+
+یا حتی
+
+WASM
+
+اجرا کند.
+
+---
+
+# External Node
+
+```
+Webhook
+
+↓
+
+GitHub
+
+↓
+
+Continue
+```
+
+---
+
+# Event Node
+
+```
+PR Created
+
+↓
+
+Continue
+```
+
+---
+
+# Plugin Node
+
+```
+AI Review
+```
+
+خودش یک Node است.
+
+---
+
+# Node Lifecycle
+
+هر Node
+
+دقیقاً یک Lifecycle دارد.
+
+```
+Created
+
+↓
+
+Ready
+
+↓
+
+Scheduled
+
+↓
+
+Running
+
+↓
+
+Waiting
+
+↓
+
+Retry
+
+↓
+
+Succeeded
+
+↓
+
+Failed
+
+↓
+
+Cancelled
+
+↓
+
+Archived
+```
+
+تمام Nodeها همین Lifecycle را دارند.
+
+---
+
+# Node Context
+
+هر Node فقط Context می‌بیند.
+
+```
+Repository
+
+Branch
+
+Commit
+
+Version
+
+Variables
+
+Outputs
+
+Secrets
+
+Configuration
+```
+
+---
+
+# Node Output
+
+هر Node خروجی تولید می‌کند.
+
+```
+Branch Name
+
+↓
+
+Feature/Login
+```
+
+Node بعدی آن را دریافت می‌کند.
+
+---
+
+# Node Input
+
+ورودی‌ها نیز استاندارد هستند.
+
+```
+Branch
+
+Version
+
+Repository
+
+Commit
+```
+
+---
+
+# مهم‌ترین نتیجه
+
+Workflow دیگر فقط یک Graph است.
+
+Nodeها Runtime را اجرا می‌کنند.
+
+---
+
+# و حالا...
+
+## من یک پیشنهاد دارم که اگر آن را انجام دهیم، پروژه کاملاً از تمام Workflow Engineهای موجود جلو می‌زند.
+
+تا الان گفتیم
+
+```
+Workflow
+
+↓
+
+Execution Graph
+```
+
+اما Workflowها معمولاً Static هستند.
+
+در دنیای واقعی این‌طور نیست.
+
+مثلاً
+
+AI ممکن است تصمیم بگیرد
+
+به جای
+
+```
+Review
+
+↓
+
+Deploy
+```
+
+این مسیر اجرا شود.
+
+```
+Review
+
+↓
+
+Security
+
+↓
+
+Performance
+
+↓
+
+Deploy
+```
+
+یعنی Graph در زمان اجرا تغییر کند.
+
+---
+
+# Dynamic Graph
+
+Runtime بتواند
+
+Node
+
+اضافه کند.
+
+Node
+
+حذف کند.
+
+Node
+
+جابجا کند.
+
+Node
+
+جایگزین کند.
+
+وسط اجرا.
+
+---
+
+این دقیقاً کاری است که موتورهای Workflow سنتی معمولاً انجام نمی‌دهند یا بسیار محدود انجام می‌دهند.
+
+## اما اینجا به بزرگ‌ترین تصمیم معماری پروژه می‌رسیم (ADR-0003)
+
+من پیشنهاد می‌کنم Runtime را بر پایه **Immutable Execution Graph** طراحی کنیم.
+
+یعنی Graph اولیه هرگز تغییر نکند. هر تغییری (مثل اضافه شدن Security Scan یا AI Review) یک **نسخه جدید از Graph** ایجاد کند و Runtime به‌صورت کنترل‌شده از نسخه فعلی به نسخه جدید مهاجرت کند.
+
+مزایای این رویکرد:
+
+- اجرای قابل پیش‌بینی و قابل بازتولید (Reproducible)
+- امکان Audit کامل
+- Rollback ساده‌تر
+- دیباگ بسیار آسان‌تر
+- جلوگیری از تغییرات ناخواسته در حین اجرا
+
+در ظاهر Graph «پویا» به نظر می‌رسد، اما در واقع هر تغییر، یک Graph جدید با شناسه و تاریخچه مشخص می‌سازد. این رویکرد در سیستم‌های توزیع‌شده و موتورهای اجرای مدرن بسیار پایدارتر از تغییر مستقیم Graph در حافظه است.
+
+**من این تصمیم را بدون تأیید شما نهایی نمی‌کنم**، چون از این نقطه به بعد مبنای طراحی Runtime، Persistence، Event Sourcing و نسخه‌بندی Workflowها خواهد بود. به نظر من این تصمیم حتی مهم‌تر از انتخاب Actor Model است.
+
+عالی. اینجا من برای اولین بار از مسیر معمول RFCها فاصله می‌گیرم، چون بعد از حدود ۲۰ RFC یک الگو مشخص شده است.
+
+به نظرم الان زمان طراحی **معماری نهایی (Meta Architecture)** است، نه ادامه دادن RFCهای جزئی.
+
+چیزی که الان می‌بینم این است که ما در حال طراحی یک **Operating System برای Workflowها** هستیم.
+
+این جمله اغراق نیست.
+
+اجازه بده توضیح بدهم.
+
+---
+
+# چیزی که تا الان ساخته‌ایم
+
+اگر تمام RFCها را خلاصه کنیم:
+
+```text
+CLI
+
+↓
+
+Command
+
+↓
+
+Workflow
+
+↓
+
+Execution Runtime
+
+↓
+
+Actors
+
+↓
+
+Events
+
+↓
+
+Scheduler
+
+↓
+
+Transactions
+
+↓
+
+Persistence
+
+↓
+
+Plugins
+
+↓
+
+Git
+```
+
+این معماری از GitFlow خیلی فراتر رفته است.
+
+---
+
+# اما یک مشکل وجود دارد.
+
+تقریباً تمام Workflow Engineهای دنیا این معماری را دارند:
+
+```text
+Workflow
+
+↓
+
+Engine
+
+↓
+
+Execute
+```
+
+این مدل بعد از چند سال توسعه به یک کلاس ۵۰ هزار خطی تبدیل می‌شود.
+
+من نمی‌خواهم GWE این مسیر را برود.
+
+---
+
+# پیشنهاد جدید
+
+Core اصلاً Engine نباشد.
+
+بلکه یک **Kernel** باشد.
+
+---
+
+# RFC-0020
+
+Kernel Architecture
+
+---
+
+## فلسفه
+
+همان‌طور که لینوکس فقط یک Kernel است،
+
+GWE هم فقط یک Kernel باشد.
+
+---
+
+Kernel فقط این قابلیت‌ها را ارائه می‌دهد:
+
+```text
+Memory
+
+Messaging
+
+Scheduling
+
+Lifecycle
+
+Registry
+
+Events
+
+Configuration
+
+Security
+
+Plugins
+```
+
+تمام.
+
+---
+
+Git داخل Kernel نیست.
+
+Workflow داخل Kernel نیست.
+
+CLI داخل Kernel نیست.
+
+AI داخل Kernel نیست.
+
+---
+
+# Runtime
+
+Runtime فقط روی Kernel اجرا می‌شود.
+
+```text
+Runtime
+
+↓
+
+Kernel
+```
+
+---
+
+# Workflow Runtime
+
+Workflow Runtime
+
+خودش
+
+یک Plugin است.
+
+---
+
+GitFlow
+
+↓
+
+Workflow Runtime
+
+↓
+
+Kernel
+
+---
+
+GitHub Flow
+
+↓
+
+Workflow Runtime
+
+↓
+
+Kernel
+
+---
+
+AI Runtime
+
+↓
+
+Kernel
+
+---
+
+حتی Scheduler هم Plugin است.
+
+---
+
+# نتیجه
+
+Kernel
+
+هیچ اطلاعی از Workflow ندارد.
+
+---
+
+# این فوق‌العاده است.
+
+چرا؟
+
+چون Runtime را هم می‌توان عوض کرد.
+
+---
+
+فرض کنید
+
+امروز
+
+Workflow Runtime
+
+داریم.
+
+---
+
+فردا
+
+Rule Runtime
+
+---
+
+یا
+
+Pipeline Runtime
+
+---
+
+یا
+
+Automation Runtime
+
+---
+
+همه روی یک Kernel اجرا می‌شوند.
+
+---
+
+# Kernel Serviceها
+
+Kernel فقط Interface دارد.
+
+```text
+Actor Scheduler
+
+Message Bus
+
+Clock
+
+Storage
+
+Configuration
+
+Secrets
+
+Metrics
+
+Logging
+
+Discovery
+
+Registry
+
+Lifecycle
+
+DI
+
+Permissions
+
+Resources
+```
+
+---
+
+# Resource Model
+
+الان به مهم‌ترین بخش پروژه می‌رسیم.
+
+---
+
+تا الان
+
+Git
+
+Workflow
+
+Plugin
+
+را Entity فرض کردیم.
+
+---
+
+اما در واقع
+
+همه آنها Resource هستند.
+
+---
+
+مثل Kubernetes.
+
+---
+
+Resource
+
+↓
+
+Repository
+
+↓
+
+Workflow
+
+↓
+
+Plugin
+
+↓
+
+Execution
+
+↓
+
+Actor
+
+↓
+
+Policy
+
+↓
+
+Secret
+
+↓
+
+Configuration
+
+↓
+
+Scheduler
+
+↓
+
+Node
+
+---
+
+یعنی
+
+همه چیز Resource است.
+
+---
+
+هر Resource
+
+Lifecycle دارد.
+
+Metadata دارد.
+
+Label دارد.
+
+Version دارد.
+
+Owner دارد.
+
+Permission دارد.
+
+---
+
+مثلاً
+
+Workflow
+
+```yaml
+kind: Workflow
+
+metadata:
+
+spec:
+
+status:
+```
+
+---
+
+Repository
+
+```yaml
+kind: Repository
+
+metadata:
+
+spec:
+
+status:
+```
+
+---
+
+Plugin
+
+```yaml
+kind: Plugin
+
+metadata:
+
+spec:
+
+status:
+```
+
+---
+
+Actor
+
+```yaml
+kind: Actor
+
+metadata:
+
+spec:
+
+status:
+```
+
+---
+
+# آیا متوجه شدی چه اتفاقی افتاد؟
+
+ما ناخواسته به معماری مشابه Kubernetes رسیدیم.
+
+اما برای Workflow.
+
+---
+
+# یعنی
+
+دیگر
+
+```text
+Workflow
+
+↓
+
+Execute
+```
+
+نداریم.
+
+بلکه
+
+```text
+Desired State
+
+↓
+
+Controller
+
+↓
+
+Actual State
+```
+
+---
+
+دقیقاً همان معماری Declarative.
+
+---
+
+مثلاً
+
+کاربر می‌گوید
+
+```yaml
+Feature:
+
+name: Login
+
+state: merged
+```
+
+---
+
+Runtime تصمیم می‌گیرد
+
+چه Nodeهایی اجرا شوند
+
+تا
+
+State واقعی
+
+به
+
+State مطلوب
+
+برسد.
+
+---
+
+# این از GitFlow چند نسل جلوتر است.
+
+چون
+
+کاربر نمی‌گوید
+
+```
+checkout
+
+create branch
+
+push
+
+merge
+```
+
+---
+
+بلکه فقط می‌گوید
+
+```
+Login Feature
+
+↓
+
+Merged
+```
+
+Runtime خودش تصمیم می‌گیرد
+
+چه کاری انجام شود.
+
+---
+
+# اما...
+
+اینجا من برای اولین بار توسعه را متوقف می‌کنم.
+
+نه به خاطر کمبود ایده.
+
+بلکه چون به یک نقطه‌ای رسیده‌ایم که اگر همین مسیر را ادامه دهیم، دیگر پروژه **Git Workflow Engine** نخواهد بود.
+
+بلکه تبدیل می‌شود به چیزی شبیه:
+
+- Temporal
+- Argo Workflows
+- Cadence
+- Kubernetes Control Plane
+
+با Git به عنوان یکی از Domainها.
+
+## پیشنهاد من (تصمیم معماری بزرگ)
+
+من پیشنهاد می‌کنم پروژه را به دو مخزن (Repository) تقسیم کنیم:
+
+```text
+gwe-kernel/
+```
+
+هسته عمومی که شامل:
+
+- Kernel
+- Actor Runtime
+- Scheduler
+- Event Bus
+- Resource Model
+- Plugin System
+- Storage
+- Messaging
+
+است و هیچ وابستگی به Git ندارد.
+
+و:
+
+```text
+gwe-git/
+```
+
+که روی `gwe-kernel` ساخته می‌شود و شامل:
+
+- Git Adapter
+- Git Resource
+- GitFlow Plugin
+- GitHub Flow Plugin
+- Trunk-Based Plugin
+- Release Plugin
+- Semantic Version Plugin
+- Git CLI
+
+است.
+
+### چرا این تقسیم؟
+
+چون اگر Kernel را از Git جدا کنیم، در آینده هر Domain دیگری (Deployment، CI/CD، Approval، Automation و حتی سیستم‌های سازمانی) می‌تواند روی همان Kernel اجرا شود، بدون اینکه هسته تغییر کند.
+
+**این بزرگ‌ترین تصمیم معماری کل پروژه است**. اگر آن را بپذیریم، از اینجا به بعد RFCها را در قالب دو پروژه مستقل ادامه می‌دهیم: یکی برای Kernel و دیگری برای Git Platform. به نظر من این معماری در بلندمدت هم تمیزتر است و هم توسعه‌پذیرتر.
+
+عالی.
+
+از این لحظه پروژه وارد فاز جدیدی می‌شود. تا اینجا ما RFC نوشته بودیم، اما اکنون در حال تعریف **Platform Architecture** هستیم.
+
+من این تصمیم را به عنوان مهم‌ترین ADR پروژه ثبت می‌کنم.
+
+---
+
+# ADR-0003
+
+```text
+Title
+
+Split Platform into Kernel and Domains
+
+Status
+
+Accepted
+
+Decision
+
+The platform SHALL be divided into:
+
+gwe-kernel
+gwe-git
+gwe-github
+gwe-gitlab
+gwe-cli
+gwe-sdk
+gwe-ai
+
+Motivation
+
+Keep Kernel generic.
+
+Move every business logic into Domain Plugins.
+
+Consequences
+
+Kernel never knows Git.
+
+Domains know Kernel.
+
+Plugins know Domain APIs.
+```
+
+---
+
+# حالا معماری واقعی پروژه
+
+من فکر می‌کنم اسم **Git Workflow Engine** دیگر برای Kernel مناسب نیست.
+
+Kernel باید نام خودش را داشته باشد.
+
+مثلاً
+
+```text
+Axiom
+```
+
+یا
+
+```text
+CoreFlow
+```
+
+یا
+
+```text
+RuntimeX
+```
+
+یا
+
+```text
+Nova Runtime
+```
+
+و پروژه Git فقط یکی از Domainهای آن باشد.
+
+مثلاً
+
+```text
+Axiom
+
+├── Kernel
+
+├── Scheduler
+
+├── EventBus
+
+├── Resource
+
+├── Runtime
+
+├── Storage
+
+└── Plugins
+
+
+gwe-git
+
+gwe-github
+
+gwe-cli
+
+gwe-sdk
+```
+
+---
+
+# RFC-0100
+
+Kernel Specification
+
+از اینجا شماره RFCها را جدا می‌کنم.
+
+چرا؟
+
+چون Kernel مستقل شده است.
+
+---
+
+# فلسفه Kernel
+
+Kernel فقط چهار سؤال دارد.
+
+```text
+What exists?
+
+What changed?
+
+Who owns it?
+
+Who executes it?
+```
+
+تمام.
+
+---
+
+# Everything is Resource
+
+این مهم‌ترین قانون Kernel خواهد بود.
+
+در Kubernetes
+
+Pod
+
+Deployment
+
+Secret
+
+ConfigMap
+
+همه Resource هستند.
+
+---
+
+در Kernel ما
+
+```text
+Repository
+
+Workflow
+
+Actor
+
+Execution
+
+Graph
+
+Plugin
+
+Event
+
+Secret
+
+Configuration
+
+Artifact
+
+Pipeline
+
+Node
+
+Lock
+
+Transaction
+
+Capability
+```
+
+همه Resource هستند.
+
+---
+
+# Resource Contract
+
+تمام Resourceها باید این Interface را پیاده‌سازی کنند.
+
+```typescript
+interface Resource {
+  apiVersion: string;
+
+  kind: string;
+
+  metadata: Metadata;
+
+  spec: unknown;
+
+  status: unknown;
+}
+```
+
+---
+
+# Metadata
+
+Metadata ثابت است.
+
+```typescript
+interface Metadata {
+  id: UUID;
+
+  uid: UID;
+
+  name: string;
+
+  namespace: string;
+
+  labels: Labels;
+
+  annotations: Annotations;
+
+  ownerReferences: Owner[];
+
+  finalizers: string[];
+
+  generation: number;
+
+  createdAt: Date;
+
+  updatedAt: Date;
+}
+```
+
+---
+
+# Spec
+
+Spec
+
+همیشه
+
+Desired State
+
+است.
+
+مثلاً
+
+Workflow
+
+```yaml
+spec:
+  target: merged
+
+  reviewers: 2
+
+  strategy: squash
+```
+
+---
+
+# Status
+
+Status
+
+Actual State
+
+است.
+
+```yaml
+status:
+  phase: review
+
+  progress: 65
+
+  retries: 1
+```
+
+---
+
+# مهم‌ترین تفاوت
+
+تقریباً تمام Workflow Engineها
+
+State
+
+را داخل Workflow نگه می‌دارند.
+
+ما این کار را نمی‌کنیم.
+
+State
+
+داخل
+
+Status
+
+است.
+
+---
+
+# Controller Pattern
+
+هر Resource
+
+یک Controller دارد.
+
+```text
+Workflow
+
+↓
+
+WorkflowController
+```
+
+---
+
+Repository
+
+↓
+
+RepositoryController
+
+---
+
+Plugin
+
+↓
+
+PluginController
+
+---
+
+Execution
+
+↓
+
+ExecutionController
+
+---
+
+Actor
+
+↓
+
+ActorController
+
+---
+
+Controller فقط یک کار دارد.
+
+Desired
+
+↓
+
+Actual
+
+---
+
+مثل Kubernetes.
+
+---
+
+# مثال
+
+کاربر
+
+Workflow را ایجاد می‌کند.
+
+```yaml
+kind: Workflow
+
+spec:
+  state: merged
+```
+
+---
+
+Controller
+
+متوجه می‌شود.
+
+---
+
+Graph را اجرا می‌کند.
+
+---
+
+در نهایت
+
+```yaml
+status:
+  state: merged
+```
+
+---
+
+تمام.
+
+---
+
+# Resource Graph
+
+Resourceها نیز Graph هستند.
+
+```text
+Workflow
+
+↓
+
+Execution
+
+↓
+
+Actor
+
+↓
+
+Event
+
+↓
+
+Artifact
+```
+
+---
+
+# Owner Reference
+
+مثلاً
+
+Execution
+
+متعلق به
+
+Workflow
+
+است.
+
+---
+
+Workflow حذف شود.
+
+↓
+
+Execution نیز حذف می‌شود.
+
+---
+
+مثل Kubernetes.
+
+---
+
+# Finalizer
+
+قبل از حذف
+
+Workflow
+
+ممکن است
+
+Plugin
+
+بخواهد
+
+Cleanup
+
+کند.
+
+---
+
+Finalizer
+
+اجازه حذف نمی‌دهد
+
+تا Cleanup انجام شود.
+
+---
+
+# Reconciliation Loop
+
+به نظر من
+
+این مهم‌ترین قسمت Kernel است.
+
+هر Controller
+
+همیشه
+
+این حلقه را اجرا می‌کند.
+
+```text
+Observe
+
+↓
+
+Compare
+
+↓
+
+Plan
+
+↓
+
+Execute
+
+↓
+
+Update Status
+
+↓
+
+Sleep
+```
+
+---
+
+دقیقاً
+
+همان معماری Kubernetes.
+
+---
+
+# ولی...
+
+اینجا من یک تفاوت مهم ایجاد می‌کنم.
+
+در Kubernetes
+
+Controller
+
+فقط
+
+CRUD
+
+انجام می‌دهد.
+
+---
+
+در Kernel ما
+
+Controller
+
+حق دارد
+
+Graph
+
+بسازد.
+
+---
+
+یعنی
+
+Workflow
+
+↓
+
+Execution Graph
+
+↓
+
+Actors
+
+↓
+
+Scheduler
+
+↓
+
+Events
+
+---
+
+به صورت Dynamic.
+
+---
+
+# و حالا مهم‌ترین ایده‌ای که تا این لحظه به آن رسیده‌ام
+
+اگر دقت کنی
+
+تا الان
+
+Workflow
+
+Execution
+
+Actor
+
+همه Resource شدند.
+
+اما
+
+**Graph هنوز Resource نشده است.**
+
+به نظر من این اشتباه است.
+
+---
+
+# RFC-0101
+
+Graph as First-Class Resource
+
+این RFC احتمالاً مهم‌ترین RFC کل پروژه خواهد بود.
+
+من پیشنهاد می‌کنم
+
+Graph
+
+نیز
+
+Resource
+
+باشد.
+
+یعنی
+
+```yaml
+apiVersion: runtime/v1
+
+kind: Graph
+
+metadata:
+
+spec:
+
+status:
+```
+
+در نتیجه:
+
+- Graph نسخه‌بندی می‌شود.
+- Graph قابل امضا (Signing) است.
+- Graph قابل Cache است.
+- Graph قابل انتشار (Publish) است.
+- Graph قابل اشتراک‌گذاری است.
+- Graph قابل Migration است.
+- Graph قابل Diff است.
+
+این تصمیم یک مزیت بسیار بزرگ دارد: **Workflow دیگر فقط یک تعریف نیست؛ بلکه Graphِ قابل حمل (Portable Artifact) می‌شود.**
+
+---
+
+## اما اینجا به آخرین دوراهی بزرگ معماری می‌رسیم
+
+تا الان فرض کرده‌ایم Graph شامل Nodeها و Edgeها است.
+
+من پیشنهاد می‌کنم یک گام جلوتر برویم و Graph را به سه لایه تقسیم کنیم:
+
+```text
+Workflow Definition
+        │
+        ▼
+Compiled Graph
+        │
+        ▼
+Execution Graph
+```
+
+یعنی:
+
+- **Workflow Definition**: چیزی که کاربر یا Plugin می‌نویسد (DSL یا TypeScript).
+- **Compiled Graph**: نسخه بهینه‌شده و اعتبارسنجی‌شده، مستقل از Runtime.
+- **Execution Graph**: نمونه در حال اجرای Compiled Graph با Context، State و Status مخصوص همان اجرا.
+
+این دقیقاً شبیه تفاوت بین سورس‌کد، فایل کامپایل‌شده و پردازهٔ در حال اجرا در سیستم‌عامل است.
+
+### این تصمیم را برای تأیید نگه می‌دارم.
+
+به نظر من اگر این مدل را بپذیریم، دیگر هسته فقط یک Runtime نخواهد بود؛ بلکه یک **Compiler + Runtime Platform** خواهد شد. این معماری در بلندمدت امکاناتی مانند بهینه‌سازی Graph، تحلیل ایستا، امضای دیجیتال، Marketplace برای Workflowها و اجرای توزیع‌شده را نیز فراهم می‌کند، بدون اینکه طراحی فعلی را بشکند.
+
+من هم فکر می‌کنم زمان کدنویسی رسیده است.
+
+اما با این تفاوت که **نباید از `gwe-git` شروع کنیم.** اگر الان سراغ Git برویم، احتمالاً بعد از چند هزار خط کد مجبور می‌شویم Core را دوباره بازطراحی کنیم.
+
+با RFCهایی که نوشتیم، ترتیب صحیح توسعه به نظر من این است:
+
+```text
+gwe/
+│
+├── packages/
+│   ├── kernel/
+│   ├── sdk/
+│   ├── graph/
+│   ├── events/
+│   ├── resources/
+│   ├── scheduler/
+│   ├── actors/
+│   ├── storage/
+│   ├── compiler/
+│   ├── plugins/
+│   └── common/
+│
+├── domains/
+│   └── git/
+│
+├── cli/
+│
+└── examples/
+```
+
+---
+
+# اما یک تغییر مهم
+
+بعد از این همه RFC، من دیگر **Domain-First** هم پیشنهاد نمی‌کنم.
+
+بلکه پیشنهاد می‌کنم با **TDD + Architecture-First** پیش برویم.
+
+ترتیب توسعه:
+
+```
+Step 1
+Core Types
+
+↓
+
+Step 2
+Resource System
+
+↓
+
+Step 3
+Event System
+
+↓
+
+Step 4
+Actor Runtime
+
+↓
+
+Step 5
+Execution Graph
+
+↓
+
+Step 6
+Scheduler
+
+↓
+
+Step 7
+Compiler
+
+↓
+
+Step 8
+SDK
+
+↓
+
+Step 9
+Git Domain
+
+↓
+
+Step 10
+CLI
+```
+
+---
+
+# فاز اول (Kernel MVP)
+
+اولین نسخه فقط این قابلیت‌ها را خواهد داشت:
+
+- Resource
+- Event
+- Graph
+- Node
+- Actor
+- Runtime
+- Scheduler (ساده)
+- Plugin Loader
+
+نه Git.
+
+---
+
+# فناوری‌ها
+
+من برای پروژه این Stack را پیشنهاد می‌کنم:
+
+| بخش             | فناوری                     |
+| --------------- | -------------------------- |
+| Language        | TypeScript                 |
+| Runtime         | Node.js 22+                |
+| Package Manager | pnpm                       |
+| Monorepo        | Turborepo                  |
+| Build           | tsup                       |
+| Tests           | Vitest                     |
+| Lint            | ESLint                     |
+| Format          | Prettier                   |
+| API             | zod                        |
+| DI              | بدون DI Container در ابتدا |
+| Logging         | pino                       |
+| Events          | EventEmitter سفارشی        |
+| Graph           | پیاده‌سازی اختصاصی         |
+| Actor           | پیاده‌سازی اختصاصی         |
+
+---
+
+# مهم‌ترین تصمیم
+
+**من هیچ وابستگی سنگینی اضافه نمی‌کنم.**
+
+مثلاً:
+
+❌ xstate
+
+❌ temporal
+
+❌ rxjs
+
+❌ inversify
+
+❌ nest
+
+❌ redux
+
+چون می‌خواهیم Kernel سبک و قابل کنترل باشد.
+
+---
+
+# اولین Commit
+
+اولین Commit حتی Runtime هم نخواهد بود.
+
+فقط Foundation.
+
+```
+feat(kernel): bootstrap architecture
+```
+
+---
+
+سپس
+
+```
+feat(kernel): resource model
+```
+
+بعد
+
+```
+feat(kernel): event bus
+```
+
+بعد
+
+```
+feat(kernel): graph model
+```
+
+و همین‌طور ادامه.
+
+---
+
+# حجم پروژه
+
+برآورد من:
+
+| بخش        | خطوط کد تقریبی |
+| ---------- | -------------- |
+| Kernel     | ۲۰٬۰۰۰         |
+| SDK        | ۸٬۰۰۰          |
+| Compiler   | ۱۰٬۰۰۰         |
+| Git Domain | ۱۵٬۰۰۰         |
+| CLI        | ۵٬۰۰۰          |
+| Tests      | ۳۰٬۰۰۰         |
+| مستندات    | ۱۵٬۰۰۰         |
+
+در مجموع احتمالاً به **حدود ۹۰ تا ۱۲۰ هزار خط TypeScript** خواهیم رسید.
+
+---
+
+# پیشنهاد من برای نحوه توسعه در ChatGPT
+
+به جای تولید فایل‌های پراکنده، پروژه را **فایل‌به‌فایل و قابل اجرا** پیش ببریم.
+
+برای هر فایل:
+
+1. طراحی Interface
+2. تست (Vitest)
+3. پیاده‌سازی
+4. مستندسازی
+5. سپس فایل بعدی
+
+این روش باعث می‌شود در پایان هر مرحله یک پروژه سالم و قابل Build داشته باشیم، نه صرفاً مجموعه‌ای از کدهای نمونه.
+
+**به نظر من اولین فایلی که باید بنویسیم `packages/kernel/src/resource/resource.ts` نیست؛ بلکه `packages/common` است.** تمام Primitiveها (UUID، Metadata، Result، Option، Disposable، Lifecycle، Error، EventId، Brand Types و Utility Types) باید آنجا تعریف شوند. اگر این لایه درست طراحی شود، بقیه Kernel با ثبات و یکدست خواهد بود و بعداً مجبور به بازنویسی گسترده نخواهیم شد.
