@@ -141,3 +141,14 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+
+node_modules
+
+dist
+
+coverage
+
+.turbo
+
+.env
