@@ -1,14 +1,14 @@
 {
-  "name": "gitflow-engine",
-  "version": "0.1.0",
-  "description": "A configurable, rule-based branching workflow engine for git (git-flow and beyond).",
+  "name": "gitwe",
+  "version": "1.0.0",
+  "description": "A configurable, rule-based branching workflow engine for git (git-workflow-engine and beyond).",
   "license": "MIT",
-  "author": "",
+  "author": "Mohammad Amanalikhani <idmdakhi@gmail.com>",
   "type": "commonjs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "gwe": "dist/cli/index.js"
+    "gitwe": "dist/cli/index.js"
   },
   "files": [
     "dist",
@@ -36,8 +36,17 @@
     "workflow",
     "branching",
     "git-flow",
-    "cli"
+    "cli",
+    "automation"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/gitwe.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/gitwe/issues"
+  },
+  "homepage": "https://github.com/your-username/gitwe#readme",
   "devDependencies": {
     "@types/node": "^20.14.0",
     "@typescript-eslint/eslint-plugin": "^7.16.0",
@@ -51,6 +60,7 @@
     "vitest": "^2.0.0"
   },
   "dependencies": {
-    "commander": "^12.1.0"
+    "commander": "^12.1.0",
+    "treeify": "^1.1.0"
   }
 }

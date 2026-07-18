@@ -1,0 +1,40 @@
+{
+  "name": "git-flow-pro",
+  "branchTypes": [
+    {
+      "name": "feature",
+      "prefix": "feature/",
+      "baseBranch": "develop",
+      "mergeTargets": ["develop"],
+      "deleteOnFinish": true
+    },
+    {
+      "name": "release",
+      "prefix": "release/",
+      "baseBranch": "develop",
+      "mergeTargets": ["main", "develop"],
+      "deleteOnFinish": true,
+      "autoTag": {
+        "prefix": "v"
+      }
+    },
+    {
+      "name": "hotfix",
+      "prefix": "hotfix/",
+      "baseBranch": "main",
+      "mergeTargets": ["main", "develop"],
+      "deleteOnFinish": true
+    }
+  ],
+  "hooks": {
+    "preStart": ["npm run lint"],
+    "postStart": ["echo '🎉 Branch created!'"],
+    "preFinish": ["npm run test", "npm run build"],
+    "postFinish": ["echo '✅ Branch finished!'"]
+  },
+  "remote": {
+    "remote": "origin",
+    "autoPush": false,
+    "autoPull": false
+  }
+}

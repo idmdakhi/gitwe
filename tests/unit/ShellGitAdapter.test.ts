@@ -21,7 +21,7 @@ describe("ShellGitAdapter", () => {
   let adapter: ShellGitAdapter;
 
   beforeEach(() => {
-    repoDir = mkdtempSync(join(tmpdir(), "gwe-test-"));
+    repoDir = mkdtempSync(join(tmpdir(), "gitwe-test-"));
     sh(repoDir, "init", "-b", "main");
     sh(repoDir, "config", "user.email", "test@example.com");
     sh(repoDir, "config", "user.name", "Test User");

@@ -15,7 +15,7 @@ export interface Logger {
 /** Default logger for CLI usage — plain, readable console output. */
 export class ConsoleLogger implements Logger {
   debug(message: string, meta?: Record<string, unknown>): void {
-    if (process.env["GWE_DEBUG"]) this.write("DEBUG", message, meta);
+    if (process.env["GITWE_DEBUG"]) this.write("DEBUG", message, meta);
   }
 
   info(message: string, meta?: Record<string, unknown>): void {

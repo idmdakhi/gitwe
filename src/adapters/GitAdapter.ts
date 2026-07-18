@@ -29,4 +29,11 @@ export interface GitAdapter {
 
   /** Delete a local branch. Refuses (like plain `git branch -d`) if it isn't fully merged, unless `force` is set. */
   deleteBranch(name: string, force?: boolean): Promise<void>;
+  createTag(name: string, message?: string): Promise<void>;
+  push(remote?: string, branch?: string): Promise<void>;
+  pull(remote?: string, branch?: string): Promise<void>;
+  getCommitInfo(
+    ref: string,
+  ): Promise<{ hash: string; date: Date; author: string; message: string }>;
+  getBranchParent(branch: string): Promise<string | undefined>;
 }

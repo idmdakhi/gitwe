@@ -16,7 +16,7 @@ describe("WorkflowEngine + ShellGitAdapter (integration, real repo)", () => {
   let engine: WorkflowEngine;
 
   beforeEach(() => {
-    repoDir = mkdtempSync(join(tmpdir(), "gwe-integration-"));
+    repoDir = mkdtempSync(join(tmpdir(), "gitwe-integration-"));
     sh(repoDir, "init", "-b", "main");
     sh(repoDir, "config", "user.email", "test@example.com");
     sh(repoDir, "config", "user.name", "Test User");

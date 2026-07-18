@@ -106,4 +106,46 @@ export class ShellGitAdapter implements GitAdapter {
     await this.run(["branch", force ? "-D" : "-d", name]);
     this.logger.info("branch deleted", { name, force });
   }
+
+  async createTag(name: string, message?: string): Promise<void> {
+    const args = ["tag", name];
+    if (message) args.push("-m", message);
+    await this.run(args);
+    this.logger.info("tag created", { name, message });
+  }
+
+  async push(remote = "origin", branch?: string): Promise<void> {
+    const args = ["push", remote];
+    if (branch) args.push(branch);
+    await this.run(args);
+    this.logger.info("pushed to remote", { remote, branch });
+  }
+
+  async pull(remote = "origin", branch?: string): Promise<void> {
+    const args = ["pull", remote];
+    if (branch) args.push(branch);
+    await this.run(args);
+    this.logger.info("pulled from remote", { remote, branch });
+  }
+
+  async getCommitInfo(ref: string) {
+    const output = await this.run(["log", "-1", "--format=%H|%aI|%an|%s", ref]);
+    const [hash, date, author, ...messageParts] = output.split("|");
+    return {
+      hash: hash || "",
+      date: new Date(date || ""),
+      author: author || "",
+      message: messageParts.join("|") || "",
+    };
+  }
+
+  async getBranchParent(branch: string): Promise<string | undefined> {
+    try {
+      const output = await this.run(["log", "--decorate", "--format=%D", "--max-count=1", branch]);
+      const match = output.match(/origin\/(\S+)|tag:\s*(\S+)/);
+      return match ? match[1] || match[2] : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 }
