@@ -1,5 +1,5 @@
-export type { GitAdapter } from "./adapters/GitAdapter";
-export { ShellGitAdapter } from "./adapters/ShellGitAdapter";
+export type { GitAdapter } from "./git/GitAdapter";
+export { ShellGitAdapter } from "./git/ShellGitAdapter";
 export { WorkflowEngine } from "./core/WorkflowEngine";
 export type { FinishOptions, FinishResult } from "./core/WorkflowEngine";
 export * from "./core/types";

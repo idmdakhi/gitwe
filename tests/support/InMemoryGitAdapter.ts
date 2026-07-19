@@ -1,4 +1,4 @@
-import type { GitAdapter } from "../../src/adapters/GitAdapter";
+import type { GitAdapter } from "../../src/git/GitAdapter";
 import type { Branch, CreateBranchOptions, MergeOptions, MergeResult } from "../../src/core/types";
 import { BranchAlreadyExistsError, BranchNotFoundError } from "../../src/core/errors";
 
@@ -13,6 +13,8 @@ export class InMemoryGitAdapter implements GitAdapter {
   private current = "main";
   private deletedBranches: string[] = [];
   private mergeLog: MergeResult[] = [];
+  private tags: string[] = [];
+  private pushedRemotes: string[] = [];
 
   async getCurrentBranch(): Promise<string> {
     return this.current;
@@ -64,6 +66,30 @@ export class InMemoryGitAdapter implements GitAdapter {
     this.deletedBranches.push(name);
   }
 
+  async createTag(name: string): Promise<void> {
+    this.tags.push(name);
+  }
+
+  async push(remote = "origin"): Promise<void> {
+    this.pushedRemotes.push(remote);
+  }
+
+  async pull(): Promise<void> {
+    // No-op: there's no real remote to pull from in-memory.
+  }
+
+  async getCommitInfo(): Promise<{ hash: string; date: Date; author: string; message: string }> {
+    return { hash: "deadbeef", date: new Date(0), author: "test", message: "test commit" };
+  }
+
+  async getBranchParent(): Promise<string | undefined> {
+    return undefined;
+  }
+
+  async runCommand(): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    return { stdout: "", stderr: "", exitCode: 0 };
+  }
+
   /** Test helper — seed extra branches without going through createBranch. */
   seedBranch(name: string): void {
     this.branches.add(name);
@@ -77,5 +103,15 @@ export class InMemoryGitAdapter implements GitAdapter {
   /** Test helper — inspect merge history. */
   getMergeLog(): readonly MergeResult[] {
     return this.mergeLog;
+  }
+
+  /** Test helper — inspect tags created via createTag. */
+  getTags(): readonly string[] {
+    return this.tags;
+  }
+
+  /** Test helper — inspect remotes pushed to. */
+  getPushedRemotes(): readonly string[] {
+    return this.pushedRemotes;
   }
 }

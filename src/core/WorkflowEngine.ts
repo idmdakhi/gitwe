@@ -1,104 +1,60 @@
-import type { GitAdapter } from "../adapters/GitAdapter";
-import type { WorkflowDefinition, BranchTypeRule, HookDefinition } from "./WorkflowDefinition";
-import { validateWorkflowDefinition } from "./WorkflowDefinition";
+import type { GitAdapter } from "../git/GitAdapter";
+import type { WorkflowDefinition, BranchTypeRule } from "./WorkflowDefinition";
+import { gitFlowDefinition } from "./WorkflowDefinition";
 import type { Logger } from "../logging/Logger";
 import { NoopLogger } from "../logging/Logger";
 import type { Branch, MergeResult } from "./types";
 import {
-  UnknownBranchTypeError,
-  InvalidBranchNameError,
+  BranchAlreadyExistsError,
   BranchNotFoundError,
+  InvalidBranchNameError,
+  UnknownBranchTypeError,
   UnrecognizedBranchError,
 } from "./errors";
-import { exec } from "node:child_process";
-import { promisify } from "node:util";
-
-const execAsync = promisify(exec);
-
-// تابع کمکی برای اجرای دستورات با shell (نوع‌ایمن)
-function execShell(cmd: string, cwd: string): Promise<{ stdout: string; stderr: string }> {
-  // تشخیص shell مناسب برای سیستم‌عامل
-  const isWin = process.platform === "win32";
-  const shell = isWin ? process.env.ComSpec || "cmd.exe" : "/bin/sh";
-
-  return execAsync(cmd, {
-    cwd,
-    shell, // از نوع string است
-    encoding: "utf-8",
-  });
-}
-
-export interface StartOptions {
-  push?: boolean;
-  remote?: string;
-  skipHooks?: boolean;
-}
+import { HookManager } from "./HookManager";
 
 export interface FinishOptions {
+  /** Delete the branch after a successful merge. Defaults to true, but is still
+   *  overridden by `deleteOnFinish: false` on the matching branch-type rule. */
   deleteAfterMerge?: boolean;
-  push?: boolean;
-  remote?: string;
-  tag?: boolean;
-  tagPrefix?: string;
-  skipHooks?: boolean;
+  /** Push to the configured remote once the branch has finished. */
+  pushAfterFinish?: boolean;
 }
 
 export interface FinishResult {
-  branch: string;
   merges: MergeResult[];
   deleted: boolean;
-  tag?: string;
+  tags?: string[];
 }
 
 /**
- * HookManager executes custom scripts before/after operations.
+ * Orchestrates the two core workflow operations — `start` and `finish` —
+ * against an injected `GitAdapter`, driven entirely by a `WorkflowDefinition`.
+ * Nothing here is hardcoded to git-flow; swap the definition to get a
+ * different branching strategy for free.
  */
-class HookManager {
-  constructor(
-    private readonly cwd: string,
-    private readonly logger: Logger,
-  ) {}
-
-  async runHooks(
-    hooks: HookDefinition | undefined,
-    hookType: keyof HookDefinition,
-    skip: boolean = false,
-  ): Promise<void> {
-    if (skip) return;
-
-    const commands = hooks?.[hookType];
-    if (!commands || commands.length === 0) return;
-
-    this.logger.info(`Running ${hookType} hooks`, { count: commands.length });
-
-    for (const cmd of commands) {
-      try {
-        this.logger.debug(`Executing hook: ${cmd}`);
-        const { stdout, stderr } = await execShell(cmd, this.cwd);
-        if (stdout) this.logger.info(stdout.trim());
-        if (stderr) this.logger.warn(stderr.trim());
-      } catch (err) {
-        const error = err as Error;
-        this.logger.error(`Hook "${hookType}" failed`, { command: cmd, error: error.message });
-        throw new Error(`Hook "${hookType}" failed: ${error.message}`);
-      }
-    }
-
-    this.logger.info(`Completed ${hookType} hooks`);
-  }
-}
-
 export class WorkflowEngine {
-  private hookManager: HookManager;
+  private readonly hookManager: HookManager;
 
   constructor(
-    private readonly git: GitAdapter,
-    private readonly definition: WorkflowDefinition,
+    public readonly git: GitAdapter,
+    private readonly definition: WorkflowDefinition = gitFlowDefinition,
     private readonly logger: Logger = new NoopLogger(),
-    private readonly cwd: string = process.cwd(),
   ) {
-    validateWorkflowDefinition(definition);
-    this.hookManager = new HookManager(this.cwd, this.logger);
+    this.hookManager = new HookManager(process.cwd(), definition.hooks, logger);
+  }
+
+  private getRuleForBranch(branchName: string): BranchTypeRule | undefined {
+    return this.definition.branchTypes.find((rule) => branchName.startsWith(rule.prefix));
+  }
+
+  private validateShortName(name: string): void {
+    if (!name || !name.trim()) {
+      throw new InvalidBranchNameError(name, "branch short name cannot be empty");
+    }
+    if (/\s/.test(name)) {
+      throw new InvalidBranchNameError(name, "branch short name cannot contain whitespace");
+    }
   }
 
   async currentBranch(): Promise<string> {
@@ -110,131 +66,94 @@ export class WorkflowEngine {
   }
 
   listBranchTypes(): string[] {
-    return this.definition.branchTypes.map((r) => r.name);
+    return this.definition.branchTypes.map((t) => t.name);
   }
 
-  async start(branchType: string, shortName: string, options: StartOptions = {}): Promise<string> {
-    await this.hookManager.runHooks(this.definition.hooks, "preStart", options.skipHooks);
-
-    const rule = this.findRuleByTypeName(branchType);
+  /**
+   * Creates and checks out a new branch of the given type, e.g.
+   * `start("feature", "login")` -> creates & checks out `feature/login`
+   * from the type's configured base branch.
+   */
+  async start(type: string, shortName: string): Promise<string> {
+    const rule = this.definition.branchTypes.find((r) => r.name === type);
+    if (!rule) {
+      throw new UnknownBranchTypeError(type, this.listBranchTypes());
+    }
     this.validateShortName(shortName);
 
     const fullName = `${rule.prefix}${shortName}`;
-
+    if (await this.git.branchExists(fullName)) {
+      throw new BranchAlreadyExistsError(fullName);
+    }
     if (!(await this.git.branchExists(rule.baseBranch))) {
       throw new BranchNotFoundError(rule.baseBranch);
     }
 
-    if (this.definition.remote?.autoPull) {
-      await this.git.pull?.(this.definition.remote.remote, rule.baseBranch);
-    }
-
+    await this.hookManager.runHooks("preStart");
     await this.git.createBranch(fullName, { from: rule.baseBranch, checkout: true });
-    this.logger.info("started branch", { type: branchType, branch: fullName });
+    await this.hookManager.runHooks("postStart");
 
-    const shouldPush = options.push ?? this.definition.remote?.autoPush ?? false;
-    if (shouldPush) {
-      const remote = options.remote ?? this.definition.remote?.remote ?? "origin";
-      await this.git.push?.(remote, fullName);
-    }
-
-    await this.hookManager.runHooks(this.definition.hooks, "postStart", options.skipHooks);
-
+    this.logger.info(`Started branch ${fullName} from ${rule.baseBranch}`);
     return fullName;
   }
 
-  async finish(fullBranchName: string, options: FinishOptions = {}): Promise<FinishResult> {
-    await this.hookManager.runHooks(this.definition.hooks, "preFinish", options.skipHooks);
+  /**
+   * Merges a branch into all of its type's configured merge targets, tags
+   * it if `autoTag` is configured, and (by default) deletes it afterwards.
+   */
+  async finish(branchName: string, options: FinishOptions = {}): Promise<FinishResult> {
+    const { deleteAfterMerge = true } = options;
 
-    const rule = this.findRuleByBranchName(fullBranchName);
-
-    if (!(await this.git.branchExists(fullBranchName))) {
-      throw new BranchNotFoundError(fullBranchName);
+    if (!(await this.git.branchExists(branchName))) {
+      throw new BranchNotFoundError(branchName);
     }
 
-    if (this.definition.remote?.autoPull) {
-      const remote = this.definition.remote.remote ?? "origin";
-      for (const target of rule.mergeTargets) {
-        await this.git.pull?.(remote, target);
-      }
+    const rule = this.getRuleForBranch(branchName);
+    if (!rule) {
+      throw new UnrecognizedBranchError(branchName);
     }
+
+    await this.hookManager.runHooks("preFinish");
 
     const merges: MergeResult[] = [];
     for (const target of rule.mergeTargets) {
       if (!(await this.git.branchExists(target))) {
         throw new BranchNotFoundError(target);
       }
-      const result = await this.git.merge(fullBranchName, target);
-      merges.push(result);
-      this.logger.info("merged branch", { source: fullBranchName, target });
+      merges.push(await this.git.merge(branchName, target, { noFastForward: true }));
     }
 
-    let tagName: string | undefined;
-    const shouldTag = options.tag ?? rule.autoTag !== undefined;
-    if (shouldTag && rule.name === "release") {
-      const prefix = options.tagPrefix ?? rule.autoTag?.prefix ?? "v";
-      const versionPart = fullBranchName.replace(rule.prefix, "");
-      tagName = `${prefix}${versionPart}`;
-      await this.git.createTag?.(tagName, `Release ${versionPart}`);
-      this.logger.info("tag created", { tag: tagName });
-    }
-
-    const shouldDelete = options.deleteAfterMerge ?? rule.deleteOnFinish ?? true;
-    if (shouldDelete) {
-      await this.git.deleteBranch(fullBranchName);
-      this.logger.info("deleted finished branch", { branch: fullBranchName });
-    }
-
-    const shouldPush = options.push ?? this.definition.remote?.autoPush ?? false;
-    if (shouldPush) {
-      const remote = options.remote ?? this.definition.remote?.remote ?? "origin";
-      const targets = new Set(merges.map((m) => m.target));
-      for (const target of targets) {
-        await this.git.push?.(remote, target);
+    const tags: string[] = [];
+    if (rule.autoTag) {
+      const prefix = rule.autoTag.prefix ?? "v";
+      let version = branchName.replace(rule.prefix, "");
+      if (rule.autoTag.pattern) {
+        const match = version.match(new RegExp(rule.autoTag.pattern));
+        if (match) version = match[1] ?? version;
       }
-      if (tagName) {
-        await this.git.push?.(remote, tagName);
-      }
-      if (shouldDelete) {
-        await this.git.push?.(remote, `--delete ${fullBranchName}`);
-      }
+      const tagName = `${prefix}${version}`;
+      await this.git.createTag(tagName, `Release ${version}`);
+      tags.push(tagName);
+      this.logger.info(`Created tag ${tagName}`);
     }
 
-    await this.hookManager.runHooks(this.definition.hooks, "postFinish", options.skipHooks);
+    let deleted = false;
+    if (deleteAfterMerge && rule.deleteOnFinish !== false) {
+      await this.git.deleteBranch(branchName);
+      deleted = true;
+    }
 
-    return {
-      branch: fullBranchName,
-      merges,
-      deleted: shouldDelete,
-      ...(tagName ? { tag: tagName } : {}),
-    };
+    await this.hookManager.runHooks("postFinish");
+
+    if (options.pushAfterFinish || this.definition.remote?.autoPush) {
+      const remote = this.definition.remote?.remote ?? "origin";
+      await this.git.push(remote);
+    }
+
+    return { merges, deleted, tags };
   }
 
-  private findRuleByTypeName(branchType: string): BranchTypeRule {
-    const rule = this.definition.branchTypes.find((r) => r.name === branchType);
-    if (!rule) {
-      throw new UnknownBranchTypeError(branchType, this.listBranchTypes());
-    }
-    return rule;
-  }
-
-  private findRuleByBranchName(fullBranchName: string): BranchTypeRule {
-    const rule = this.definition.branchTypes.find((r) => fullBranchName.startsWith(r.prefix));
-    if (!rule) {
-      throw new UnrecognizedBranchError(fullBranchName);
-    }
-    return rule;
-  }
-
-  private validateShortName(shortName: string): void {
-    if (shortName.trim() === "") {
-      throw new InvalidBranchNameError(shortName, "cannot be empty");
-    }
-    if (/\s/.test(shortName)) {
-      throw new InvalidBranchNameError(shortName, "cannot contain whitespace");
-    }
-    if (shortName.includes("..")) {
-      throw new InvalidBranchNameError(shortName, 'cannot contain ".."');
-    }
+  async getBranchParent(branch: string): Promise<string | undefined> {
+    return this.git.getBranchParent(branch);
   }
 }

@@ -36,4 +36,5 @@ export interface GitAdapter {
     ref: string,
   ): Promise<{ hash: string; date: Date; author: string; message: string }>;
   getBranchParent(branch: string): Promise<string | undefined>;
+  runCommand(args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }>;
 }

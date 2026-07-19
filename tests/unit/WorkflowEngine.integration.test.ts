@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { ShellGitAdapter } from "../../src/adapters/ShellGitAdapter";
+import { ShellGitAdapter } from "../../src/git/ShellGitAdapter";
 import { WorkflowEngine } from "../../src/core/WorkflowEngine";
 import { gitFlowDefinition } from "../../src/core/WorkflowDefinition";
 
