@@ -17,8 +17,8 @@
     "noEmit": true,
     "allowSyntheticDefaultImports": true,
     "paths": {
-      "#gitwe/*": ["./src/*.js"],
-      "#tests/*": ["./tests/*.js"]
+      "#gitwe/*": ["./src/*"],
+      "#tests/*": ["./tests/*"]
     }
   },
   "include": ["src/**/*.ts", "tests/**/*.ts"],
