@@ -1,5 +1,5 @@
-import type { HookRunner } from "../../src/domain/ports/HookRunner";
-import { HookPhase } from "../../src/domain/hooks/HookPhase";
+import type { HookRunner } from "#gitwe/domain/ports/HookRunner";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 
 export class InMemoryHookRunner implements HookRunner {
   readonly calls: { phase: HookPhase; commands: readonly string[] }[] = [];

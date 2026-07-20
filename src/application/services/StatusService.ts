@@ -1,6 +1,6 @@
-import type { GitRepository } from "../../domain/ports/GitRepository";
-import { Workflow } from "../../domain/aggregates/Workflow";
-import { BranchTreeNode, StatusReport } from "../dto/StatusReport";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchTreeNode, StatusReport } from "#gitwe/application/dto/StatusReport";
 
 /** Builds a parent/child tree of branches and a small statistics summary. */
 export class StatusService {

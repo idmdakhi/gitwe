@@ -1,70 +1,70 @@
 // Domain
-export { Workflow } from "./domain/aggregates/Workflow";
-export { BranchTypeRule } from "./domain/valueObjects/BranchTypeRule";
-export { BranchName } from "./domain/valueObjects/BranchName";
-export { RemoteConfig } from "./domain/valueObjects/RemoteConfig";
-export { MergeOutcome } from "./domain/valueObjects/MergeOutcome";
-export type { CommitInfo } from "./domain/valueObjects/CommitInfo";
-export { Branch } from "./domain/entities/Branch";
-export { HookDefinition } from "./domain/hooks/HookDefinition";
-export { HookPhase } from "./domain/hooks/HookPhase";
-export { AutoTagPolicy } from "./domain/policies/AutoTagPolicy";
-export * from "./domain/errors";
+export { Workflow } from "#gitwe/domain/aggregates/Workflow";
+export { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+export { BranchName } from "#gitwe/domain/valueObjects/BranchName";
+export { RemoteConfig } from "#gitwe/domain/valueObjects/RemoteConfig";
+export { MergeOutcome } from "#gitwe/domain/valueObjects/MergeOutcome";
+export type { CommitInfo } from "#gitwe/domain/valueObjects/CommitInfo";
+export { Branch } from "#gitwe/domain/entities/Branch";
+export { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
+export { HookPhase } from "#gitwe/domain/hooks/HookPhase";
+export { AutoTagPolicy } from "#gitwe/domain/policies/AutoTagPolicy";
+export * from "#gitwe/domain/errors/index";
 export type {
   GitRepository,
   CreateBranchOptions,
   MergeOptions,
   RawCommandResult,
-} from "./domain/ports/GitRepository";
-export type { HookRunner } from "./domain/ports/HookRunner";
-export type { EventBus } from "./domain/ports/EventBus";
-export { DomainEvent } from "./domain/events/DomainEvent";
-export { BranchStartedEvent } from "./domain/events/BranchStartedEvent";
-export { BranchFinishedEvent } from "./domain/events/BranchFinishedEvent";
-export { RuleEvaluator } from "./domain/services/RuleEvaluator";
-export type { Rule } from "./domain/rules/Rule";
-export type { RuleContext, WorkflowAction } from "./domain/rules/RuleContext";
-export { RuleResult } from "./domain/rules/RuleResult";
-export { BranchDoesNotExistRule } from "./domain/rules/BranchDoesNotExistRule";
-export { BaseBranchExistsRule } from "./domain/rules/BaseBranchExistsRule";
-export { WorkingTreeCleanRule } from "./domain/rules/WorkingTreeCleanRule";
+} from "#gitwe/domain/ports/GitRepository";
+export type { HookRunner } from "#gitwe/domain/ports/HookRunner";
+export type { EventBus } from "#gitwe/domain/ports/EventBus";
+export { DomainEvent } from "#gitwe/domain/events/DomainEvent";
+export { BranchStartedEvent } from "#gitwe/domain/events/BranchStartedEvent";
+export { BranchFinishedEvent } from "#gitwe/domain/events/BranchFinishedEvent";
+export { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+export type { Rule } from "#gitwe/domain/rules/Rule";
+export type { RuleContext, WorkflowAction } from "#gitwe/domain/rules/RuleContext";
+export { RuleResult } from "#gitwe/domain/rules/RuleResult";
+export { BranchDoesNotExistRule } from "#gitwe/domain/rules/BranchDoesNotExistRule";
+export { BaseBranchExistsRule } from "#gitwe/domain/rules/BaseBranchExistsRule";
+export { WorkingTreeCleanRule } from "#gitwe/domain/rules/WorkingTreeCleanRule";
 
 // Application
-export { StartBranchHandler } from "./application/handlers/StartBranchHandler";
-export { FinishBranchHandler } from "./application/handlers/FinishBranchHandler";
-export { ListBranchesHandler } from "./application/handlers/ListBranchesHandler";
-export { GetStatusHandler } from "./application/handlers/GetStatusHandler";
-export { ValidateWorkflowHandler } from "./application/handlers/ValidateWorkflowHandler";
-export { DoctorHandler } from "./application/handlers/DoctorHandler";
-export { BranchService } from "./application/services/BranchService";
-export { MergeService } from "./application/services/MergeService";
-export { TagService } from "./application/services/TagService";
-export { HookService } from "./application/services/HookService";
-export { RemoteService } from "./application/services/RemoteService";
-export { StatusService } from "./application/services/StatusService";
-export type { StartBranchCommand } from "./application/commands/StartBranchCommand";
-export type { FinishBranchCommand } from "./application/commands/FinishBranchCommand";
-export type { GetStatusQuery } from "./application/queries/GetStatusQuery";
-export type { WorkflowConfigReader } from "./application/ports/WorkflowConfigReader";
+export { StartBranchHandler } from "#gitwe/application/handlers/StartBranchHandler";
+export { FinishBranchHandler } from "#gitwe/application/handlers/FinishBranchHandler";
+export { ListBranchesHandler } from "#gitwe/application/handlers/ListBranchesHandler";
+export { GetStatusHandler } from "#gitwe/application/handlers/GetStatusHandler";
+export { ValidateWorkflowHandler } from "#gitwe/application/handlers/ValidateWorkflowHandler";
+export { DoctorHandler } from "#gitwe/application/handlers/DoctorHandler";
+export { BranchService } from "#gitwe/application/services/BranchService";
+export { MergeService } from "#gitwe/application/services/MergeService";
+export { TagService } from "#gitwe/application/services/TagService";
+export { HookService } from "#gitwe/application/services/HookService";
+export { RemoteService } from "#gitwe/application/services/RemoteService";
+export { StatusService } from "#gitwe/application/services/StatusService";
+export type { StartBranchCommand } from "#gitwe/application/commands/StartBranchCommand";
+export type { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
+export type { GetStatusQuery } from "#gitwe/application/queries/GetStatusQuery";
+export type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
 
 // Infrastructure
-export { ShellGitRepository } from "./infrastructure/git/ShellGitRepository";
-export { GitCommandError } from "./infrastructure/git/GitCommandError";
-export { ShellHookRunner } from "./infrastructure/hooks/ShellHookRunner";
-export { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus";
-export { ConsoleLogger } from "./infrastructure/logging/ConsoleLogger";
-export { NoopLogger } from "./infrastructure/logging/NoopLogger";
-export { WorkflowConfigLoader } from "./infrastructure/config/WorkflowConfigLoader";
+export { ShellGitRepository } from "#gitwe/infrastructure/git/ShellGitRepository";
+export { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
+export { ShellHookRunner } from "#gitwe/infrastructure/hooks/ShellHookRunner";
+export { InMemoryEventBus } from "#gitwe/infrastructure/events/InMemoryEventBus";
+export { ConsoleLogger } from "#gitwe/infrastructure/logging/ConsoleLogger";
+export { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
+export { WorkflowConfigLoader } from "#gitwe/infrastructure/config/WorkflowConfigLoader";
 export {
   gitFlowWorkflow,
   githubFlowWorkflow,
   trunkBasedWorkflow,
   builtInWorkflows,
-} from "./infrastructure/config/BuiltInWorkflows";
+} from "#gitwe/infrastructure/config/BuiltInWorkflows";
 
 // Shared
-export type { Logger } from "./shared/logging/Logger";
+export type { Logger } from "#gitwe/shared/logging/Logger";
 
 // CLI composition root (useful for embedding the CLI's wiring elsewhere)
-export { Container } from "./cli/container";
-export type { ContainerOptions } from "./cli/container";
+export { Container } from "#gitwe/cli/container";
+export type { ContainerOptions } from "#gitwe/cli/container";

@@ -1,6 +1,6 @@
-import { Rule } from "./Rule";
-import { RuleContext } from "./RuleContext";
-import { RuleResult } from "./RuleResult";
+import { Rule } from "#gitwe/domain/rules/Rule";
+import { RuleContext } from "#gitwe/domain/rules/RuleContext";
+import { RuleResult } from "#gitwe/domain/rules/RuleResult";
 
 /** Only applies to `start`: the new branch must not already exist. */
 export class BranchDoesNotExistRule implements Rule {

@@ -1,17 +1,17 @@
-import type { GitRepository } from "../../domain/ports/GitRepository";
-import type { EventBus } from "../../domain/ports/EventBus";
-import { Workflow } from "../../domain/aggregates/Workflow";
-import { HookPhase } from "../../domain/hooks/HookPhase";
-import { BranchFinishedEvent } from "../../domain/events/BranchFinishedEvent";
-import { UnrecognizedBranchError, BranchNotFoundError } from "../../domain/errors";
-import type { Logger } from "../../shared/logging/Logger";
-import { RuleEvaluator } from "../../domain/services/RuleEvaluator";
-import { MergeService } from "../services/MergeService";
-import { TagService } from "../services/TagService";
-import { HookService } from "../services/HookService";
-import { RemoteService } from "../services/RemoteService";
-import { FinishBranchCommand } from "../commands/FinishBranchCommand";
-import { FinishBranchResult } from "../dto/FinishBranchResult";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import type { EventBus } from "#gitwe/domain/ports/EventBus";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
+import { BranchFinishedEvent } from "#gitwe/domain/events/BranchFinishedEvent";
+import { UnrecognizedBranchError, BranchNotFoundError } from "#gitwe/domain/errors/index";
+import type { Logger } from "#gitwe/shared/logging/Logger";
+import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+import { MergeService } from "#gitwe/application/services/MergeService";
+import { TagService } from "#gitwe/application/services/TagService";
+import { HookService } from "#gitwe/application/services/HookService";
+import { RemoteService } from "#gitwe/application/services/RemoteService";
+import { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
+import { FinishBranchResult } from "#gitwe/application/dto/FinishBranchResult";
 
 /**
  * Use case: finish a branch — merge it into every configured target, tag

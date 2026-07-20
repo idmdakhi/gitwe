@@ -1,4 +1,4 @@
-import { Workflow } from "../../domain/aggregates/Workflow";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 
 /**
  * Application-layer port: loads a `Workflow` from some external source

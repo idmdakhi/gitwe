@@ -1,5 +1,5 @@
-import type { WorkflowConfigReader } from "../ports/WorkflowConfigReader";
-import { DomainError } from "../../domain/errors";
+import type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
+import { DomainError } from "#gitwe/domain/errors/index";
 
 export interface ValidateWorkflowResult {
   readonly valid: boolean;

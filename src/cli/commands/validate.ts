@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
+import type { Container } from "#gitwe/cli/container";
 
 export function registerValidateCommand(program: Command, getContainer: () => Container): void {
   program

@@ -1,9 +1,9 @@
-import type { GitRepository } from "../../domain/ports/GitRepository";
-import { Workflow } from "../../domain/aggregates/Workflow";
-import { BranchName } from "../../domain/valueObjects/BranchName";
-import { RuleEvaluator } from "../../domain/services/RuleEvaluator";
-import { UnknownBranchTypeError } from "../../domain/errors";
-import { BranchTypeRule } from "../../domain/valueObjects/BranchTypeRule";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchName } from "#gitwe/domain/valueObjects/BranchName";
+import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+import { UnknownBranchTypeError } from "#gitwe/domain/errors/index";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
 
 /** Orchestrates creating a new branch of a given type, after rule validation. */
 export class BranchService {

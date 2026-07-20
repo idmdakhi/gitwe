@@ -1,6 +1,6 @@
-import { Rule } from "../rules/Rule";
-import { RuleContext } from "../rules/RuleContext";
-import { WorkflowRuleViolationError } from "../errors";
+import { Rule } from "#gitwe/domain/rules/Rule";
+import { RuleContext } from "#gitwe/domain/rules/RuleContext";
+import { WorkflowRuleViolationError } from "#gitwe/domain/errors/index";
 
 /**
  * Runs every registered rule against a context and stops at the first

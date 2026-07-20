@@ -1,5 +1,5 @@
-import type { GitRepository } from "../../domain/ports/GitRepository";
-import { Workflow } from "../../domain/aggregates/Workflow";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 
 export interface DoctorCheck {
   readonly name: string;

@@ -1,4 +1,4 @@
-import { InvalidBranchNameError } from "../errors";
+import { InvalidBranchNameError } from "#gitwe/domain/errors/index";
 
 const VALID_CHARS = /^[a-zA-Z0-9_\-./]+$/;
 

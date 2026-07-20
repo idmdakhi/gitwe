@@ -1,6 +1,6 @@
-import { Branch } from "../entities/Branch";
-import { MergeOutcome } from "../valueObjects/MergeOutcome";
-import { CommitInfo } from "../valueObjects/CommitInfo";
+import { Branch } from "#gitwe/domain/entities/Branch";
+import { MergeOutcome } from "#gitwe/domain/valueObjects/MergeOutcome";
+import { CommitInfo } from "#gitwe/domain/valueObjects/CommitInfo";
 
 export interface CreateBranchOptions {
   /** Branch (or commit-ish) to base the new branch on. Defaults to current HEAD. */

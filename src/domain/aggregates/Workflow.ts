@@ -1,7 +1,7 @@
-import { BranchTypeRule } from "../valueObjects/BranchTypeRule";
-import { HookDefinition } from "../hooks/HookDefinition";
-import { RemoteConfig } from "../valueObjects/RemoteConfig";
-import { InvalidWorkflowDefinitionError } from "../errors";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
+import { RemoteConfig } from "#gitwe/domain/valueObjects/RemoteConfig";
+import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors/index";
 
 /**
  * The `Workflow` aggregate root. It owns and enforces every invariant a

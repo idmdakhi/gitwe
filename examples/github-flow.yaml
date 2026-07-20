@@ -1,0 +1,37 @@
+# Simple GitHub Flow workflow
+# One main branch, feature branches merged via pull requests
+
+name: github-flow
+
+branchTypes:
+  - name: feature
+    prefix: feature/
+    baseBranch: main
+    mergeTargets:
+      - main
+    deleteOnFinish: true
+
+  - name: bugfix
+    prefix: bugfix/
+    baseBranch: main
+    mergeTargets:
+      - main
+    deleteOnFinish: true
+
+  - name: hotfix
+    prefix: hotfix/
+    baseBranch: main
+    mergeTargets:
+      - main
+    deleteOnFinish: true
+
+hooks:
+  preFinish:
+    - echo "🔍 Checking code quality..."
+    - npm run lint
+    - npm run test
+
+remote:
+  remote: origin
+  autoPush: true
+  autoPull: true

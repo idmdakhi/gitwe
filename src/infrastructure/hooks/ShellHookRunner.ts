@@ -1,10 +1,10 @@
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import type { HookRunner } from "../../domain/ports/HookRunner";
-import { HookPhase } from "../../domain/hooks/HookPhase";
-import { HookExecutionError } from "../../domain/errors";
-import type { Logger } from "../../shared/logging/Logger";
-import { NoopLogger } from "../logging/NoopLogger";
+import type { HookRunner } from "#gitwe/domain/ports/HookRunner";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
+import { HookExecutionError } from "#gitwe/domain/errors/index";
+import type { Logger } from "#gitwe/shared/logging/Logger";
+import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 const execAsync = promisify(exec);
 

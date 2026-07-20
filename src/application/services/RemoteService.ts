@@ -1,5 +1,5 @@
-import type { GitRepository } from "../../domain/ports/GitRepository";
-import { RemoteConfig } from "../../domain/valueObjects/RemoteConfig";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import { RemoteConfig } from "#gitwe/domain/valueObjects/RemoteConfig";
 
 /** Orchestrates auto-push/auto-pull behavior driven by a workflow's `RemoteConfig`. */
 export class RemoteService {

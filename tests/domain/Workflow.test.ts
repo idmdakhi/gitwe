@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { Workflow } from "../../src/domain/aggregates/Workflow";
-import { BranchTypeRule } from "../../src/domain/valueObjects/BranchTypeRule";
-import { InvalidWorkflowDefinitionError } from "../../src/domain/errors";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors/index";
 
 function feature(overrides: Partial<Parameters<typeof BranchTypeRule.create>[0]> = {}) {
   return BranchTypeRule.create({

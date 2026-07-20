@@ -3,11 +3,11 @@ import type {
   CreateBranchOptions,
   MergeOptions,
   RawCommandResult,
-} from "../../src/domain/ports/GitRepository";
-import { Branch } from "../../src/domain/entities/Branch";
-import { MergeOutcome } from "../../src/domain/valueObjects/MergeOutcome";
-import { CommitInfo } from "../../src/domain/valueObjects/CommitInfo";
-import { BranchAlreadyExistsError, BranchNotFoundError } from "../../src/domain/errors";
+} from "#gitwe/domain/ports/GitRepository";
+import { Branch } from "#gitwe/domain/entities/Branch";
+import { MergeOutcome } from "#gitwe/domain/valueObjects/MergeOutcome";
+import { CommitInfo } from "#gitwe/domain/valueObjects/CommitInfo";
+import { BranchAlreadyExistsError, BranchNotFoundError } from "#gitwe/domain/errors/index";
 
 export class InMemoryGitRepository implements GitRepository {
   private branches = new Set<string>(["main"]);

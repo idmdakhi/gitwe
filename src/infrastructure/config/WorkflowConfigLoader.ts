@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
-import { Workflow } from "../../domain/aggregates/Workflow";
-import { BranchTypeRule } from "../../domain/valueObjects/BranchTypeRule";
-import { HookDefinition } from "../../domain/hooks/HookDefinition";
-import { RemoteConfig } from "../../domain/valueObjects/RemoteConfig";
-import { InvalidWorkflowDefinitionError } from "../../domain/errors";
-import type { WorkflowConfigReader } from "../../application/ports/WorkflowConfigReader";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
+import { RemoteConfig } from "#gitwe/domain/valueObjects/RemoteConfig";
+import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors/index";
+import type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
 
 interface RawBranchType {
   name: string;

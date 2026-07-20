@@ -1,0 +1,60 @@
+# Custom workflow with all features demonstrated
+# Multi-stage: development → staging → production
+
+name: custom-workflow
+
+branchTypes:
+  - name: feature
+    prefix: feature/
+    baseBranch: develop
+    mergeTargets:
+      - develop
+    deleteOnFinish: true
+
+  - name: staging-deploy
+    prefix: stage/
+    baseBranch: develop
+    mergeTargets:
+      - staging
+    deleteOnFinish: true
+
+  - name: production-release
+    prefix: release/
+    baseBranch: staging
+    mergeTargets:
+      - main
+      - develop
+    deleteOnFinish: true
+    autoTag:
+      prefix: v
+      pattern: '(\d+\.\d+\.\d+)'  # extract version from branch name (e.g., release/1.2.3 → v1.2.3)
+
+  - name: emergency-fix
+    prefix: hotfix/
+    baseBranch: main
+    mergeTargets:
+      - main
+      - develop
+      - staging
+    deleteOnFinish: true
+
+hooks:
+  preStart:
+    - echo "🔍 Running pre-start checks..."
+    - npm run lint
+  postStart:
+    - echo "🎉 New branch created: {{branch}}"
+    - echo "📝 Don't forget to update the CHANGELOG!"
+  preFinish:
+    - echo "🧪 Running tests..."
+    - npm run test
+    - npm run build
+    - echo "📦 Building documentation..."
+  postFinish:
+    - echo "✅ Branch finished successfully!"
+    - echo "🚀 Deployment pipeline triggered"
+
+remote:
+  remote: origin
+  autoPush: true     # Push after every start/finish
+  autoPull: true     # Pull before every start/finish

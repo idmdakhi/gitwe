@@ -1,5 +1,5 @@
-import { GitRepository } from "../ports/GitRepository";
-import { Workflow } from "../aggregates/Workflow";
+import { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 
 export type WorkflowAction = "start" | "finish";
 

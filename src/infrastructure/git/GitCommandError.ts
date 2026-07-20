@@ -1,4 +1,4 @@
-import { DomainError } from "../../domain/errors";
+import { DomainError } from "#gitwe/domain/errors/index";
 
 export class GitCommandError extends DomainError {
   readonly code = "GIT_COMMAND_FAILED";

@@ -1,7 +1,7 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { reportError } from "../reportError";
-import { GitCommandError } from "../../infrastructure/git/GitCommandError";
+import type { Container } from "#gitwe/cli/container";
+import { reportError } from "#gitwe/cli/reportError";
+import { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
 
 export function registerFinishCommand(program: Command, getContainer: () => Container): void {
   program

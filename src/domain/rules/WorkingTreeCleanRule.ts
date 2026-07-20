@@ -1,6 +1,6 @@
-import { Rule } from "./Rule";
-import { RuleContext } from "./RuleContext";
-import { RuleResult } from "./RuleResult";
+import { Rule } from "#gitwe/domain/rules/Rule";
+import { RuleContext } from "#gitwe/domain/rules/RuleContext";
+import { RuleResult } from "#gitwe/domain/rules/RuleResult";
 
 /** Only applies to `finish`: refuses to merge with uncommitted local changes. */
 export class WorkingTreeCleanRule implements Rule {

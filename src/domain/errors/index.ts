@@ -1,5 +1,5 @@
-export { DomainError } from "./DomainError";
-import { DomainError } from "./DomainError";
+export { DomainError } from "#gitwe/domain/errors/DomainError";
+import { DomainError } from "#gitwe/domain/errors/DomainError";
 
 export class BranchAlreadyExistsError extends DomainError {
   readonly code = "BRANCH_ALREADY_EXISTS";

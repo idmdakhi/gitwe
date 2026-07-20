@@ -4,10 +4,10 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },
-  "typescript.preferences.importModuleSpecifier": "relative",
+  // "typescript.preferences.importModuleSpecifier": "relative",
   "files.exclude": {
-    "**/node_modules": true,
-    "**/dist": true,
+    "**/node_modules": false,
+    "**/dist": false,
     "**/coverage": true
   },
   "vitest.commandLine": "npm run test",

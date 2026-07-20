@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { Container } from "./container";
+import { Container } from "#gitwe/cli/container";
 
-import { registerStartCommand } from "./commands/start";
-import { registerFinishCommand } from "./commands/finish";
-import { registerStatusCommand } from "./commands/status";
-import { registerGraphCommand } from "./commands/graph";
-import { registerCurrentCommand } from "./commands/current";
-import { registerListCommand } from "./commands/list";
-import { registerTypesCommand } from "./commands/types";
-import { registerValidateCommand } from "./commands/validate";
-import { registerDoctorCommand } from "./commands/doctor";
-import { registerConfigCommand } from "./commands/config";
+import { registerStartCommand } from "#gitwe/cli/commands/start";
+import { registerFinishCommand } from "#gitwe/cli/commands/finish";
+import { registerStatusCommand } from "#gitwe/cli/commands/status";
+import { registerGraphCommand } from "#gitwe/cli/commands/graph";
+import { registerCurrentCommand } from "#gitwe/cli/commands/current";
+import { registerListCommand } from "#gitwe/cli/commands/list";
+import { registerTypesCommand } from "#gitwe/cli/commands/types";
+import { registerValidateCommand } from "#gitwe/cli/commands/validate";
+import { registerDoctorCommand } from "#gitwe/cli/commands/doctor";
+import { registerConfigCommand } from "#gitwe/cli/commands/config";
 
 const program = new Command();
 

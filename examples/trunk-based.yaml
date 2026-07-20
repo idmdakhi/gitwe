@@ -1,0 +1,52 @@
+# Trunk-Based Development workflow
+# Short-lived feature branches merged directly to main
+
+name: trunk-based
+
+branchTypes:
+  - name: feature
+    prefix: feat/
+    baseBranch: main
+    mergeTargets:
+      - main
+    deleteOnFinish: true
+
+  - name: bugfix
+    prefix: fix/
+    baseBranch: main
+    mergeTargets:
+      - main
+    deleteOnFinish: true
+
+  - name: chore
+    prefix: chore/
+    baseBranch: main
+    mergeTargets:
+      - main
+    deleteOnFinish: true
+
+  # Optional: release branches for versioned releases
+  - name: release
+    prefix: release/
+    baseBranch: main
+    mergeTargets:
+      - main
+    deleteOnFinish: true
+    autoTag:
+      prefix: v
+
+hooks:
+  preStart:
+    - echo "📦 Starting a new branch..."
+  postStart:
+    - echo "🚀 Branch is ready for work"
+  preFinish:
+    - npm run test
+    - npm run build
+  postFinish:
+    - echo "✅ Branch merged and deleted"
+
+remote:
+  remote: origin
+  autoPush: true
+  autoPull: true

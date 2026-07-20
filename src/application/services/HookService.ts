@@ -1,6 +1,6 @@
-import type { HookRunner } from "../../domain/ports/HookRunner";
-import { HookDefinition } from "../../domain/hooks/HookDefinition";
-import { HookPhase } from "../../domain/hooks/HookPhase";
+import type { HookRunner } from "#gitwe/domain/ports/HookRunner";
+import { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 
 /** Thin orchestration wrapper around the `HookRunner` port and a workflow's `HookDefinition`. */
 export class HookService {

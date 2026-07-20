@@ -1,4 +1,4 @@
-import { DomainError } from "../domain/errors";
+import { DomainError } from "#gitwe/domain/errors/index";
 
 /** Formats any thrown error for CLI output and returns the process exit code to use. */
 export function reportError(error: unknown): number {

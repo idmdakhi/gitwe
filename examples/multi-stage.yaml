@@ -1,0 +1,48 @@
+# Multi-stage workflow: feature → staging → main
+
+name: multi-stage
+
+branchTypes:
+  - name: feature
+    prefix: feature/
+    baseBranch: develop
+    mergeTargets:
+      - develop
+    deleteOnFinish: true
+
+  - name: stage
+    prefix: stage/
+    baseBranch: develop
+    mergeTargets:
+      - staging
+    deleteOnFinish: true
+
+  - name: release
+    prefix: release/
+    baseBranch: staging
+    mergeTargets:
+      - main
+      - develop
+      - staging
+    deleteOnFinish: true
+    autoTag:
+      prefix: v
+
+  - name: hotfix
+    prefix: hotfix/
+    baseBranch: main
+    mergeTargets:
+      - main
+      - develop
+      - staging
+    deleteOnFinish: true
+
+hooks:
+  preFinish:
+    - npm run test
+    - npm run build
+
+remote:
+  remote: origin
+  autoPush: true
+  autoPull: true

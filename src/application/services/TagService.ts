@@ -1,6 +1,6 @@
-import type { GitRepository } from "../../domain/ports/GitRepository";
-import { BranchTypeRule } from "../../domain/valueObjects/BranchTypeRule";
-import { AutoTagPolicy } from "../../domain/policies/AutoTagPolicy";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { AutoTagPolicy } from "#gitwe/domain/policies/AutoTagPolicy";
 
 /** Orchestrates creating a version tag for a finished branch, when the branch type configures one. */
 export class TagService {

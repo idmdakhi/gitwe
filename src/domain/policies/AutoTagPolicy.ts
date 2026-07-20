@@ -1,4 +1,4 @@
-import { BranchTypeRule } from "../valueObjects/BranchTypeRule";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
 
 /**
  * Encapsulates the rule for turning a finished branch into a tag name,

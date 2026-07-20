@@ -3,15 +3,15 @@ import type {
   CreateBranchOptions,
   MergeOptions,
   RawCommandResult,
-} from "../../domain/ports/GitRepository";
-import { Branch } from "../../domain/entities/Branch";
-import { MergeOutcome } from "../../domain/valueObjects/MergeOutcome";
-import { CommitInfo } from "../../domain/valueObjects/CommitInfo";
-import { BranchAlreadyExistsError, BranchNotFoundError } from "../../domain/errors";
-import { GitCommandError } from "./GitCommandError";
-import { ProcessRunner } from "./ProcessRunner";
-import type { Logger } from "../../shared/logging/Logger";
-import { NoopLogger } from "../logging/NoopLogger";
+} from "#gitwe/domain/ports/GitRepository";
+import { Branch } from "#gitwe/domain/entities/Branch";
+import { MergeOutcome } from "#gitwe/domain/valueObjects/MergeOutcome";
+import { CommitInfo } from "#gitwe/domain/valueObjects/CommitInfo";
+import { BranchAlreadyExistsError, BranchNotFoundError } from "#gitwe/domain/errors/index";
+import { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
+import { ProcessRunner } from "#gitwe/infrastructure/git/ProcessRunner";
+import type { Logger } from "#gitwe/shared/logging/Logger";
+import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 /**
  * Talks to the real `git` binary via `ProcessRunner`. This is the only

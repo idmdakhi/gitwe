@@ -1,22 +1,22 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { Workflow } from "../../src/domain/aggregates/Workflow";
-import { BranchTypeRule } from "../../src/domain/valueObjects/BranchTypeRule";
-import { RuleEvaluator } from "../../src/domain/services/RuleEvaluator";
-import { WorkingTreeCleanRule } from "../../src/domain/rules/WorkingTreeCleanRule";
-import { MergeService } from "../../src/application/services/MergeService";
-import { TagService } from "../../src/application/services/TagService";
-import { HookService } from "../../src/application/services/HookService";
-import { RemoteService } from "../../src/application/services/RemoteService";
-import { FinishBranchHandler } from "../../src/application/handlers/FinishBranchHandler";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+import { WorkingTreeCleanRule } from "#gitwe/domain/rules/WorkingTreeCleanRule";
+import { MergeService } from "#gitwe/application/services/MergeService";
+import { TagService } from "#gitwe/application/services/TagService";
+import { HookService } from "#gitwe/application/services/HookService";
+import { RemoteService } from "#gitwe/application/services/RemoteService";
+import { FinishBranchHandler } from "#gitwe/application/handlers/FinishBranchHandler";
 import {
   BranchNotFoundError,
   UnrecognizedBranchError,
   WorkflowRuleViolationError,
-} from "../../src/domain/errors";
-import { InMemoryGitRepository } from "../support/InMemoryGitRepository";
-import { InMemoryHookRunner } from "../support/InMemoryHookRunner";
-import { InMemoryEventBus } from "../../src/infrastructure/events/InMemoryEventBus";
-import { NoopLogger } from "../../src/infrastructure/logging/NoopLogger";
+} from "#gitwe/domain/errors/index";
+import { InMemoryGitRepository } from "#tests/support/InMemoryGitRepository";
+import { InMemoryHookRunner } from "#tests/support/InMemoryHookRunner";
+import { InMemoryEventBus } from "#gitwe/infrastructure/events/InMemoryEventBus";
+import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 describe("FinishBranchHandler", () => {
   let git: InMemoryGitRepository;

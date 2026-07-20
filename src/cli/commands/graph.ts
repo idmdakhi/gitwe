@@ -1,7 +1,7 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { reportError } from "../reportError";
-import { renderTree } from "../renderTree";
+import type { Container } from "#gitwe/cli/container";
+import { reportError } from "#gitwe/cli/reportError";
+import { renderTree } from "#gitwe/cli/renderTree";
 
 export function registerGraphCommand(program: Command, getContainer: () => Container): void {
   program

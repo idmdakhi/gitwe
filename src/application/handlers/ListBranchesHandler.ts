@@ -1,5 +1,5 @@
-import type { GitRepository } from "../../domain/ports/GitRepository";
-import { BranchSummaryDto } from "../dto/StatusReport";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import { BranchSummaryDto } from "#gitwe/application/dto/StatusReport";
 
 export class ListBranchesHandler {
   constructor(private readonly git: GitRepository) {}

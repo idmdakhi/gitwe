@@ -1,6 +1,6 @@
-import { Workflow } from "../../domain/aggregates/Workflow";
-import { BranchTypeRule } from "../../domain/valueObjects/BranchTypeRule";
-import { RemoteConfig } from "../../domain/valueObjects/RemoteConfig";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { RemoteConfig } from "#gitwe/domain/valueObjects/RemoteConfig";
 
 /**
  * `gitwe`'s engine has no idea what "git-flow" means — it just executes

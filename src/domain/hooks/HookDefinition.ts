@@ -1,4 +1,4 @@
-import { HookPhase } from "./HookPhase";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 
 /** Shell commands to run at each lifecycle phase of a workflow action. */
 export class HookDefinition {

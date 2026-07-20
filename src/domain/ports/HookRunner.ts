@@ -1,4 +1,4 @@
-import { HookPhase } from "../hooks/HookPhase";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 
 /**
  * Port for executing hook commands. Kept separate from `GitRepository`
