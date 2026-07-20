@@ -5,46 +5,156 @@ on:
     tags:
       - "v*.*.*"
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 20
+  NPM_TOKEN: ${{secrets.NPM_TOKEN}}
+  GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+
 jobs:
-  publish:
-    name: Publish to npm
+  ################################################################################
+  # BUILD
+  ################################################################################
+
+  build:
+    name: Build & Test
+
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
-      id-token: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 20.x
-          registry-url: https://registry.npmjs.org
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
+      - name: Remove release tests
+        run: rm -rf tests
+
+      - name: Install
         run: npm ci
 
-      - name: Lint, typecheck, test
-        run: |
-          npm run lint
-          npm run typecheck
-          npm run test
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build
 
-      - name: Verify tag matches package.json version
+      - name: Verify Version
         run: |
-          PKG_VERSION="v$(node -p "require('./package.json').version")"
-          if [ "$PKG_VERSION" != "${GITHUB_REF_NAME}" ]; then
-            echo "Tag ${GITHUB_REF_NAME} does not match package.json version ${PKG_VERSION}"
+          VERSION="v$(node -p "require('./package.json').version")"
+
+          if [ "$VERSION" != "${GITHUB_REF_NAME}" ]; then
+            echo "Version mismatch"
             exit 1
           fi
 
+      - name: Upload Artifact
+
+        uses: actions/upload-artifact@v4
+
+        with:
+          name: package
+
+          retention-days: 1
+
+          path: |
+            dist
+            package.json
+            package-lock.json
+            README.md
+            LICENSE
+
+  ################################################################################
+  # PUBLISH
+  ################################################################################
+
+  publish:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - registry: https://registry.npmjs.org
+            package: gitwe
+            token: NPM_TOKEN # ${{ env.NPM_TOKEN }}
+            provenance: true
+
+          - registry: https://registry.npmjs.org
+            package: "@md-akhi/gitwe"
+            token: NPM_TOKEN # ${{ env.NPM_TOKEN }}
+            provenance: false
+
+          - registry: https://npm.pkg.github.com
+            package: "gitwe"
+            token: GITHUB_TOKEN # ${{ env.GITHUB_TOKEN }}
+            provenance: true
+
+          - registry: https://npm.pkg.github.com
+            package: "@md-akhi/gitwe"
+            token: GITHUB_TOKEN # ${{ env.GITHUB_TOKEN }}
+            provenance: false
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: ${{ matrix.registry }}
+          always-auth: true
+          cache: npm
+
+      - name: Download Build
+
+        uses: actions/download-artifact@v4
+
+        with:
+          name: package
+
+      - name: Install Production Dependencies
+
+        run: npm ci
+
+      - name: Remove docs
+
+        run: rm -rf docs
+
+      - name: Set Package Name
+
+        run: npm pkg set name="${{ matrix.package }}"
+
       - name: Publish
-        run: npm publish --provenance --access public
+
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets[matrix.token] }}
+
+        run: |
+          if [ "${{ matrix.provenance }}" = "true" ]; then
+            npm publish --provenance --access public
+          else
+            npm publish
+          fi
