@@ -6,4 +6,3 @@ coverage/
 
 .turbo
 .env
-package-lock.json
