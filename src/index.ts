@@ -1,9 +1,70 @@
-export type { GitAdapter } from "./adapters/GitAdapter";
-export { ShellGitAdapter } from "./adapters/ShellGitAdapter";
-export { WorkflowEngine } from "./core/WorkflowEngine";
-export type { FinishOptions, FinishResult } from "./core/WorkflowEngine";
-export * from "./core/types";
-export * from "./core/errors";
-export * from "./core/WorkflowDefinition";
-export type { Logger } from "./logging/Logger";
-export { ConsoleLogger, NoopLogger } from "./logging/Logger";
+// Domain
+export { Workflow } from "./domain/aggregates/Workflow";
+export { BranchTypeRule } from "./domain/valueObjects/BranchTypeRule";
+export { BranchName } from "./domain/valueObjects/BranchName";
+export { RemoteConfig } from "./domain/valueObjects/RemoteConfig";
+export { MergeOutcome } from "./domain/valueObjects/MergeOutcome";
+export type { CommitInfo } from "./domain/valueObjects/CommitInfo";
+export { Branch } from "./domain/entities/Branch";
+export { HookDefinition } from "./domain/hooks/HookDefinition";
+export { HookPhase } from "./domain/hooks/HookPhase";
+export { AutoTagPolicy } from "./domain/policies/AutoTagPolicy";
+export * from "./domain/errors";
+export type {
+  GitRepository,
+  CreateBranchOptions,
+  MergeOptions,
+  RawCommandResult,
+} from "./domain/ports/GitRepository";
+export type { HookRunner } from "./domain/ports/HookRunner";
+export type { EventBus } from "./domain/ports/EventBus";
+export { DomainEvent } from "./domain/events/DomainEvent";
+export { BranchStartedEvent } from "./domain/events/BranchStartedEvent";
+export { BranchFinishedEvent } from "./domain/events/BranchFinishedEvent";
+export { RuleEvaluator } from "./domain/services/RuleEvaluator";
+export type { Rule } from "./domain/rules/Rule";
+export type { RuleContext, WorkflowAction } from "./domain/rules/RuleContext";
+export { RuleResult } from "./domain/rules/RuleResult";
+export { BranchDoesNotExistRule } from "./domain/rules/BranchDoesNotExistRule";
+export { BaseBranchExistsRule } from "./domain/rules/BaseBranchExistsRule";
+export { WorkingTreeCleanRule } from "./domain/rules/WorkingTreeCleanRule";
+
+// Application
+export { StartBranchHandler } from "./application/handlers/StartBranchHandler";
+export { FinishBranchHandler } from "./application/handlers/FinishBranchHandler";
+export { ListBranchesHandler } from "./application/handlers/ListBranchesHandler";
+export { GetStatusHandler } from "./application/handlers/GetStatusHandler";
+export { ValidateWorkflowHandler } from "./application/handlers/ValidateWorkflowHandler";
+export { DoctorHandler } from "./application/handlers/DoctorHandler";
+export { BranchService } from "./application/services/BranchService";
+export { MergeService } from "./application/services/MergeService";
+export { TagService } from "./application/services/TagService";
+export { HookService } from "./application/services/HookService";
+export { RemoteService } from "./application/services/RemoteService";
+export { StatusService } from "./application/services/StatusService";
+export type { StartBranchCommand } from "./application/commands/StartBranchCommand";
+export type { FinishBranchCommand } from "./application/commands/FinishBranchCommand";
+export type { GetStatusQuery } from "./application/queries/GetStatusQuery";
+export type { WorkflowConfigReader } from "./application/ports/WorkflowConfigReader";
+
+// Infrastructure
+export { ShellGitRepository } from "./infrastructure/git/ShellGitRepository";
+export { GitCommandError } from "./infrastructure/git/GitCommandError";
+export { ShellHookRunner } from "./infrastructure/hooks/ShellHookRunner";
+export { InMemoryEventBus } from "./infrastructure/events/InMemoryEventBus";
+export { ConsoleLogger } from "./infrastructure/logging/ConsoleLogger";
+export { NoopLogger } from "./infrastructure/logging/NoopLogger";
+export { WorkflowConfigLoader } from "./infrastructure/config/WorkflowConfigLoader";
+export {
+  gitFlowWorkflow,
+  githubFlowWorkflow,
+  trunkBasedWorkflow,
+  builtInWorkflows,
+} from "./infrastructure/config/BuiltInWorkflows";
+
+// Shared
+export type { Logger } from "./shared/logging/Logger";
+
+// CLI composition root (useful for embedding the CLI's wiring elsewhere)
+export { Container } from "./cli/container";
+export type { ContainerOptions } from "./cli/container";
