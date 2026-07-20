@@ -1,9 +1,14 @@
 import type { Command } from "commander";
 import type { Container } from "#gitwe/cli/container";
 import { reportError } from "#gitwe/cli/reportError";
+import { printResult } from "#gitwe/cli/output";
 import { renderTree } from "#gitwe/cli/renderTree";
 
-export function registerGraphCommand(program: Command, getContainer: () => Container): void {
+export function registerGraphCommand(
+  program: Command,
+  getContainer: () => Container,
+  getJson: () => boolean,
+): void {
   program
     .command("graph")
     .description("Print an ASCII tree of branches and their parents")
@@ -12,9 +17,9 @@ export function registerGraphCommand(program: Command, getContainer: () => Conta
       const container = getContainer();
       try {
         const report = await container.getStatusHandler.handle({ rootBranch: opts.root });
-        console.log(renderTree(report.tree));
+        printResult(getJson(), report.tree, (tree) => console.log(renderTree(tree)));
       } catch (error) {
-        process.exitCode = reportError(error);
+        process.exitCode = reportError(error, getJson());
       }
     });
 }

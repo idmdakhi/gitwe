@@ -1,8 +1,13 @@
 import type { Command } from "commander";
 import type { Container } from "#gitwe/cli/container";
 import { reportError } from "#gitwe/cli/reportError";
+import { printResult } from "#gitwe/cli/output";
 
-export function registerStartCommand(program: Command, getContainer: () => Container): void {
+export function registerStartCommand(
+  program: Command,
+  getContainer: () => Container,
+  getJson: () => boolean,
+): void {
   program
     .command("start <type> <shortName>")
     .description("Start a new branch of the given type, e.g. `gitwe start feature login`")
@@ -10,9 +15,11 @@ export function registerStartCommand(program: Command, getContainer: () => Conta
       const container = getContainer();
       try {
         const result = await container.startBranchHandler.handle({ branchType: type, shortName });
-        console.log(`✅ Started ${result.branchName} from ${result.baseBranch}`);
+        printResult(getJson(), result, (r) => {
+          console.log(`✅ Started ${r.branchName} from ${r.baseBranch}`);
+        });
       } catch (error) {
-        process.exitCode = reportError(error);
+        process.exitCode = reportError(error, getJson());
       }
     });
 }

@@ -1,20 +1,25 @@
 import type { Command } from "commander";
 import type { Container } from "#gitwe/cli/container";
+import { printResult } from "#gitwe/cli/output";
 
-export function registerValidateCommand(program: Command, getContainer: () => Container): void {
+export function registerValidateCommand(
+  program: Command,
+  getContainer: () => Container,
+  getJson: () => boolean,
+): void {
   program
     .command("validate <configPath>")
     .description("Validate a workflow config file (JSON or YAML) without touching the repo")
     .action((configPath: string) => {
       const container = getContainer();
       const result = container.validateWorkflowHandler.handle(configPath);
-      if (result.valid) {
-        console.log(
-          `✅ "${result.workflowName}" is valid (${result.branchTypeCount} branch type(s)).`,
-        );
-      } else {
-        console.error(`❌ Invalid workflow config: ${result.error}`);
-        process.exitCode = 1;
-      }
+      printResult(getJson(), result, (r) => {
+        if (r.valid) {
+          console.log(`✅ "${r.workflowName}" is valid (${r.branchTypeCount} branch type(s)).`);
+        } else {
+          console.error(`❌ Invalid workflow config: ${r.error}`);
+        }
+      });
+      if (!result.valid) process.exitCode = 1;
     });
 }

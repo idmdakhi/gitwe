@@ -26,23 +26,38 @@ program
     "-w, --workflow <name>",
     "built-in workflow to use (git-flow | github-flow | trunk-based)",
   )
-  .option("-q, --quiet", "suppress informational logging");
+  .option("-q, --quiet", "suppress informational logging")
+  .option("-j, --json", "print machine-readable JSON instead of human-readable text");
 
 /** Built fresh per command invocation so each command sees up-to-date global options. */
 function getContainer(): Container {
-  const opts = program.opts<{ config?: string; workflow?: string; quiet?: boolean }>();
-  return new Container({ configPath: opts.config, builtIn: opts.workflow, quiet: opts.quiet });
+  const opts = program.opts<{
+    config?: string;
+    workflow?: string;
+    quiet?: boolean;
+    json?: boolean;
+  }>();
+  // JSON mode implies quiet: informational logging would otherwise corrupt stdout for a parser.
+  return new Container({
+    configPath: opts.config,
+    builtIn: opts.workflow,
+    quiet: opts.quiet || opts.json,
+  });
 }
 
-registerStartCommand(program, getContainer);
-registerFinishCommand(program, getContainer);
-registerStatusCommand(program, getContainer);
-registerGraphCommand(program, getContainer);
-registerCurrentCommand(program, getContainer);
-registerListCommand(program, getContainer);
-registerTypesCommand(program, getContainer);
-registerValidateCommand(program, getContainer);
-registerDoctorCommand(program, getContainer);
-registerConfigCommand(program, getContainer);
+function getJson(): boolean {
+  return Boolean(program.opts<{ json?: boolean }>().json);
+}
+
+registerStartCommand(program, getContainer, getJson);
+registerFinishCommand(program, getContainer, getJson);
+registerStatusCommand(program, getContainer, getJson);
+registerGraphCommand(program, getContainer, getJson);
+registerCurrentCommand(program, getContainer, getJson);
+registerListCommand(program, getContainer, getJson);
+registerTypesCommand(program, getContainer, getJson);
+registerValidateCommand(program, getContainer, getJson);
+registerDoctorCommand(program, getContainer, getJson);
+registerConfigCommand(program, getContainer, getJson);
 
 program.parse(process.argv);
