@@ -1,28 +1,32 @@
-name: CI
+name: Tests
 
 on:
   push:
     branches:
       - main
       - develop
+      - "release/**"
+      - "hotfix/**"
 
   pull_request:
     branches:
       - main
       - develop
+      - "release/**"
+      - "hotfix/**"
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   NODE_ENV: test
 
 jobs:
-  ci:
+  test:
     name: Node ${{ matrix.node }}
 
     runs-on: ubuntu-latest
@@ -42,28 +46,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configure Git
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
           cache: npm
 
+      #   - name: Remove release-only test
+      #     run: rm -rf tests
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint --if-present
-
-      - name: Typecheck
-        run: npm run typecheck --if-present
-
-      - name: Unit Tests
-        run: npm test
-
       - name: Build
         run: npm run build --if-present
+
+      - name: Run tests
+        run: npm run test

@@ -29,14 +29,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
+
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-
-      - name: Remove release tests
-        run: rm -rf tests
 
       - name: Install
         run: npm ci
@@ -63,14 +60,11 @@ jobs:
           fi
 
       - name: Upload Artifact
-
         uses: actions/upload-artifact@v4
 
         with:
           name: package
-
           retention-days: 1
-
           path: |
             dist
             package.json
@@ -98,7 +92,7 @@ jobs:
             provenance: true
 
           - registry: https://registry.npmjs.org
-            package: "@md-akhi/gitwe"
+            package: "@idmdakhi/gitwe"
             token: NPM_TOKEN # ${{ env.NPM_TOKEN }}
             provenance: false
 
@@ -108,7 +102,7 @@ jobs:
             provenance: true
 
           - registry: https://npm.pkg.github.com
-            package: "@md-akhi/gitwe"
+            package: "@idmdakhi/gitwe"
             token: GITHUB_TOKEN # ${{ env.GITHUB_TOKEN }}
             provenance: false
 
@@ -119,7 +113,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
 
         with:
@@ -129,32 +122,29 @@ jobs:
           cache: npm
 
       - name: Download Build
-
         uses: actions/download-artifact@v4
 
         with:
           name: package
 
       - name: Install Production Dependencies
-
         run: npm ci
 
       - name: Remove docs
-
         run: rm -rf docs
 
-      - name: Set Package Name
+      - name: Remove tests
+        run: rm -rf tests
 
+      - name: Set Package Name
         run: npm pkg set name="${{ matrix.package }}"
 
       - name: Publish
-
         env:
           NODE_AUTH_TOKEN: ${{ secrets[matrix.token] }}
-
         run: |
           if [ "${{ matrix.provenance }}" = "true" ]; then
-            npm publish --provenance --access public
+            npm stage publish --provenance --access public
           else
-            npm publish
+            npm stage publish
           fi
