@@ -21,12 +21,5 @@
       "#tests/*": ["./tests/*"]
     }
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"],
-  "ts-node": {
-    // "esm": true,
-    // "experimentalSpecifierResolution": "node",
-    "compilerOptions": {
-      "module": "CommonJS"
-    }
-  }
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
 }
