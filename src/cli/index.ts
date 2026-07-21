@@ -12,6 +12,7 @@ import { registerTypesCommand } from "#gitwe/cli/commands/types";
 import { registerValidateCommand } from "#gitwe/cli/commands/validate";
 import { registerDoctorCommand } from "#gitwe/cli/commands/doctor";
 import { registerConfigCommand } from "#gitwe/cli/commands/config";
+import { registerInitCommand } from "#gitwe/cli/commands/init";
 
 const program = new Command();
 
@@ -59,5 +60,6 @@ registerTypesCommand(program, getContainer, getJson);
 registerValidateCommand(program, getContainer, getJson);
 registerDoctorCommand(program, getContainer, getJson);
 registerConfigCommand(program, getContainer, getJson);
+registerInitCommand(program, getContainer, getJson);
 
 program.parse(process.argv);
