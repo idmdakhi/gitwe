@@ -1,40 +1,57 @@
 {
-  "name": "git-flow",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feature/",
-      "baseBranch": "develop",
-      "mergeTargets": ["develop"],
-      "deleteOnFinish": true
+  "version": 1,
+
+  "workflow": "git-flow",
+
+  "branches": {
+    "main": {
+      "protected": true
     },
-    {
-      "name": "release",
-      "prefix": "release/",
-      "baseBranch": "develop",
-      "mergeTargets": ["main", "develop"],
-      "deleteOnFinish": true,
-      "autoTag": {
-        "prefix": "v"
-      }
-    },
-    {
-      "name": "hotfix",
-      "prefix": "hotfix/",
-      "baseBranch": "main",
-      "mergeTargets": ["main", "develop"],
-      "deleteOnFinish": true
+    "develop": {
+      "protected": true
     }
-  ],
-  "hooks": {
-    "preStart": ["npm run lint"],
-    "postStart": ["echo '🎉 Branch created!'"],
-    "preFinish": ["npm run test", "npm run build"],
-    "postFinish": ["echo '✅ Branch finished!'"]
   },
-  "remote": {
-    "remote": "origin",
-    "autoPush": false,
-    "autoPull": false
+
+  "types": {
+    "feature": {
+      "prefix": "feature/",
+      "base": "develop",
+      "target": "develop",
+      "deleteAfterFinish": true
+    },
+
+    "release": {
+      "prefix": "release/",
+      "base": "develop",
+      "target": ["main", "develop"],
+      "tag": true
+    },
+
+    "hotfix": {
+      "prefix": "hotfix/",
+      "base": "main",
+      "target": ["main", "develop"]
+    }
+  },
+
+  "merge": {
+    "strategy": "merge",
+    "deleteSource": true
+  },
+
+  "tag": {
+    "enabled": true,
+    "prefix": "v"
+  },
+
+  "commit": {
+    "conventional": {
+      "enabled": true
+    }
+  },
+
+  "branchNaming": {
+    "case": "kebab-case",
+    "maxLength": 80
   }
 }
