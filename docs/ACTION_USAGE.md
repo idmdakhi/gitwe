@@ -35,28 +35,28 @@ other Action.
 
 ## Inputs
 
-| Input               | Required     | Default    | Used by           | Description                                                                                      |
-| ------------------- | ------------ | ---------- | ----------------- | ------------------------------------------------------------------------------------------------ |
-| `command`           | yes          | —          | all               | `start`, `finish`, `status`, `graph`, `current`, `list`, `types`, `validate`, `doctor`, `config` |
-| `type`              | for `start`  | —          | `start`           | Branch type, e.g. `feature`, `release`, `hotfix`                                                 |
-| `short-name`        | for `start`  | —          | `start`           | Short branch name, e.g. `login`                                                                  |
-| `branch-name`       | for `finish` | —          | `finish`          | Full branch name, e.g. `feature/login`                                                           |
-| `workflow`          | no           | `git-flow` | most              | Built-in workflow: `git-flow` \| `github-flow` \| `trunk-based`. Ignored if `config` is set.     |
-| `config`            | no           | —          | most, `validate`  | Path (relative to `working-directory`) to a custom JSON/YAML workflow config                     |
-| `delete-branch`     | no           | `true`     | `finish`          | Delete the branch after merging                                                                  |
-| `push`              | no           | `false`    | `finish`          | Push to the remote after finishing                                                               |
-| `abort-on-conflict` | no           | `false`    | `finish`          | Run `git merge --abort` automatically on conflict, instead of failing the step                   |
-| `root`              | no           | `main`     | `status`, `graph` | Root branch to summarize/draw from                                                               |
-| `working-directory` | no           | `.`        | all               | Directory of the already-checked-out repo to operate on                                          |
+| Input | Required | Default | Used by | Description |
+|---|---|---|---|---|
+| `command` | yes | — | all | `start`, `finish`, `status`, `graph`, `current`, `list`, `types`, `validate`, `doctor`, `config` |
+| `type` | for `start` | — | `start` | Branch type, e.g. `feature`, `release`, `hotfix` |
+| `short-name` | for `start` | — | `start` | Short branch name, e.g. `login` |
+| `branch-name` | for `finish` | — | `finish` | Full branch name, e.g. `feature/login` |
+| `workflow` | no | `git-flow` | most | Built-in workflow: `git-flow` \| `github-flow` \| `trunk-based`. Ignored if `config` is set. |
+| `config` | no | — | most, `validate` | Path (relative to `working-directory`) to a custom JSON/YAML workflow config |
+| `delete-branch` | no | `true` | `finish` | Delete the branch after merging |
+| `push` | no | `false` | `finish` | Push to the remote after finishing |
+| `abort-on-conflict` | no | `false` | `finish` | Run `git merge --abort` automatically on conflict, instead of failing the step |
+| `root` | no | `main` | `status`, `graph` | Root branch to summarize/draw from |
+| `working-directory` | no | `.` | all | Directory of the already-checked-out repo to operate on |
 
 ## Outputs
 
-| Output        | Populated by      | Description                                                                                                                        |
-| ------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `branch-name` | `start`, `finish` | The branch created or finished                                                                                                     |
-| `merged-into` | `finish`          | Comma-separated list of branches merged into                                                                                       |
-| `tags`        | `finish`          | Comma-separated list of tags created                                                                                               |
-| `result-json` | all               | The full raw JSON result — parse this yourself for anything not covered above (e.g. `status`'s branch tree, `doctor`'s check list) |
+| Output | Populated by | Description |
+|---|---|---|
+| `branch-name` | `start`, `finish` | The branch created or finished |
+| `merged-into` | `finish` | Comma-separated list of branches merged into |
+| `tags` | `finish` | Comma-separated list of tags created |
+| `result-json` | all | The full raw JSON result — parse this yourself for anything not covered above (e.g. `status`'s branch tree, `doctor`'s check list) |
 
 If the command fails, the step fails (non-zero exit) and `result-json`
 contains `{"error":true,"code":"...","message":"..."}` — useful if you want

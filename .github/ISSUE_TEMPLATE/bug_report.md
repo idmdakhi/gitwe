@@ -14,7 +14,7 @@ A clear, concise description of what's wrong.
 
 Steps to reproduce the behavior, ideally with the exact `gitwe` command(s) you ran:
 
-```bash
+```
 gitwe start feature login
 gitwe finish feature/login
 ```
