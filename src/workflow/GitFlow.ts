@@ -21,3 +21,4 @@ export class GitFlow extends BaseWorkflow {
     console.log("Finish:", options.branch);
   }
 }
+

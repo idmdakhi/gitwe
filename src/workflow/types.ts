@@ -13,3 +13,4 @@ export interface Workflow {
 
   finishBranch(options: FinishBranchOptions): Promise<void>;
 }
+

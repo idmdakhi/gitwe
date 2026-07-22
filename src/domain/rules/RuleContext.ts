@@ -11,3 +11,4 @@ export interface RuleContext {
   readonly baseBranch?: string;
   readonly git: GitRepository;
 }
+

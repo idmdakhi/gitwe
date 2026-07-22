@@ -69,3 +69,4 @@ export const DEFAULT_CONFIG: GitweConfig = {
     maxLength: 80,
   },
 };
+

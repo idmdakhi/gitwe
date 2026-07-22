@@ -10,3 +10,4 @@ import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 export interface WorkflowConfigReader {
   load(source: string): Workflow;
 }
+

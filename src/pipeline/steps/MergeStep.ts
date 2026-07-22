@@ -11,3 +11,4 @@ export class MergeStep implements Step {
     context.merged = true;
   }
 }
+

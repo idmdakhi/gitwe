@@ -11,3 +11,4 @@ export class BranchStartedEvent extends DomainEvent {
     super();
   }
 }
+

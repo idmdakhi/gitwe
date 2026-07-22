@@ -8,3 +8,4 @@ export class InMemoryHookRunner implements HookRunner {
     this.calls.push({ phase, commands });
   }
 }
+

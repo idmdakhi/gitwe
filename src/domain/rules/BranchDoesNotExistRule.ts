@@ -14,3 +14,4 @@ export class BranchDoesNotExistRule implements Rule {
       : RuleResult.pass();
   }
 }
+

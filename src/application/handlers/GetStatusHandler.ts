@@ -13,3 +13,4 @@ export class GetStatusHandler {
     return this.statusService.buildReport(this.workflow, query.rootBranch ?? "main");
   }
 }
+

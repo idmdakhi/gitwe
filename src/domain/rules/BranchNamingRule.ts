@@ -17,3 +17,4 @@ export class BranchNamingRule implements Rule {
     return violation ? RuleResult.fail(violation) : RuleResult.pass();
   }
 }
+

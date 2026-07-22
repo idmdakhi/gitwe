@@ -12,3 +12,4 @@ export function renderTree(node: BranchTreeNode, prefix = "", isLast = true): st
 
   return lines.join("\n");
 }
+

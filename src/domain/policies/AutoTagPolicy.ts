@@ -22,3 +22,4 @@ export class AutoTagPolicy {
     return `${prefix}${version}`;
   }
 }
+

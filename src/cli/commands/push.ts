@@ -19,3 +19,4 @@ export function registerPushCommand(program: Command, getContainer: () => Contai
       }
     });
 }
+

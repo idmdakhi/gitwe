@@ -110,3 +110,4 @@ describe("WorkflowConfigLoader", () => {
     expect(() => new WorkflowConfigLoader().load("/no/such/file.json")).toThrow(InvalidWorkflowDefinitionError);
   });
 });
+

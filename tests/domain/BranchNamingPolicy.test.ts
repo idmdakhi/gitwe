@@ -38,3 +38,4 @@ describe("BranchNamingPolicy", () => {
     expect(policy.validate("fix-thing")).toMatch(/pattern/);
   });
 });
+

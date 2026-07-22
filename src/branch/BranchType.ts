@@ -19,3 +19,4 @@ export class BranchType {
     return Array.isArray(this.config.target) ? this.config.target : [this.config.target];
   }
 }
+

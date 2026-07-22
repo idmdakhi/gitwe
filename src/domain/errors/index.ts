@@ -86,3 +86,4 @@ export class HookExecutionError extends DomainError {
     super(`Hook "${phase}" failed running "${command}": ${reason}`);
   }
 }
+

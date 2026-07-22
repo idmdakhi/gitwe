@@ -142,3 +142,4 @@ runs:
         echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
 
         exit $EXIT_CODE
+

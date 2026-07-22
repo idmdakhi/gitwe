@@ -14,3 +14,4 @@ export class BaseBranchExistsRule implements Rule {
       : RuleResult.fail(`base branch "${context.baseBranch}" does not exist`);
   }
 }
+

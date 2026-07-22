@@ -23,3 +23,4 @@ export function registerValidateCommand(
       if (!result.valid) process.exitCode = 1;
     });
 }
+

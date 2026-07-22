@@ -5,3 +5,4 @@ export class DeleteBranchStep implements Step {
     context.deleted = true;
   }
 }
+

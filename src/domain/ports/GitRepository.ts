@@ -56,3 +56,4 @@ export interface GitRepository {
   /** Escape hatch for operations not otherwise modeled (used sparingly, e.g. `merge --abort`). */
   runRaw(args: string[]): Promise<RawCommandResult>;
 }
+

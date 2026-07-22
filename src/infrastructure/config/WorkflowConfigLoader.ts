@@ -197,3 +197,4 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
     return { prefix: type.tag.prefix ?? globalTag.prefix ?? "v", pattern: type.tag.pattern };
   }
 }
+

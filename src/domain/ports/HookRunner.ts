@@ -8,3 +8,4 @@ import { HookPhase } from "../hooks/HookPhase";
 export interface HookRunner {
   run(phase: HookPhase, commands: readonly string[]): Promise<void>;
 }
+

@@ -17,3 +17,4 @@ export class RemoteService {
     return true;
   }
 }
+

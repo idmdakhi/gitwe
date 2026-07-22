@@ -5,3 +5,4 @@ export interface ExecutionLogger {
 
   error(message: string): void;
 }
+

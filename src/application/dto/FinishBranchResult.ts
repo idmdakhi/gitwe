@@ -11,3 +11,4 @@ export interface FinishBranchResult {
   /** True if this result describes a plan (from `--dry-run`) rather than something actually executed. */
   readonly dryRun: boolean;
 }
+

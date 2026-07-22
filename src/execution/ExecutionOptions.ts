@@ -5,3 +5,4 @@ export interface ExecutionOptions {
 
   stopOnError?: boolean;
 }
+

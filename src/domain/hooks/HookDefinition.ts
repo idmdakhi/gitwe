@@ -27,3 +27,4 @@ export class HookDefinition {
     return this.commandsByPhase.get(phase) ?? [];
   }
 }
+

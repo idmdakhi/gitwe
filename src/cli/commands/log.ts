@@ -22,3 +22,4 @@ export function registerLogCommand(program: Command, getContainer: () => Contain
       }
     });
 }
+

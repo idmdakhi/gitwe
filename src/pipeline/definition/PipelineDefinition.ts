@@ -3,3 +3,4 @@ export interface PipelineDefinition {
 
   steps: StepDefinition[];
 }
+

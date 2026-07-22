@@ -3,3 +3,4 @@ export class CheckoutOperation implements Operation {
     await ctx.git.checkout(ctx.target);
   }
 }
+

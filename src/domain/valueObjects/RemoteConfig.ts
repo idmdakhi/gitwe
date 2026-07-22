@@ -9,3 +9,4 @@ export class RemoteConfig {
     return new RemoteConfig(props.remote ?? "origin", props.autoPush ?? false, props.autoPull ?? false);
   }
 }
+

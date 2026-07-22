@@ -17,3 +17,4 @@ export function registerCheckoutCommand(program: Command, getContainer: () => Co
       }
     });
 }
+

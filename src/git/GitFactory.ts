@@ -6,3 +6,4 @@ export class GitFactory {
     return new GitRepository(new SimpleGitAdapter());
   }
 }
+

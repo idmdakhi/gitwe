@@ -77,3 +77,4 @@ describe("Workflow", () => {
     expect(workflow.mergeStrategy).toBe("merge");
   });
 });
+

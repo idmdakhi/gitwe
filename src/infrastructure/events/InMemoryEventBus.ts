@@ -29,3 +29,4 @@ export class InMemoryEventBus implements EventBus {
     }
   }
 }
+

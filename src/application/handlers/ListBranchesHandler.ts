@@ -9,3 +9,4 @@ export class ListBranchesHandler {
     return branches.map((b) => ({ name: b.name, isCurrent: b.isCurrent }));
   }
 }
+

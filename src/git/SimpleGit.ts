@@ -23,3 +23,4 @@ export class SimpleGitAdapter implements Git {
     return false;
   }
 }
+

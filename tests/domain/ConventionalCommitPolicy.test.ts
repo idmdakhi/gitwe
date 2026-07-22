@@ -20,3 +20,4 @@ describe("ConventionalCommitPolicy", () => {
     expect(policy.validate("Fix: wrong case for type")).toMatch(/Conventional Commits/);
   });
 });
+

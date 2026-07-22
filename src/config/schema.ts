@@ -18,3 +18,4 @@ export function isGitweConfig(value: unknown): value is GitweConfig {
     typeof config.branchNaming === "object"
   );
 }
+

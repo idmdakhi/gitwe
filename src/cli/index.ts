@@ -79,3 +79,4 @@ registerInitCommand(program);
 registerCommitLintCommand(program, getContainer, getJson);
 
 program.parse(process.argv);
+

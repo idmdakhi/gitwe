@@ -10,3 +10,4 @@ export class MergeOutcome {
     return new MergeOutcome(source, target, fastForward);
   }
 }
+

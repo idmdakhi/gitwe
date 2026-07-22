@@ -11,3 +11,4 @@ export class Branch {
     readonly target: string[],
   ) {}
 }
+

@@ -128,3 +128,4 @@ export class InMemoryGitRepository implements GitRepository {
     return this.pushedRemotes;
   }
 }
+

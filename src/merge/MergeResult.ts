@@ -9,3 +9,4 @@ export interface MergeResult {
 
   deleted: boolean;
 }
+

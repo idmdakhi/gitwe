@@ -5,3 +5,4 @@ export class CheckoutStep implements Step {
     await context.git.checkout(this.target);
   }
 }
+

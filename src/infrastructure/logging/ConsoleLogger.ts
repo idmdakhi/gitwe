@@ -24,3 +24,4 @@ export class ConsoleLogger implements Logger {
     console.log(`[${level}] ${message}${suffix}`);
   }
 }
+

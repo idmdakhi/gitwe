@@ -47,3 +47,4 @@ export class BranchName {
     return this.value === other.value;
   }
 }
+

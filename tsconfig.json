@@ -1,25 +1,26 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
+    "module": "commonjs",
     "lib": ["ES2022"],
-    "types": ["@types/node"],
     "strict": true,
-    "noImplicitOverride": true,
+    "noImplicitAny": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": true,
     "esModuleInterop": true,
-    "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
     "resolveJsonModule": true,
+    "declaration": false,
+    "sourceMap": true,
     "noEmit": true,
-    "allowSyntheticDefaultImports": true,
     "paths": {
-      "#gitwe/*": ["./src/*"],
-      "#tests/*": ["./tests/*"]
+      "#gitwe/*": ["src/*"],
+      "#tests/*": ["tests/*"]
     }
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

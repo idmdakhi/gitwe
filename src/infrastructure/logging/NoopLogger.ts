@@ -7,3 +7,4 @@ export class NoopLogger implements Logger {
   warn(): void {}
   error(): void {}
 }
+

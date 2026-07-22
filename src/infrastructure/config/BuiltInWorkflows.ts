@@ -76,3 +76,4 @@ export const builtInWorkflows: Record<string, Workflow> = {
   "github-flow": githubFlowWorkflow,
   "trunk-based": trunkBasedWorkflow,
 };
+

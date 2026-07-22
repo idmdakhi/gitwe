@@ -11,3 +11,4 @@ export const RuleResult = {
     return { satisfied: false, reason };
   },
 };
+

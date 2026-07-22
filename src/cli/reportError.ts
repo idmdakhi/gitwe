@@ -18,3 +18,4 @@ export function reportError(error: unknown, json = false): number {
   console.error(`❌ Unexpected error: ${error instanceof Error ? error.message : String(error)}`);
   return 2;
 }
+

@@ -9,3 +9,4 @@ export abstract class BaseWorkflow implements Workflow {
 
   abstract finishBranch(options: FinishBranchOptions): Promise<void>;
 }
+

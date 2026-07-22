@@ -76,3 +76,4 @@ export function registerInitCommand(program: Command): void {
       console.log(`   Run "gitwe validate ${outputPath}" to check it, or "gitwe --config ${outputPath} status" to use it.`);
     });
 }
+

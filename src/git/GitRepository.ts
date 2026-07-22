@@ -31,3 +31,4 @@ export class GitRepository {
     return this.git.hasBranch(branch);
   }
 }
+

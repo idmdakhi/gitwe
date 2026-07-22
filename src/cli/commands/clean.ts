@@ -28,3 +28,4 @@ export function registerCleanCommand(program: Command, getContainer: () => Conta
       }
     });
 }
+

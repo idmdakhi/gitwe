@@ -14,3 +14,4 @@ export class WorkingTreeCleanRule implements Rule {
       : RuleResult.fail("working tree has uncommitted changes; commit or stash them first");
   }
 }
+

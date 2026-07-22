@@ -26,3 +26,4 @@ export class ConfigLoader {
     return json;
   }
 }
+

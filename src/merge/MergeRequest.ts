@@ -11,3 +11,4 @@ export interface MergeRequest {
 
   tagName?: string;
 }
+

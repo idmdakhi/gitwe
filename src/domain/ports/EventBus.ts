@@ -10,3 +10,4 @@ import { DomainEvent } from "../events/DomainEvent";
 export interface EventBus {
   publish(event: DomainEvent): Promise<void>;
 }
+

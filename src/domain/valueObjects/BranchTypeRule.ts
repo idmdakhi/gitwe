@@ -44,3 +44,4 @@ export class BranchTypeRule {
     return fullBranchName.startsWith(this.prefix);
   }
 }
+

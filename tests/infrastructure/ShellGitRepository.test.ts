@@ -106,3 +106,4 @@ describe("ShellGitRepository", () => {
     expect(await repo.isWorkingTreeClean()).toBe(false);
   });
 });
+

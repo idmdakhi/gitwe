@@ -27,3 +27,4 @@ export interface Git {
 
   hasBranch(branch: string): Promise<boolean>;
 }
+

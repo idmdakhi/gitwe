@@ -11,3 +11,4 @@ export class GitCommandError extends DomainError {
     super(message);
   }
 }
+

@@ -5,3 +5,4 @@ export interface FinishBranchCommand {
   /** If true, validates everything and reports the plan without touching git. */
   readonly dryRun?: boolean;
 }
+

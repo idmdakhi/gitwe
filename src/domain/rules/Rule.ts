@@ -10,3 +10,4 @@ export interface Rule {
   readonly name: string;
   evaluate(context: RuleContext): Promise<RuleResult>;
 }
+
