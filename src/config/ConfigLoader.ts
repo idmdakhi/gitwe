@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { DEFAULT_CONFIG } from "./defaults";
-import { isGitweConfig } from "./schema";
-import type { GitweConfig } from "./types";
+import { DEFAULT_CONFIG } from "#gitwe/config/defaults";
+import { isGitweConfig } from "#gitwe/config/schema";
+import type { GitweConfig } from "#gitwe/config/types";
 
 export class ConfigLoader {
   constructor(private readonly cwd = process.cwd()) {}
@@ -26,4 +26,3 @@ export class ConfigLoader {
     return json;
   }
 }
-

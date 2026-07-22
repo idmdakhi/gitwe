@@ -1,4 +1,4 @@
-import type { BranchTypeConfig } from "../config";
+import type { BranchTypeConfig } from "#gitwe/config";
 
 export class BranchType {
   constructor(
@@ -19,4 +19,3 @@ export class BranchType {
     return Array.isArray(this.config.target) ? this.config.target : [this.config.target];
   }
 }
-

@@ -1,4 +1,4 @@
-import { DomainEvent } from "../events/DomainEvent";
+import { DomainEvent } from "#gitwe/domain/events/DomainEvent";
 
 /**
  * Port for publishing domain events. `gitwe` is a short-lived CLI process,
@@ -10,4 +10,3 @@ import { DomainEvent } from "../events/DomainEvent";
 export interface EventBus {
   publish(event: DomainEvent): Promise<void>;
 }
-

@@ -1,10 +1,10 @@
-import type { GitweConfig } from "../config";
+import type { GitweConfig } from "#gitwe/config";
 
-import { Branch } from "./Branch";
+import { Branch } from "#gitwe/branch/Branch";
 
-import { BranchName } from "./BranchName";
+import { BranchName } from "#gitwe/branch/BranchNaming";
 
-import { BranchType } from "./BranchType";
+import { BranchType } from "#gitwe/branch/BranchType";
 
 export class BranchFactory {
   constructor(private readonly config: GitweConfig) {}
@@ -39,4 +39,3 @@ export class BranchFactory {
     );
   }
 }
-

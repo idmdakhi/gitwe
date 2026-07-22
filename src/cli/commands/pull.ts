@@ -1,9 +1,13 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { reportError } from "../reportError";
-import { printResult } from "../output";
+import type { Container } from "#gitwe/cli/container";
+import { reportError } from "#gitwe/cli/reportError";
+import { printResult } from "#gitwe/cli/output";
 
-export function registerPullCommand(program: Command, getContainer: () => Container, getJson: () => boolean): void {
+export function registerPullCommand(
+  program: Command,
+  getContainer: () => Container,
+  getJson: () => boolean,
+): void {
   program
     .command("pull")
     .description("Pull the current branch from the configured remote")
@@ -19,4 +23,3 @@ export function registerPullCommand(program: Command, getContainer: () => Contai
       }
     });
 }
-

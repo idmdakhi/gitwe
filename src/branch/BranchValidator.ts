@@ -1,4 +1,4 @@
-import type { GitweConfig } from "../config";
+import type { GitweConfig } from "#gitwe/config";
 
 export class BranchValidator {
   constructor(private readonly config: GitweConfig) {}
@@ -23,4 +23,3 @@ export class BranchValidator {
     }
   }
 }
-

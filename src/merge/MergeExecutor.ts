@@ -1,6 +1,6 @@
-import { DefaultMergeStrategy } from "./strategies/MergeStrategy";
-import { SquashMergeStrategy } from "./strategies/SquashStrategy";
-import { RebaseMergeStrategy } from "./strategies/RebaseStrategy";
+import { DefaultMergeStrategy } from "#gitwe/merge/strategies/MergeStrategy";
+import { SquashMergeStrategy } from "#gitwe/merge/strategies/SquashStrategy";
+import { RebaseMergeStrategy } from "#gitwe/merge/strategies/RebaseStrategy";
 
 export class MergeExecutor {
   strategy(name: string) {
@@ -19,4 +19,3 @@ export class MergeExecutor {
     }
   }
 }
-

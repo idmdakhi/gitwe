@@ -1,36 +1,44 @@
 #!/usr/bin/env node
 import { Command } from "commander";
-import { Container } from "./container";
+import { Container } from "#gitwe/cli/container";
 
-import { registerStartCommand } from "./commands/start";
-import { registerFinishCommand } from "./commands/finish";
-import { registerStatusCommand } from "./commands/status";
-import { registerGraphCommand } from "./commands/graph";
-import { registerCurrentCommand } from "./commands/current";
-import { registerListCommand } from "./commands/list";
-import { registerTypesCommand } from "./commands/types";
-import { registerValidateCommand } from "./commands/validate";
-import { registerDoctorCommand } from "./commands/doctor";
-import { registerConfigCommand } from "./commands/config";
-import { registerPullCommand } from "./commands/pull";
-import { registerPushCommand } from "./commands/push";
-import { registerCheckoutCommand } from "./commands/checkout";
-import { registerDeleteCommand } from "./commands/deleteBranch";
-import { registerLogCommand } from "./commands/log";
-import { registerAbortCommand } from "./commands/abort";
-import { registerCleanCommand } from "./commands/clean";
-import { registerInitCommand } from "./commands/init";
-import { registerCommitLintCommand } from "./commands/commitLint";
+import { registerStartCommand } from "#gitwe/cli/commands/start";
+import { registerFinishCommand } from "#gitwe/cli/commands/finish";
+import { registerStatusCommand } from "#gitwe/cli/commands/status";
+import { registerGraphCommand } from "#gitwe/cli/commands/graph";
+import { registerCurrentCommand } from "#gitwe/cli/commands/current";
+import { registerListCommand } from "#gitwe/cli/commands/list";
+import { registerTypesCommand } from "#gitwe/cli/commands/types";
+import { registerValidateCommand } from "#gitwe/cli/commands/validate";
+import { registerDoctorCommand } from "#gitwe/cli/commands/doctor";
+import { registerConfigCommand } from "#gitwe/cli/commands/config";
+import { registerPullCommand } from "#gitwe/cli/commands/pull";
+import { registerPushCommand } from "#gitwe/cli/commands/push";
+import { registerCheckoutCommand } from "#gitwe/cli/commands/checkout";
+import { registerDeleteCommand } from "#gitwe/cli/commands/deleteBranch";
+import { registerLogCommand } from "#gitwe/cli/commands/log";
+import { registerAbortCommand } from "#gitwe/cli/commands/abort";
+import { registerCleanCommand } from "#gitwe/cli/commands/clean";
+import { registerInitCommand } from "#gitwe/cli/commands/init";
+import { registerCommitLintCommand } from "#gitwe/cli/commands/commitLint";
 
 const program = new Command();
 
 program
   .name("gitwe")
-  .description("A pluggable, DDD-structured git workflow engine — git-flow is just one example workflow.")
+  .description(
+    "A pluggable, DDD-structured git workflow engine — git-flow is just one example workflow.",
+  )
   .version("2.1.0")
   .option("-c, --config <path>", "path to a JSON/YAML workflow config file")
-  .option("-w, --workflow <name>", "built-in workflow to use (git-flow | github-flow | trunk-based)")
-  .option("-C, --cwd <path>", "run as if gitwe was started in <path> instead of the current directory")
+  .option(
+    "-w, --workflow <name>",
+    "built-in workflow to use (git-flow | github-flow | trunk-based)",
+  )
+  .option(
+    "-C, --cwd <path>",
+    "run as if gitwe was started in <path> instead of the current directory",
+  )
   .option("-q, --quiet", "suppress informational logging")
   .option("-j, --json", "print machine-readable JSON instead of human-readable text");
 
@@ -79,4 +87,3 @@ registerInitCommand(program);
 registerCommitLintCommand(program, getContainer, getJson);
 
 program.parse(process.argv);
-

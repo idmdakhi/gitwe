@@ -1,4 +1,4 @@
-import { HookPhase } from "../hooks/HookPhase";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 
 /**
  * Port for executing hook commands. Kept separate from `GitRepository`
@@ -8,4 +8,3 @@ import { HookPhase } from "../hooks/HookPhase";
 export interface HookRunner {
   run(phase: HookPhase, commands: readonly string[]): Promise<void>;
 }
-

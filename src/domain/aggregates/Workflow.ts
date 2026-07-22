@@ -1,10 +1,10 @@
-import { BranchTypeRule } from "../valueObjects/BranchTypeRule";
-import { HookDefinition } from "../hooks/HookDefinition";
-import { RemoteConfig } from "../valueObjects/RemoteConfig";
-import { BranchNamingPolicy } from "../valueObjects/BranchNamingPolicy";
-import { ConventionalCommitPolicy } from "../policies/ConventionalCommitPolicy";
-import type { MergeStrategy } from "../valueObjects/MergeStrategy";
-import { InvalidWorkflowDefinitionError } from "../errors";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
+import { RemoteConfig } from "#gitwe/domain/valueObjects/RemoteConfig";
+import { BranchNamingPolicy } from "#gitwe/domain/valueObjects/BranchNamingPolicy";
+import { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCommitPolicy";
+import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
+import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
 
 /**
  * The `Workflow` aggregate root. It owns and enforces every invariant a
@@ -111,4 +111,3 @@ export class Workflow {
     return this.protectedBranches.has(branchName);
   }
 }
-

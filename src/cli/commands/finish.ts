@@ -1,8 +1,8 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { reportError } from "../reportError";
-import { printResult } from "../output";
-import { GitCommandError } from "../../infrastructure/git/GitCommandError";
+import type { Container } from "#gitwe/cli/container";
+import { reportError } from "#gitwe/cli/reportError";
+import { printResult } from "#gitwe/cli/output";
+import { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
 
 export function registerFinishCommand(
   program: Command,
@@ -11,11 +11,16 @@ export function registerFinishCommand(
 ): void {
   program
     .command("finish [branchName]")
-    .description("Finish a branch (default: current branch): merge into its targets, tag, and delete it")
+    .description(
+      "Finish a branch (default: current branch): merge into its targets, tag, and delete it",
+    )
     .option("--no-delete", "keep the branch after merging instead of deleting it")
     .option("--push", "push to the remote after finishing")
     .option("--dry-run", "show what would happen without changing anything")
-    .option("--abort-on-conflict", "automatically run `git merge --abort` if a merge conflict occurs")
+    .option(
+      "--abort-on-conflict",
+      "automatically run `git merge --abort` if a merge conflict occurs",
+    )
     .action(
       async (
         branchName: string | undefined,
@@ -33,9 +38,15 @@ export function registerFinishCommand(
           });
           printResult(json, result, (r) => {
             const verb = r.dryRun ? "would merge" : "merged";
-            console.log(`${r.dryRun ? "🔎" : "✅"} ${verb} ${target} into: ${r.merges.map((m) => m.target).join(", ")}`);
-            if (r.tags.length > 0) console.log(`🏷️  ${r.dryRun ? "Would create" : "Created"} tag(s): ${r.tags.join(", ")}`);
-            if (r.deleted) console.log(`🗑️  ${r.dryRun ? "Would delete" : "Deleted"} branch ${target}`);
+            console.log(
+              `${r.dryRun ? "🔎" : "✅"} ${verb} ${target} into: ${r.merges.map((m) => m.target).join(", ")}`,
+            );
+            if (r.tags.length > 0)
+              console.log(
+                `🏷️  ${r.dryRun ? "Would create" : "Created"} tag(s): ${r.tags.join(", ")}`,
+              );
+            if (r.deleted)
+              console.log(`🗑️  ${r.dryRun ? "Would delete" : "Deleted"} branch ${target}`);
           });
         } catch (error) {
           const isConflict =
@@ -65,4 +76,3 @@ export function registerFinishCommand(
       },
     );
 }
-

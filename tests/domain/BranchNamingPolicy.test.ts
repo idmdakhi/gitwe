@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BranchNamingPolicy } from "../../src/domain/valueObjects/BranchNamingPolicy";
+import { BranchNamingPolicy } from "#gitwe/domain/valueObjects/BranchNamingPolicy";
 
 describe("BranchNamingPolicy", () => {
   it("allows anything by default", () => {
@@ -38,4 +38,3 @@ describe("BranchNamingPolicy", () => {
     expect(policy.validate("fix-thing")).toMatch(/pattern/);
   });
 });
-

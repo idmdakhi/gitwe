@@ -1,19 +1,19 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { Workflow } from "../../src/domain/aggregates/Workflow";
-import { BranchTypeRule } from "../../src/domain/valueObjects/BranchTypeRule";
-import { RuleEvaluator } from "../../src/domain/services/RuleEvaluator";
-import { BranchDoesNotExistRule } from "../../src/domain/rules/BranchDoesNotExistRule";
-import { BaseBranchExistsRule } from "../../src/domain/rules/BaseBranchExistsRule";
-import { HookPhase } from "../../src/domain/hooks/HookPhase";
-import { HookDefinition } from "../../src/domain/hooks/HookDefinition";
-import { UnknownBranchTypeError, InvalidBranchNameError } from "../../src/domain/errors";
-import { BranchService } from "../../src/application/services/BranchService";
-import { HookService } from "../../src/application/services/HookService";
-import { StartBranchHandler } from "../../src/application/handlers/StartBranchHandler";
-import { InMemoryGitRepository } from "../support/InMemoryGitRepository";
-import { InMemoryHookRunner } from "../support/InMemoryHookRunner";
-import { InMemoryEventBus } from "../../src/infrastructure/events/InMemoryEventBus";
-import { NoopLogger } from "../../src/infrastructure/logging/NoopLogger";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+import { BranchDoesNotExistRule } from "#gitwe/domain/rules/BranchDoesNotExistRule";
+import { BaseBranchExistsRule } from "#gitwe/domain/rules/BaseBranchExistsRule";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
+import { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
+import { UnknownBranchTypeError, InvalidBranchNameError } from "#gitwe/domain/errors";
+import { BranchService } from "#gitwe/application/services/BranchService";
+import { HookService } from "#gitwe/application/services/HookService";
+import { StartBranchHandler } from "#gitwe/application/handlers/StartBranchHandler";
+import { InMemoryGitRepository } from "#tests/support/InMemoryGitRepository";
+import { InMemoryHookRunner } from "#tests/support/InMemoryHookRunner";
+import { InMemoryEventBus } from "#gitwe/infrastructure/events/InMemoryEventBus";
+import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 describe("StartBranchHandler", () => {
   let git: InMemoryGitRepository;
@@ -39,11 +39,20 @@ describe("StartBranchHandler", () => {
       hooks: HookDefinition.create({ preStart: ["echo pre"], postStart: ["echo post"] }),
     });
 
-    const ruleEvaluator = new RuleEvaluator([new BranchDoesNotExistRule(), new BaseBranchExistsRule()]);
+    const ruleEvaluator = new RuleEvaluator([
+      new BranchDoesNotExistRule(),
+      new BaseBranchExistsRule(),
+    ]);
     const branchService = new BranchService(git, ruleEvaluator);
     const hookService = new HookService(hookRunner);
 
-    handler = new StartBranchHandler(workflow, branchService, hookService, new InMemoryEventBus(), new NoopLogger());
+    handler = new StartBranchHandler(
+      workflow,
+      branchService,
+      hookService,
+      new InMemoryEventBus(),
+      new NoopLogger(),
+    );
   });
 
   it("creates a prefixed branch from the configured base branch", async () => {
@@ -73,4 +82,3 @@ describe("StartBranchHandler", () => {
     );
   });
 });
-

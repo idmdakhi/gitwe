@@ -1,6 +1,6 @@
-import type { GitRepository } from "../git";
+import type { GitRepository } from "#gitwe/git";
 
-import type { MergeRequest } from "./MergeRequest";
+import type { MergeRequest } from "#gitwe/merge/MergeRequest";
 
 export interface IFMergeStrategy {
   execute(
@@ -39,4 +39,3 @@ export class RebaseMergeStrategy implements MergeStrategy {
         */
   }
 }
-

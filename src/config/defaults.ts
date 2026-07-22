@@ -1,4 +1,4 @@
-import type { GitweConfig } from "./types";
+import type { GitweConfig } from "#gitwe/config/types";
 
 export const DEFAULT_CONFIG: GitweConfig = {
   version: 1,
@@ -69,4 +69,3 @@ export const DEFAULT_CONFIG: GitweConfig = {
     maxLength: 80,
   },
 };
-

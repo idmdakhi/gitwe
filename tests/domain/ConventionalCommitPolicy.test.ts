@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ConventionalCommitPolicy } from "../../src/domain/policies/ConventionalCommitPolicy";
+import { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCommitPolicy";
 
 describe("ConventionalCommitPolicy", () => {
   it("passes everything when disabled (the default)", () => {
@@ -20,4 +20,3 @@ describe("ConventionalCommitPolicy", () => {
     expect(policy.validate("Fix: wrong case for type")).toMatch(/Conventional Commits/);
   });
 });
-

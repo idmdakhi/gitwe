@@ -1,5 +1,5 @@
-import { RuleContext } from "./RuleContext";
-import { RuleResult } from "./RuleResult";
+import { RuleContext } from "#gitwe/domain/rules/RuleContext";
+import { RuleResult } from "#gitwe/domain/rules/RuleResult";
 
 /**
  * A single, independently testable precondition for a workflow action
@@ -10,4 +10,3 @@ export interface Rule {
   readonly name: string;
   evaluate(context: RuleContext): Promise<RuleResult>;
 }
-

@@ -1,6 +1,6 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { printResult } from "../output";
+import type { Container } from "#gitwe/cli/container";
+import { printResult } from "#gitwe/cli/output";
 
 export function registerConfigCommand(
   program: Command,
@@ -15,7 +15,11 @@ export function registerConfigCommand(
       const w = container.workflow;
       const data = {
         name: w.name,
-        remote: { remote: w.remote.remote, autoPush: w.remote.autoPush, autoPull: w.remote.autoPull },
+        remote: {
+          remote: w.remote.remote,
+          autoPush: w.remote.autoPush,
+          autoPull: w.remote.autoPull,
+        },
         branchTypes: w.branchTypes.map((rule) => ({
           name: rule.name,
           prefix: rule.prefix,
@@ -26,7 +30,9 @@ export function registerConfigCommand(
       };
       printResult(getJson(), data, (d) => {
         console.log(`Workflow: ${d.name}`);
-        console.log(`Remote: ${d.remote.remote} (autoPush=${d.remote.autoPush}, autoPull=${d.remote.autoPull})`);
+        console.log(
+          `Remote: ${d.remote.remote} (autoPush=${d.remote.autoPush}, autoPull=${d.remote.autoPull})`,
+        );
         console.log("Branch types:");
         for (const rule of d.branchTypes) {
           console.log(
@@ -37,4 +43,3 @@ export function registerConfigCommand(
       });
     });
 }
-

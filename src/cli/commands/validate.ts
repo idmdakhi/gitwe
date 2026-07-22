@@ -1,6 +1,6 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { printResult } from "../output";
+import type { Container } from "#gitwe/cli/container";
+import { printResult } from "#gitwe/cli/output";
 
 export function registerValidateCommand(
   program: Command,
@@ -23,4 +23,3 @@ export function registerValidateCommand(
       if (!result.valid) process.exitCode = 1;
     });
 }
-

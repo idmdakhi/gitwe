@@ -1,6 +1,6 @@
-import { BaseWorkflow } from "./Workflow";
+import { BaseWorkflow } from "#gitwe/workflow/Workflow";
 
-import type { FinishBranchOptions, StartBranchOptions } from "./types";
+import type { FinishBranchOptions, StartBranchOptions } from "#gitwe/workflow/types";
 
 export class GitFlow extends BaseWorkflow {
   async startBranch(options: StartBranchOptions): Promise<void> {
@@ -21,4 +21,3 @@ export class GitFlow extends BaseWorkflow {
     console.log("Finish:", options.branch);
   }
 }
-

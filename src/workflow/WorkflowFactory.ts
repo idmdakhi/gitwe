@@ -1,8 +1,8 @@
-import type { GitweConfig } from "../config";
+import type { GitweConfig } from "#gitwe/config";
 
-import { GitFlow } from "./GitFlow";
+import { GitFlow } from "#gitwe/workflow/GitFlow";
 
-import type { Workflow } from "./types";
+import type { Workflow } from "#gitwe/workflow/types";
 
 export class WorkflowFactory {
   static create(config: GitweConfig): Workflow {
@@ -15,4 +15,3 @@ export class WorkflowFactory {
     }
   }
 }
-

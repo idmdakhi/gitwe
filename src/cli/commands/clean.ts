@@ -1,9 +1,13 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { reportError } from "../reportError";
-import { printResult } from "../output";
+import type { Container } from "#gitwe/cli/container";
+import { reportError } from "#gitwe/cli/reportError";
+import { printResult } from "#gitwe/cli/output";
 
-export function registerCleanCommand(program: Command, getContainer: () => Container, getJson: () => boolean): void {
+export function registerCleanCommand(
+  program: Command,
+  getContainer: () => Container,
+  getJson: () => boolean,
+): void {
   program
     .command("clean")
     .description("Delete local branches that are fully merged into their configured targets")
@@ -20,7 +24,9 @@ export function registerCleanCommand(program: Command, getContainer: () => Conta
           }
           for (const candidate of r.candidates) {
             const verb = r.dryRun ? "would delete" : "deleted";
-            console.log(`${r.dryRun ? "🔎" : "🗑️ "} ${verb}: ${candidate.branchName} (merged into ${candidate.mergedInto.join(", ")})`);
+            console.log(
+              `${r.dryRun ? "🔎" : "🗑️ "} ${verb}: ${candidate.branchName} (merged into ${candidate.mergedInto.join(", ")})`,
+            );
           }
         });
       } catch (error) {
@@ -28,4 +34,3 @@ export function registerCleanCommand(program: Command, getContainer: () => Conta
       }
     });
 }
-

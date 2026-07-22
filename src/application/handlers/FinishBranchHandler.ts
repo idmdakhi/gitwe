@@ -9,14 +9,14 @@ import {
   ProtectedBranchError,
 } from "#gitwe/domain/errors";
 import { AutoTagPolicy } from "#gitwe/domain/policies/AutoTagPolicy";
-import type { Logger } from "../../shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/Logger";
 import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
-import { MergeService } from "../services/MergeService";
-import { TagService } from "../services/TagService";
-import { HookService } from "../services/HookService";
-import { RemoteService } from "../services/RemoteService";
-import { FinishBranchCommand } from "../commands/FinishBranchCommand";
-import { FinishBranchResult } from "../dto/FinishBranchResult";
+import { MergeService } from "#gitwe/application/services/MergeService";
+import { TagService } from "#gitwe/application/services/TagService";
+import { HookService } from "#gitwe/application/services/HookService";
+import { RemoteService } from "#gitwe/application/services/RemoteService";
+import { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
+import { FinishBranchResult } from "#gitwe/application/dto/FinishBranchResult";
 
 /**
  * Use case: finish a branch — merge it into every configured target, tag
@@ -71,7 +71,7 @@ export class FinishBranchHandler {
     if (dryRun) {
       return {
         dryRun: true,
-        merges: rule.mergeTargets.map((target) => ({
+        merges: rule.mergeTargets.map((target: any) => ({
           source: branchName,
           target,
           fastForward: false,
@@ -122,4 +122,3 @@ export class FinishBranchHandler {
     };
   }
 }
-

@@ -1,7 +1,7 @@
-import { Branch } from "../entities/Branch";
-import { MergeOutcome } from "../valueObjects/MergeOutcome";
-import { CommitInfo } from "../valueObjects/CommitInfo";
-import type { MergeStrategy } from "../valueObjects/MergeStrategy";
+import { Branch } from "#gitwe/domain/entities/Branch";
+import { MergeOutcome } from "#gitwe/domain/valueObjects/MergeOutcome";
+import { CommitInfo } from "#gitwe/domain/valueObjects/CommitInfo";
+import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 
 export interface CreateBranchOptions {
   /** Branch (or commit-ish) to base the new branch on. Defaults to current HEAD. */
@@ -56,4 +56,3 @@ export interface GitRepository {
   /** Escape hatch for operations not otherwise modeled (used sparingly, e.g. `merge --abort`). */
   runRaw(args: string[]): Promise<RawCommandResult>;
 }
-

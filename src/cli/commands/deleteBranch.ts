@@ -1,7 +1,7 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { reportError } from "../reportError";
-import { printResult } from "../output";
+import type { Container } from "#gitwe/cli/container";
+import { reportError } from "#gitwe/cli/reportError";
+import { printResult } from "#gitwe/cli/output";
 import { ProtectedBranchError } from "#gitwe/domain/errors";
 
 export function registerDeleteCommand(
@@ -27,4 +27,3 @@ export function registerDeleteCommand(
       }
     });
 }
-

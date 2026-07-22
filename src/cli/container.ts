@@ -1,35 +1,35 @@
 import path from "node:path";
-import { Workflow } from "../domain/aggregates/Workflow";
-import { RuleEvaluator } from "../domain/services/RuleEvaluator";
-import { BranchDoesNotExistRule } from "../domain/rules/BranchDoesNotExistRule";
-import { BaseBranchExistsRule } from "../domain/rules/BaseBranchExistsRule";
-import { WorkingTreeCleanRule } from "../domain/rules/WorkingTreeCleanRule";
-import { BranchNamingRule } from "../domain/rules/BranchNamingRule";
-import type { GitRepository } from "../domain/ports/GitRepository";
-import type { Logger } from "../shared/logging/Logger";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+import { BranchDoesNotExistRule } from "#gitwe/domain/rules/BranchDoesNotExistRule";
+import { BaseBranchExistsRule } from "#gitwe/domain/rules/BaseBranchExistsRule";
+import { WorkingTreeCleanRule } from "#gitwe/domain/rules/WorkingTreeCleanRule";
+import { BranchNamingRule } from "#gitwe/domain/rules/BranchNamingRule";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import type { Logger } from "#gitwe/shared/logging/Logger";
 
-import { ShellGitRepository } from "../infrastructure/git/ShellGitRepository";
-import { ShellHookRunner } from "../infrastructure/hooks/ShellHookRunner";
-import { InMemoryEventBus } from "../infrastructure/events/InMemoryEventBus";
-import { ConsoleLogger } from "../infrastructure/logging/ConsoleLogger";
-import { NoopLogger } from "../infrastructure/logging/NoopLogger";
-import { WorkflowConfigLoader } from "../infrastructure/config/WorkflowConfigLoader";
-import { builtInWorkflows, gitFlowWorkflow } from "../infrastructure/config/BuiltInWorkflows";
+import { ShellGitRepository } from "#gitwe/infrastructure/git/ShellGitRepository";
+import { ShellHookRunner } from "#gitwe/infrastructure/hooks/ShellHookRunner";
+import { InMemoryEventBus } from "#gitwe/infrastructure/events/InMemoryEventBus";
+import { ConsoleLogger } from "#gitwe/infrastructure/logging/ConsoleLogger";
+import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
+import { WorkflowConfigLoader } from "#gitwe/infrastructure/config/WorkflowConfigLoader";
+import { builtInWorkflows, gitFlowWorkflow } from "#gitwe/infrastructure/config/BuiltInWorkflows";
 
-import { BranchService } from "../application/services/BranchService";
-import { MergeService } from "../application/services/MergeService";
-import { TagService } from "../application/services/TagService";
-import { HookService } from "../application/services/HookService";
-import { RemoteService } from "../application/services/RemoteService";
-import { StatusService } from "../application/services/StatusService";
+import { BranchService } from "#gitwe/application/services/BranchService";
+import { MergeService } from "#gitwe/application/services/MergeService";
+import { TagService } from "#gitwe/application/services/TagService";
+import { HookService } from "#gitwe/application/services/HookService";
+import { RemoteService } from "#gitwe/application/services/RemoteService";
+import { StatusService } from "#gitwe/application/services/StatusService";
 
-import { StartBranchHandler } from "../application/handlers/StartBranchHandler";
-import { FinishBranchHandler } from "../application/handlers/FinishBranchHandler";
-import { ListBranchesHandler } from "../application/handlers/ListBranchesHandler";
-import { GetStatusHandler } from "../application/handlers/GetStatusHandler";
-import { ValidateWorkflowHandler } from "../application/handlers/ValidateWorkflowHandler";
-import { DoctorHandler } from "../application/handlers/DoctorHandler";
-import { CleanupHandler } from "../application/handlers/CleanupHandler";
+import { StartBranchHandler } from "#gitwe/application/handlers/StartBranchHandler";
+import { FinishBranchHandler } from "#gitwe/application/handlers/FinishBranchHandler";
+import { ListBranchesHandler } from "#gitwe/application/handlers/ListBranchesHandler";
+import { GetStatusHandler } from "#gitwe/application/handlers/GetStatusHandler";
+import { ValidateWorkflowHandler } from "#gitwe/application/handlers/ValidateWorkflowHandler";
+import { DoctorHandler } from "#gitwe/application/handlers/DoctorHandler";
+import { CleanupHandler } from "#gitwe/application/handlers/CleanupHandler";
 
 export interface ContainerOptions {
   /** Path to a JSON/YAML workflow config file. Falls back to the built-in git-flow workflow. */
@@ -112,4 +112,3 @@ export class Container {
     this.cleanupHandler = new CleanupHandler(this.git, this.workflow);
   }
 }
-

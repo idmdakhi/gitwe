@@ -1,18 +1,23 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { Workflow } from "../../src/domain/aggregates/Workflow";
-import { BranchTypeRule } from "../../src/domain/valueObjects/BranchTypeRule";
-import { RuleEvaluator } from "../../src/domain/services/RuleEvaluator";
-import { WorkingTreeCleanRule } from "../../src/domain/rules/WorkingTreeCleanRule";
-import { MergeService } from "../../src/application/services/MergeService";
-import { TagService } from "../../src/application/services/TagService";
-import { HookService } from "../../src/application/services/HookService";
-import { RemoteService } from "../../src/application/services/RemoteService";
-import { FinishBranchHandler } from "../../src/application/handlers/FinishBranchHandler";
-import { BranchNotFoundError, UnrecognizedBranchError, WorkflowRuleViolationError, ProtectedBranchError } from "../../src/domain/errors";
-import { InMemoryGitRepository } from "../support/InMemoryGitRepository";
-import { InMemoryHookRunner } from "../support/InMemoryHookRunner";
-import { InMemoryEventBus } from "../../src/infrastructure/events/InMemoryEventBus";
-import { NoopLogger } from "../../src/infrastructure/logging/NoopLogger";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+import { WorkingTreeCleanRule } from "#gitwe/domain/rules/WorkingTreeCleanRule";
+import { MergeService } from "#gitwe/application/services/MergeService";
+import { TagService } from "#gitwe/application/services/TagService";
+import { HookService } from "#gitwe/application/services/HookService";
+import { RemoteService } from "#gitwe/application/services/RemoteService";
+import { FinishBranchHandler } from "#gitwe/application/handlers/FinishBranchHandler";
+import {
+  BranchNotFoundError,
+  UnrecognizedBranchError,
+  WorkflowRuleViolationError,
+  ProtectedBranchError,
+} from "#gitwe/domain/errors";
+import { InMemoryGitRepository } from "#tests/support/InMemoryGitRepository";
+import { InMemoryHookRunner } from "#tests/support/InMemoryHookRunner";
+import { InMemoryEventBus } from "#gitwe/infrastructure/events/InMemoryEventBus";
+import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 describe("FinishBranchHandler", () => {
   let git: InMemoryGitRepository;
@@ -61,7 +66,9 @@ describe("FinishBranchHandler", () => {
   it("merges into the configured target and deletes the branch by default", async () => {
     const result = await handler.handle({ branchName: "feature/login" });
 
-    expect(result.merges).toEqual([{ source: "feature/login", target: "develop", fastForward: false }]);
+    expect(result.merges).toEqual([
+      { source: "feature/login", target: "develop", fastForward: false },
+    ]);
     expect(result.deleted).toBe(true);
     expect(git.getDeletedBranches()).toContain("feature/login");
   });
@@ -92,12 +99,16 @@ describe("FinishBranchHandler", () => {
   });
 
   it("throws for a branch that doesn't exist", async () => {
-    await expect(handler.handle({ branchName: "feature/missing" })).rejects.toThrow(BranchNotFoundError);
+    await expect(handler.handle({ branchName: "feature/missing" })).rejects.toThrow(
+      BranchNotFoundError,
+    );
   });
 
   it("throws for a branch that doesn't match any branch type prefix", async () => {
     git.seedBranch("chore/cleanup");
-    await expect(handler.handle({ branchName: "chore/cleanup" })).rejects.toThrow(UnrecognizedBranchError);
+    await expect(handler.handle({ branchName: "chore/cleanup" })).rejects.toThrow(
+      UnrecognizedBranchError,
+    );
   });
 
   it("refuses to finish with a dirty working tree", async () => {
@@ -111,7 +122,9 @@ describe("FinishBranchHandler", () => {
     const result = await handler.handle({ branchName: "feature/login", dryRun: true });
 
     expect(result.dryRun).toBe(true);
-    expect(result.merges).toEqual([{ source: "feature/login", target: "develop", fastForward: false }]);
+    expect(result.merges).toEqual([
+      { source: "feature/login", target: "develop", fastForward: false },
+    ]);
     expect(result.deleted).toBe(true);
     expect(git.getDeletedBranches()).not.toContain("feature/login");
     expect(git.getMergeLog()).toHaveLength(0);
@@ -140,4 +153,3 @@ describe("FinishBranchHandler", () => {
     );
   });
 });
-

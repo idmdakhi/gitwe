@@ -1,5 +1,5 @@
-export { DomainError } from "./DomainError";
-import { DomainError } from "./DomainError";
+export { DomainError } from "#gitwe/domain/errors/DomainError";
+import { DomainError } from "#gitwe/domain/errors/DomainError";
 
 export class BranchAlreadyExistsError extends DomainError {
   readonly code = "BRANCH_ALREADY_EXISTS";
@@ -86,4 +86,3 @@ export class HookExecutionError extends DomainError {
     super(`Hook "${phase}" failed running "${command}": ${reason}`);
   }
 }
-

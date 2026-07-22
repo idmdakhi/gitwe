@@ -9,7 +9,7 @@ import { BranchNamingPolicy, BranchNameCase } from "#gitwe/domain/valueObjects/B
 import { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCommitPolicy";
 import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
-import type { WorkflowConfigReader } from "../../application/ports/WorkflowConfigReader";
+import type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
 
 /**
  * Raw config shape as authored in `gitwe.json`/`gitwe.yaml`. This is
@@ -197,4 +197,3 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
     return { prefix: type.tag.prefix ?? globalTag.prefix ?? "v", pattern: type.tag.pattern };
   }
 }
-

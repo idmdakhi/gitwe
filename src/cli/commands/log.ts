@@ -1,9 +1,13 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { reportError } from "../reportError";
-import { printResult } from "../output";
+import type { Container } from "#gitwe/cli/container";
+import { reportError } from "#gitwe/cli/reportError";
+import { printResult } from "#gitwe/cli/output";
 
-export function registerLogCommand(program: Command, getContainer: () => Container, getJson: () => boolean): void {
+export function registerLogCommand(
+  program: Command,
+  getContainer: () => Container,
+  getJson: () => boolean,
+): void {
   program
     .command("log [ref]")
     .description("Show recent commit history for a branch/ref (default: HEAD)")
@@ -14,7 +18,9 @@ export function registerLogCommand(program: Command, getContainer: () => Contain
         const commits = await container.git.getRecentCommits(ref ?? "HEAD", Number(opts.limit));
         printResult(getJson(), commits, (list) => {
           for (const commit of list) {
-            console.log(`${commit.hash.slice(0, 8)}  ${commit.date.toISOString().slice(0, 10)}  ${commit.author}  ${commit.message}`);
+            console.log(
+              `${commit.hash.slice(0, 8)}  ${commit.date.toISOString().slice(0, 10)}  ${commit.author}  ${commit.message}`,
+            );
           }
         });
       } catch (error) {
@@ -22,4 +28,3 @@ export function registerLogCommand(program: Command, getContainer: () => Contain
       }
     });
 }
-

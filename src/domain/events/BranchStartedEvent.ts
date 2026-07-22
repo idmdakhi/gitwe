@@ -1,4 +1,4 @@
-import { DomainEvent } from "./DomainEvent";
+import { DomainEvent } from "#gitwe/domain/events/DomainEvent";
 
 export class BranchStartedEvent extends DomainEvent {
   readonly name = "branch.started";
@@ -11,4 +11,3 @@ export class BranchStartedEvent extends DomainEvent {
     super();
   }
 }
-

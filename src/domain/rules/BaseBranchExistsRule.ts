@@ -1,6 +1,6 @@
-import { Rule } from "./Rule";
-import { RuleContext } from "./RuleContext";
-import { RuleResult } from "./RuleResult";
+import { Rule } from "#gitwe/domain/rules/Rule";
+import { RuleContext } from "#gitwe/domain/rules/RuleContext";
+import { RuleResult } from "#gitwe/domain/rules/RuleResult";
 
 /** Only applies to `start`: the configured base branch must exist before we can branch from it. */
 export class BaseBranchExistsRule implements Rule {
@@ -14,4 +14,3 @@ export class BaseBranchExistsRule implements Rule {
       : RuleResult.fail(`base branch "${context.baseBranch}" does not exist`);
   }
 }
-

@@ -1,7 +1,7 @@
 import type { EventBus } from "#gitwe/domain/ports/EventBus";
 import type { DomainEvent } from "#gitwe/domain/events/DomainEvent";
-import type { Logger } from "../../shared/logging/Logger";
-import { NoopLogger } from "../logging/NoopLogger";
+import type { Logger } from "#gitwe/shared/logging/Logger";
+import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 type Subscriber = (event: DomainEvent) => void;
 
@@ -29,4 +29,3 @@ export class InMemoryEventBus implements EventBus {
     }
   }
 }
-

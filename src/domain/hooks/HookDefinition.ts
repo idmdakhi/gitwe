@@ -1,8 +1,10 @@
-import { HookPhase } from "./HookPhase";
+import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 
 /** Shell commands to run at each lifecycle phase of a workflow action. */
 export class HookDefinition {
-  private constructor(private readonly commandsByPhase: ReadonlyMap<HookPhase, readonly string[]>) {}
+  private constructor(
+    private readonly commandsByPhase: ReadonlyMap<HookPhase, readonly string[]>,
+  ) {}
 
   static create(props: {
     preStart?: string[];
@@ -27,4 +29,3 @@ export class HookDefinition {
     return this.commandsByPhase.get(phase) ?? [];
   }
 }
-

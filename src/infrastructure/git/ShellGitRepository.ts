@@ -8,10 +8,10 @@ import { Branch } from "#gitwe/domain/entities/Branch";
 import { MergeOutcome } from "#gitwe/domain/valueObjects/MergeOutcome";
 import { CommitInfo } from "#gitwe/domain/valueObjects/CommitInfo";
 import { BranchAlreadyExistsError, BranchNotFoundError } from "#gitwe/domain/errors";
-import { GitCommandError } from "./GitCommandError";
-import { ProcessRunner } from "./ProcessRunner";
-import type { Logger } from "../../shared/logging/Logger";
-import { NoopLogger } from "../logging/NoopLogger";
+import { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
+import { ProcessRunner } from "#gitwe/infrastructure/git/ProcessRunner";
+import type { Logger } from "#gitwe/shared/logging/Logger";
+import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 /**
  * Talks to the real `git` binary via `ProcessRunner`. This is the only
@@ -235,4 +235,3 @@ export class ShellGitRepository implements GitRepository {
     return { stdout: result.stdout, stderr: result.stderr, exitCode: result.exitCode };
   }
 }
-

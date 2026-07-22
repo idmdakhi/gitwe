@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { Workflow } from "../../src/domain/aggregates/Workflow";
-import { BranchTypeRule } from "../../src/domain/valueObjects/BranchTypeRule";
-import { BranchNamingPolicy } from "../../src/domain/valueObjects/BranchNamingPolicy";
-import { RuleEvaluator } from "../../src/domain/services/RuleEvaluator";
-import { BranchDoesNotExistRule } from "../../src/domain/rules/BranchDoesNotExistRule";
-import { BaseBranchExistsRule } from "../../src/domain/rules/BaseBranchExistsRule";
-import { WorkingTreeCleanRule } from "../../src/domain/rules/WorkingTreeCleanRule";
-import { BranchNamingRule } from "../../src/domain/rules/BranchNamingRule";
-import { WorkflowRuleViolationError } from "../../src/domain/errors";
-import { InMemoryGitRepository } from "../support/InMemoryGitRepository";
+import { Workflow } from "#gitwe/domain/aggregates/Workflow";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
+import { BranchNamingPolicy } from "#gitwe/domain/valueObjects/BranchNamingPolicy";
+import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+import { BranchDoesNotExistRule } from "#gitwe/domain/rules/BranchDoesNotExistRule";
+import { BaseBranchExistsRule } from "#gitwe/domain/rules/BaseBranchExistsRule";
+import { WorkingTreeCleanRule } from "#gitwe/domain/rules/WorkingTreeCleanRule";
+import { BranchNamingRule } from "#gitwe/domain/rules/BranchNamingRule";
+import { WorkflowRuleViolationError } from "#gitwe/domain/errors";
+import { InMemoryGitRepository } from "#tests/support/InMemoryGitRepository";
 
 const workflow = Workflow.create({
   name: "test",
@@ -125,4 +125,3 @@ describe("RuleEvaluator", () => {
     ).resolves.toBeUndefined();
   });
 });
-

@@ -1,10 +1,9 @@
-export * from "./types";
+export * from "#gitwe/config/types";
 
-export * from "./defaults";
+export * from "#gitwe/config/defaults";
 
-export * from "./schema";
+export * from "#gitwe/config/schema";
 
-export * from "./ConfigLoader";
+export * from "#gitwe/config/ConfigLoader";
 
-export * from "./ConfigValidator";
-
+export * from "#gitwe/config/ConfigValidator";

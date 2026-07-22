@@ -1,10 +1,10 @@
-import type { GitRepository } from "../git";
+import type { GitRepository } from "#gitwe/git";
 
-import type { GitweConfig } from "../config";
+import type { GitweConfig } from "#gitwe/config";
 
-import { BranchFactory } from "./BranchFactory";
+import { BranchFactory } from "#gitwe/branch/BranchFactory";
 
-import { BranchValidator } from "./BranchValidator";
+import { BranchValidator } from "#gitwe/branch/BranchValidator";
 
 export class BranchService {
   private readonly validator;
@@ -53,4 +53,3 @@ export class BranchService {
     return branch;
   }
 }
-

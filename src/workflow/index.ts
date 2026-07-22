@@ -1,8 +1,7 @@
-export * from "./types";
+export * from "#gitwe/workflow/types";
 
-export * from "./Workflow";
+export * from "#gitwe/workflow/Workflow";
 
-export * from "./GitFlow";
+export * from "#gitwe/workflow/GitFlow";
 
-export * from "./WorkflowFactory";
-
+export * from "#gitwe/workflow/WorkflowFactory";

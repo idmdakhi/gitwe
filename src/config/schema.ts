@@ -1,4 +1,4 @@
-import type { GitweConfig } from "./types";
+import type { GitweConfig } from "#gitwe/config/types";
 
 export function isGitweConfig(value: unknown): value is GitweConfig {
   if (typeof value !== "object" || value === null) {
@@ -18,4 +18,3 @@ export function isGitweConfig(value: unknown): value is GitweConfig {
     typeof config.branchNaming === "object"
   );
 }
-

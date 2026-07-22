@@ -1,4 +1,4 @@
-import type { BranchNamingConfig } from "../config";
+import type { BranchNamingConfig } from "#gitwe/config";
 
 export class BranchName {
   static normalize(
@@ -38,4 +38,3 @@ export class BranchName {
     return name;
   }
 }
-

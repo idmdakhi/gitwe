@@ -2,11 +2,11 @@ import type { EventBus } from "#gitwe/domain/ports/EventBus";
 import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 import { BranchStartedEvent } from "#gitwe/domain/events/BranchStartedEvent";
-import type { Logger } from "../../shared/logging/Logger";
-import { BranchService } from "../services/BranchService";
-import { HookService } from "../services/HookService";
-import { StartBranchCommand } from "../commands/StartBranchCommand";
-import { StartBranchResult } from "../dto/StartBranchResult";
+import type { Logger } from "#gitwe/shared/logging/Logger";
+import { BranchService } from "#gitwe/application/services/BranchService";
+import { HookService } from "#gitwe/application/services/HookService";
+import { StartBranchCommand } from "#gitwe/application/commands/StartBranchCommand";
+import { StartBranchResult } from "#gitwe/application/dto/StartBranchResult";
 
 /**
  * Use case: start a new branch of a given type. Each step is delegated to
@@ -35,4 +35,3 @@ export class StartBranchHandler {
     return { branchName, baseBranch: rule.baseBranch };
   }
 }
-

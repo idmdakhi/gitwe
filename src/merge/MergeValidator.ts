@@ -1,4 +1,4 @@
-import type { MergeRequest } from "./MergeRequest";
+import type { MergeRequest } from "#gitwe/merge/MergeRequest";
 
 export class MergeValidator {
   validate(request: MergeRequest) {
@@ -15,4 +15,3 @@ export class MergeValidator {
     }
   }
 }
-

@@ -1,5 +1,5 @@
-import type { GitRepository } from "../git";
-import type { GitweConfig } from "../config";
+import type { GitRepository } from "#gitwe/git";
+import type { GitweConfig } from "#gitwe/config";
 
 export interface FinishOptions {
   branchType: string;
@@ -46,4 +46,3 @@ export class FinishBranchAction {
     }
   }
 }
-

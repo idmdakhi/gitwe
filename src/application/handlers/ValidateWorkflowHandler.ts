@@ -1,4 +1,4 @@
-import type { WorkflowConfigReader } from "../ports/WorkflowConfigReader";
+import type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
 import { DomainError } from "#gitwe/domain/errors";
 
 export interface ValidateWorkflowResult {
@@ -26,4 +26,3 @@ export class ValidateWorkflowHandler {
     }
   }
 }
-

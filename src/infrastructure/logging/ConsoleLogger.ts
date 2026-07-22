@@ -1,4 +1,4 @@
-import type { Logger } from "../../shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/Logger";
 
 /** Plain, readable console output — the default logger for CLI usage. */
 export class ConsoleLogger implements Logger {
@@ -24,4 +24,3 @@ export class ConsoleLogger implements Logger {
     console.log(`[${level}] ${message}${suffix}`);
   }
 }
-

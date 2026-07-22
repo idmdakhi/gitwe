@@ -1,4 +1,4 @@
-import type { Git, CreateBranchOptions, MergeOptions, TagOptions } from "./Git";
+import type { Git, CreateBranchOptions, MergeOptions, TagOptions } from "#gitwe/git/Git";
 
 export class GitRepository {
   constructor(private readonly git: Git) {}
@@ -31,4 +31,3 @@ export class GitRepository {
     return this.git.hasBranch(branch);
   }
 }
-

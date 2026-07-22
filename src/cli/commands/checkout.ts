@@ -1,9 +1,13 @@
 import type { Command } from "commander";
-import type { Container } from "../container";
-import { reportError } from "../reportError";
-import { printResult } from "../output";
+import type { Container } from "#gitwe/cli/container";
+import { reportError } from "#gitwe/cli/reportError";
+import { printResult } from "#gitwe/cli/output";
 
-export function registerCheckoutCommand(program: Command, getContainer: () => Container, getJson: () => boolean): void {
+export function registerCheckoutCommand(
+  program: Command,
+  getContainer: () => Container,
+  getJson: () => boolean,
+): void {
   program
     .command("checkout <branchName>")
     .description("Check out an existing branch")
@@ -11,10 +15,11 @@ export function registerCheckoutCommand(program: Command, getContainer: () => Co
       const container = getContainer();
       try {
         await container.git.checkout(branchName);
-        printResult(getJson(), { branch: branchName }, (r) => console.log(`✅ Switched to ${r.branch}.`));
+        printResult(getJson(), { branch: branchName }, (r) =>
+          console.log(`✅ Switched to ${r.branch}.`),
+        );
       } catch (error) {
         process.exitCode = reportError(error, getJson());
       }
     });
 }
-

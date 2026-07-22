@@ -1,4 +1,4 @@
-import { BranchTreeNode } from "../application/dto/StatusReport";
+import { BranchTreeNode } from "#gitwe/application/dto/StatusReport";
 
 export function renderTree(node: BranchTreeNode, prefix = "", isLast = true): string {
   const marker = prefix === "" ? "" : isLast ? "└── " : "├── ";
@@ -12,4 +12,3 @@ export function renderTree(node: BranchTreeNode, prefix = "", isLast = true): st
 
   return lines.join("\n");
 }
-

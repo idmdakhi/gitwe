@@ -1,7 +1,7 @@
 import { Workflow } from "#gitwe/domain/aggregates/Workflow";
-import { StatusService } from "../services/StatusService";
-import { GetStatusQuery } from "../queries/GetStatusQuery";
-import { StatusReport } from "../dto/StatusReport";
+import { StatusService } from "#gitwe/application/services/StatusService";
+import { GetStatusQuery } from "#gitwe/application/queries/GetStatusQuery";
+import { StatusReport } from "#gitwe/application/dto/StatusReport";
 
 export class GetStatusHandler {
   constructor(
@@ -13,4 +13,3 @@ export class GetStatusHandler {
     return this.statusService.buildReport(this.workflow, query.rootBranch ?? "main");
   }
 }
-

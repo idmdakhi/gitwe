@@ -1,6 +1,6 @@
-import { Rule } from "./Rule";
-import { RuleContext } from "./RuleContext";
-import { RuleResult } from "./RuleResult";
+import { Rule } from "#gitwe/domain/rules/Rule";
+import { RuleContext } from "#gitwe/domain/rules/RuleContext";
+import { RuleResult } from "#gitwe/domain/rules/RuleResult";
 
 /** Only applies to `start`: the short name must satisfy the workflow's configured naming policy. */
 export class BranchNamingRule implements Rule {
@@ -17,4 +17,3 @@ export class BranchNamingRule implements Rule {
     return violation ? RuleResult.fail(violation) : RuleResult.pass();
   }
 }
-

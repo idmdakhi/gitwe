@@ -1,4 +1,4 @@
-import type { Logger } from "../../shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/Logger";
 
 /** Silent logger — default for library/test contexts so we never spam stdout uninvited. */
 export class NoopLogger implements Logger {
@@ -7,4 +7,3 @@ export class NoopLogger implements Logger {
   warn(): void {}
   error(): void {}
 }
-

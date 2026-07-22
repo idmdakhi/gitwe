@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { WorkflowConfigLoader } from "../../src/infrastructure/config/WorkflowConfigLoader";
-import { InvalidWorkflowDefinitionError } from "../../src/domain/errors";
+import { WorkflowConfigLoader } from "#gitwe/infrastructure/config/WorkflowConfigLoader";
+import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
 
 const RICH_CONFIG = {
   version: 1,
@@ -77,7 +77,10 @@ describe("WorkflowConfigLoader", () => {
   it("falls back to deleteAfterFinish=true by default via merge.deleteSource", () => {
     const config = {
       ...RICH_CONFIG,
-      types: { ...RICH_CONFIG.types, hotfix: { prefix: "hotfix/", base: "main", target: ["main", "develop"] } },
+      types: {
+        ...RICH_CONFIG.types,
+        hotfix: { prefix: "hotfix/", base: "main", target: ["main", "develop"] },
+      },
     };
     const workflow = new WorkflowConfigLoader().load(writeConfig(config));
     expect(workflow.findBranchType("hotfix")?.deleteOnFinish).toBe(true);
@@ -96,18 +99,22 @@ describe("WorkflowConfigLoader", () => {
   });
 
   it("rejects a config with no branch types", () => {
-    expect(() => new WorkflowConfigLoader().load(writeConfig({ workflow: "empty", types: {} }))).toThrow(
-      InvalidWorkflowDefinitionError,
-    );
+    expect(() =>
+      new WorkflowConfigLoader().load(writeConfig({ workflow: "empty", types: {} })),
+    ).toThrow(InvalidWorkflowDefinitionError);
   });
 
   it("rejects a branch type missing a base branch", () => {
-    const config = { workflow: "bad", types: { feature: { prefix: "feature/", target: "develop" } } };
+    const config = {
+      workflow: "bad",
+      types: { feature: { prefix: "feature/", target: "develop" } },
+    };
     expect(() => new WorkflowConfigLoader().load(writeConfig(config))).toThrow(/missing "base"/);
   });
 
   it("rejects a nonexistent file", () => {
-    expect(() => new WorkflowConfigLoader().load("/no/such/file.json")).toThrow(InvalidWorkflowDefinitionError);
+    expect(() => new WorkflowConfigLoader().load("/no/such/file.json")).toThrow(
+      InvalidWorkflowDefinitionError,
+    );
   });
 });
-

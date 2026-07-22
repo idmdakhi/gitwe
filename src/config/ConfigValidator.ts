@@ -1,4 +1,4 @@
-import type { GitweConfig } from "./types";
+import type { GitweConfig } from "#gitwe/config/types";
 
 export class ConfigValidator {
   validate(config: GitweConfig): void {
@@ -17,4 +17,3 @@ export class ConfigValidator {
     }
   }
 }
-

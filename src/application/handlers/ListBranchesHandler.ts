@@ -1,5 +1,5 @@
 import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
-import { BranchSummaryDto } from "../dto/StatusReport";
+import { BranchSummaryDto } from "#gitwe/application/dto/StatusReport";
 
 export class ListBranchesHandler {
   constructor(private readonly git: GitRepository) {}
@@ -9,4 +9,3 @@ export class ListBranchesHandler {
     return branches.map((b) => ({ name: b.name, isCurrent: b.isCurrent }));
   }
 }
-

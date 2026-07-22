@@ -1,10 +1,10 @@
-import type { GitRepository } from "../git";
+import type { GitRepository } from "#gitwe/git";
 
-import { MergeExecutor } from "./MergeExecutor";
-import { MergeValidator } from "./MergeValidator";
+import { MergeExecutor } from "#gitwe/merge/MergeExecutor";
+import { MergeValidator } from "#gitwe/merge/MergeValidator";
 
-import type { MergeRequest } from "./MergeRequest";
-import type { MergeResult } from "./MergeResult";
+import type { MergeRequest } from "#gitwe/merge/MergeRequest";
+import type { MergeResult } from "#gitwe/merge/MergeResult";
 
 export class MergeService {
   constructor(private readonly git: GitRepository) {}
@@ -47,4 +47,3 @@ export class MergeService {
     };
   }
 }
-

@@ -1,4 +1,4 @@
-import { InvalidBranchNameError } from "../errors";
+import { InvalidBranchNameError } from "#gitwe/domain/errors";
 
 const VALID_CHARS = /^[a-zA-Z0-9_\-./]+$/;
 
@@ -47,4 +47,3 @@ export class BranchName {
     return this.value === other.value;
   }
 }
-
