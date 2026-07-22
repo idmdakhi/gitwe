@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { Workflow } from "#gitwe/domain/aggregates/Workflow";
-import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
-import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors/index";
+import { Workflow } from "../../src/domain/aggregates/Workflow";
+import { BranchTypeRule } from "../../src/domain/valueObjects/BranchTypeRule";
+import { InvalidWorkflowDefinitionError } from "../../src/domain/errors";
 
 function feature(overrides: Partial<Parameters<typeof BranchTypeRule.create>[0]> = {}) {
   return BranchTypeRule.create({
@@ -59,5 +59,21 @@ describe("Workflow", () => {
     const workflow = Workflow.create({ name: "test", branchTypes: [feature()] });
     expect(workflow.findRuleForBranch("feature/login")?.name).toBe("feature");
     expect(workflow.findRuleForBranch("chore/cleanup")).toBeUndefined();
+  });
+
+  it("tracks protected branches", () => {
+    const workflow = Workflow.create({
+      name: "test",
+      branchTypes: [feature()],
+      protectedBranches: ["main", "develop"],
+    });
+    expect(workflow.isProtected("main")).toBe(true);
+    expect(workflow.isProtected("feature/login")).toBe(false);
+  });
+
+  it("defaults to an unrestricted branch naming policy and merge strategy", () => {
+    const workflow = Workflow.create({ name: "test", branchTypes: [feature()] });
+    expect(workflow.branchNaming.validate("Anything Goes 123")).toBeUndefined();
+    expect(workflow.mergeStrategy).toBe("merge");
   });
 });

@@ -3,11 +3,11 @@ import type {
   CreateBranchOptions,
   MergeOptions,
   RawCommandResult,
-} from "#gitwe/domain/ports/GitRepository";
-import { Branch } from "#gitwe/domain/entities/Branch";
-import { MergeOutcome } from "#gitwe/domain/valueObjects/MergeOutcome";
-import { CommitInfo } from "#gitwe/domain/valueObjects/CommitInfo";
-import { BranchAlreadyExistsError, BranchNotFoundError } from "#gitwe/domain/errors/index";
+} from "../../src/domain/ports/GitRepository";
+import { Branch } from "../../src/domain/entities/Branch";
+import { MergeOutcome } from "../../src/domain/valueObjects/MergeOutcome";
+import { CommitInfo } from "../../src/domain/valueObjects/CommitInfo";
+import { BranchAlreadyExistsError, BranchNotFoundError } from "../../src/domain/errors";
 
 export class InMemoryGitRepository implements GitRepository {
   private branches = new Set<string>(["main"]);
@@ -47,7 +47,8 @@ export class InMemoryGitRepository implements GitRepository {
     if (!this.branches.has(source)) throw new BranchNotFoundError(source);
     if (!this.branches.has(target)) throw new BranchNotFoundError(target);
     this.current = target;
-    const outcome = MergeOutcome.of(source, target, options.noFastForward === false);
+    const fastForward = options.strategy === "rebase" ? true : options.noFastForward === false;
+    const outcome = MergeOutcome.of(source, target, fastForward);
     this.mergeLog.push(outcome);
     return outcome;
   }
@@ -70,6 +71,22 @@ export class InMemoryGitRepository implements GitRepository {
 
   async getCommitInfo(): Promise<CommitInfo> {
     return { hash: "deadbeef", date: new Date(0), author: "test", message: "test commit" };
+  }
+
+  async getRecentCommits(): Promise<CommitInfo[]> {
+    return [{ hash: "deadbeef", date: new Date(0), author: "test", message: "test commit" }];
+  }
+
+  async isMerged(branch: string, into: string): Promise<boolean> {
+    // In-memory model has no real commit graph; approximate via the seeded parent chain.
+    let current: string | undefined = branch;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+      if (current === into) return true;
+      visited.add(current);
+      current = this.parents.get(current);
+    }
+    return false;
   }
 
   async getBranchParent(branch: string): Promise<string | undefined> {

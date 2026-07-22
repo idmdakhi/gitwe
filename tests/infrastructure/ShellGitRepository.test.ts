@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync, writeFileSync, appendFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { ShellGitRepository } from "#gitwe/infrastructure/git/ShellGitRepository";
-import { BranchAlreadyExistsError, BranchNotFoundError } from "#gitwe/domain/errors/index";
+import { ShellGitRepository } from "../../src/infrastructure/git/ShellGitRepository";
+import { BranchAlreadyExistsError, BranchNotFoundError } from "../../src/domain/errors";
 
 function sh(cwd: string, ...args: string[]): void {
   execFileSync("git", args, { cwd });

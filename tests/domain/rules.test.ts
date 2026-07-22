@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { Workflow } from "#gitwe/domain/aggregates/Workflow";
-import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
-import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
-import { BranchDoesNotExistRule } from "#gitwe/domain/rules/BranchDoesNotExistRule";
-import { BaseBranchExistsRule } from "#gitwe/domain/rules/BaseBranchExistsRule";
-import { WorkingTreeCleanRule } from "#gitwe/domain/rules/WorkingTreeCleanRule";
-import { WorkflowRuleViolationError } from "#gitwe/domain/errors/index";
-import { InMemoryGitRepository } from "#tests/support/InMemoryGitRepository";
+import { Workflow } from "../../src/domain/aggregates/Workflow";
+import { BranchTypeRule } from "../../src/domain/valueObjects/BranchTypeRule";
+import { BranchNamingPolicy } from "../../src/domain/valueObjects/BranchNamingPolicy";
+import { RuleEvaluator } from "../../src/domain/services/RuleEvaluator";
+import { BranchDoesNotExistRule } from "../../src/domain/rules/BranchDoesNotExistRule";
+import { BaseBranchExistsRule } from "../../src/domain/rules/BaseBranchExistsRule";
+import { WorkingTreeCleanRule } from "../../src/domain/rules/WorkingTreeCleanRule";
+import { BranchNamingRule } from "../../src/domain/rules/BranchNamingRule";
+import { WorkflowRuleViolationError } from "../../src/domain/errors";
+import { InMemoryGitRepository } from "../support/InMemoryGitRepository";
 
 const workflow = Workflow.create({
   name: "test",
@@ -92,6 +94,34 @@ describe("RuleEvaluator", () => {
     // Neither should fire here.
     await expect(
       evaluator.assertAllSatisfied({ workflow, action: "start", branchName: "feature/x", git }),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects a branch name that violates the workflow's naming policy", async () => {
+    const namedWorkflow = Workflow.create({
+      name: "test",
+      branchTypes: [...workflow.branchTypes],
+      branchNaming: BranchNamingPolicy.create({ case: "kebab-case" }),
+    });
+    const git = new InMemoryGitRepository();
+    const evaluator = new RuleEvaluator([new BranchNamingRule()]);
+
+    await expect(
+      evaluator.assertAllSatisfied({
+        workflow: namedWorkflow,
+        action: "start",
+        branchName: "feature/FixLoginBug",
+        git,
+      }),
+    ).rejects.toThrow(/kebab-case/);
+
+    await expect(
+      evaluator.assertAllSatisfied({
+        workflow: namedWorkflow,
+        action: "start",
+        branchName: "feature/fix-login-bug",
+        git,
+      }),
     ).resolves.toBeUndefined();
   });
 });

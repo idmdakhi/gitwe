@@ -1,7 +1,7 @@
 {
   "name": "gitwe",
   "version": "2.0.0",
-  "description": "A pluggable, DDD-structured git workflow engine — git-flow is just one example workflow.",
+  "description": "git workflow engine — git-flow is just one example workflow.",
   "license": "MIT",
   "author": "Mohammad Amanalikhani <idmdakhi@gmail.com>",
   "type": "commonjs",
