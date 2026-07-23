@@ -49,14 +49,20 @@ export function registerInitCommand(program: Command): void {
   program
     .command("init")
     .description("Scaffold a new workflow config file in the current directory")
-    .option("-t, --template <name>", "template to start from: git-flow | github-flow | trunk-based", "git-flow")
+    .option(
+      "-t, --template <name>",
+      "template to start from: git-flow | github-flow | trunk-based",
+      "git-flow",
+    )
     .option("-f, --format <format>", "output format: json | yaml", "json")
     .option("-o, --output <path>", "output file path (default: gitwe.json / gitwe.yaml)")
     .option("--force", "overwrite the output file if it already exists")
     .action((opts: { template: string; format: string; output?: string; force?: boolean }) => {
       const template = TEMPLATES[opts.template];
       if (!template) {
-        console.error(`❌ Unknown template "${opts.template}". Choices: ${Object.keys(TEMPLATES).join(", ")}`);
+        console.error(
+          `❌ Unknown template "${opts.template}". Choices: ${Object.keys(TEMPLATES).join(", ")}`,
+        );
         process.exitCode = 1;
         return;
       }
@@ -73,7 +79,8 @@ export function registerInitCommand(program: Command): void {
       const content = isYaml ? yaml.dump(template) : JSON.stringify(template, null, 2) + "\n";
       fs.writeFileSync(outputPath, content, "utf-8");
       console.log(`✅ Wrote ${outputPath} from the "${opts.template}" template.`);
-      console.log(`   Run "gitwe validate ${outputPath}" to check it, or "gitwe --config ${outputPath} status" to use it.`);
+      console.log(
+        `   Run "gitwe validate ${outputPath}" to check it, or "gitwe --config ${outputPath} status" to use it.`,
+      );
     });
 }
-

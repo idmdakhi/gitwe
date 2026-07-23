@@ -130,6 +130,36 @@ describe("FinishBranchHandler", () => {
     expect(git.getMergeLog()).toHaveLength(0);
   });
 
+  it("force-deletes after a squash merge, since git never sees it as fully merged", async () => {
+    await handler.handle({ branchName: "feature/login", strategy: "squash" });
+
+    // The in-memory double records the actual `force` flag it was called with.
+    expect(git.getDeletedBranches()).toContain("feature/login");
+    expect(git.getLastDeleteForce()).toBe(true);
+  });
+
+  it("does not force-delete after a regular merge", async () => {
+    await handler.handle({ branchName: "feature/login" });
+
+    expect(git.getLastDeleteForce()).toBe(false);
+  });
+
+  it("uses the workflow's default merge strategy when no override is given", async () => {
+    await handler.handle({ branchName: "feature/login" });
+
+    expect(git.getMergeLog()[0]?.source).toBe("feature/login");
+  });
+
+  it("overrides the workflow's merge strategy for a single finish via `strategy`", async () => {
+    git.seedBranch("release/1.2.0", "develop");
+
+    await handler.handle({ branchName: "release/1.2.0", strategy: "rebase" });
+
+    // Rebase strategy always resolves to a fast-forward outcome in the in-memory model.
+    const outcomes = git.getMergeLog().slice(-2);
+    expect(outcomes.every((o) => o.fastForward)).toBe(true);
+  });
+
   it("refuses to finish a protected branch", async () => {
     const protectedWorkflow = Workflow.create({
       name: "test",

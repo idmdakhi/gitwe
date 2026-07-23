@@ -46,6 +46,7 @@ export class FinishBranchHandler {
       deleteAfterMerge = true,
       pushAfterFinish = false,
       dryRun = false,
+      strategy,
     } = command;
 
     if (!(await this.git.branchExists(branchName))) {
@@ -67,11 +68,12 @@ export class FinishBranchHandler {
 
     const willDelete = deleteAfterMerge && rule.deleteOnFinish;
     const tagName = AutoTagPolicy.tagNameFor(rule, branchName);
+    const resolvedStrategy = strategy ?? this.workflow.mergeStrategy;
 
     if (dryRun) {
       return {
         dryRun: true,
-        merges: rule.mergeTargets.map((target: any) => ({
+        merges: rule.mergeTargets.map((target) => ({
           source: branchName,
           target,
           fastForward: false,
@@ -86,13 +88,17 @@ export class FinishBranchHandler {
     const outcomes = await this.mergeService.mergeIntoAllTargets(
       branchName,
       rule,
-      this.workflow.mergeStrategy,
+      resolvedStrategy,
     );
     const createdTag = await this.tagService.tagIfConfigured(branchName, rule);
 
     let deleted = false;
     if (willDelete) {
-      await this.git.deleteBranch(branchName);
+      // A squash merge intentionally leaves no shared history with its
+      // target, so `git branch -d` always refuses it as "not fully merged"
+      // even though the changes did land. Force-delete only in that case;
+      // a regular or rebase merge still gets the normal safety check.
+      await this.git.deleteBranch(branchName, resolvedStrategy === "squash");
       deleted = true;
     }
 

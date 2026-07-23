@@ -20,11 +20,10 @@ export class ConventionalCommitPolicy {
     if (!CONVENTIONAL_COMMIT_PATTERN.test(firstLine)) {
       return (
         'must follow Conventional Commits: "<type>(<scope>): <description>", ' +
-        "e.g. \"feat(auth): add password reset\" — type must be one of " +
+        'e.g. "feat(auth): add password reset" — type must be one of ' +
         "build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test"
       );
     }
     return undefined;
   }
 }
-

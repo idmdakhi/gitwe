@@ -76,8 +76,8 @@ export class ShellGitRepository implements GitRepository {
     if (await this.branchExists(name)) throw new BranchAlreadyExistsError(name);
 
     const args = ["branch"];
-    if (from) args.push(from);
     args.push(name);
+    if (from) args.push(from);
     await this.runGit(args);
 
     if (checkout) await this.checkout(name);

@@ -14,6 +14,7 @@ export class InMemoryGitRepository implements GitRepository {
   private current = "main";
   private workingTreeClean = true;
   private deletedBranches: string[] = [];
+  private lastDeleteForce: boolean | undefined;
   private mergeLog: MergeOutcome[] = [];
   private tags: string[] = [];
   private pushedRemotes: string[] = [];
@@ -53,10 +54,11 @@ export class InMemoryGitRepository implements GitRepository {
     return outcome;
   }
 
-  async deleteBranch(name: string): Promise<void> {
+  async deleteBranch(name: string, force = false): Promise<void> {
     if (!this.branches.has(name)) throw new BranchNotFoundError(name);
     this.branches.delete(name);
     this.deletedBranches.push(name);
+    this.lastDeleteForce = force;
   }
 
   async createTag(name: string): Promise<void> {
@@ -114,6 +116,10 @@ export class InMemoryGitRepository implements GitRepository {
 
   getDeletedBranches(): readonly string[] {
     return this.deletedBranches;
+  }
+
+  getLastDeleteForce(): boolean | undefined {
+    return this.lastDeleteForce;
   }
 
   getMergeLog(): readonly MergeOutcome[] {

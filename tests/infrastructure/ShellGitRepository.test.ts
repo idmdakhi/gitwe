@@ -57,6 +57,21 @@ describe("ShellGitRepository", () => {
     expect(await repo.branchExists("feature/signup")).toBe(true);
   });
 
+  it("creates a branch from an explicit start point, not just HEAD", async () => {
+    await repo.createBranch("develop", { checkout: true });
+    commit(repoDir, "develop.txt", "develop work\n", "develop work");
+    await repo.checkout("main");
+
+    await repo.createBranch("feature/from-develop", { from: "develop", checkout: true });
+
+    expect(await repo.branchExists("feature/from-develop")).toBe(true);
+    // The new branch must actually contain develop's commit, i.e. it was
+    // branched from `develop`, not from `main` (a reversed `git branch`
+    // argument order would silently create it from the wrong point, or
+    // fail outright since "develop feature/from-develop" isn't valid).
+    expect(await repo.isMerged("develop", "feature/from-develop")).toBe(true);
+  });
+
   it("throws when creating a branch that already exists", async () => {
     await repo.createBranch("feature/dup", { checkout: false });
     await expect(repo.createBranch("feature/dup", { checkout: false })).rejects.toThrow(

@@ -3,6 +3,18 @@ import type { Container } from "#gitwe/cli/container";
 import { reportError } from "#gitwe/cli/reportError";
 import { printResult } from "#gitwe/cli/output";
 import { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
+import { InvalidCliOptionError } from "#gitwe/domain/errors";
+import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
+
+const MERGE_STRATEGIES: readonly MergeStrategy[] = ["merge", "squash", "rebase"];
+
+function parseStrategy(value: string | undefined): MergeStrategy | undefined {
+  if (value === undefined) return undefined;
+  if (!MERGE_STRATEGIES.includes(value as MergeStrategy)) {
+    throw new InvalidCliOptionError("--strategy", value, MERGE_STRATEGIES as unknown as string[]);
+  }
+  return value as MergeStrategy;
+}
 
 export function registerFinishCommand(
   program: Command,
@@ -21,20 +33,32 @@ export function registerFinishCommand(
       "--abort-on-conflict",
       "automatically run `git merge --abort` if a merge conflict occurs",
     )
+    .option(
+      "--strategy <strategy>",
+      "override the workflow's merge strategy for this finish only (merge | squash | rebase)",
+    )
     .action(
       async (
         branchName: string | undefined,
-        opts: { delete: boolean; push: boolean; dryRun?: boolean; abortOnConflict: boolean },
+        opts: {
+          delete: boolean;
+          push: boolean;
+          dryRun?: boolean;
+          abortOnConflict: boolean;
+          strategy?: string;
+        },
       ) => {
         const container = getContainer();
         const json = getJson();
         try {
+          const strategy = parseStrategy(opts.strategy);
           const target = branchName ?? (await container.git.getCurrentBranch());
           const result = await container.finishBranchHandler.handle({
             branchName: target,
             deleteAfterMerge: opts.delete,
             pushAfterFinish: opts.push,
             dryRun: opts.dryRun,
+            strategy,
           });
           printResult(json, result, (r) => {
             const verb = r.dryRun ? "would merge" : "merged";

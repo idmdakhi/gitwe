@@ -54,6 +54,10 @@ gitwe start feature login-page
 # Finish a branch (merge to targets, auto-tag, delete)
 gitwe finish feature/login-page
 
+# Finish with a one-off merge strategy override (merge | squash | rebase),
+# without changing the workflow's configured default
+gitwe finish release/1.2.0 --strategy squash
+
 # Show visual branch tree
 gitwe status
 
@@ -64,12 +68,13 @@ gitwe --config my-workflow.yaml start change fix-issue
 ### As a Library
 
 ```typescript
-import { WorkflowEngine, ShellGitAdapter, gitFlowDefinition } from "gitwe";
+import { Container } from "gitwe";
 
-const engine = new WorkflowEngine(new ShellGitAdapter(process.cwd()), gitFlowDefinition);
+// Wires up the built-in git-flow workflow against the git repo at cwd.
+const container = new Container({ builtIn: "git-flow", cwd: process.cwd() });
 
-await engine.start("feature", "awesome-feature");
-await engine.finish("feature/awesome-feature");
+await container.startBranchHandler.handle({ branchType: "feature", shortName: "awesome-feature" });
+await container.finishBranchHandler.handle({ branchName: "feature/awesome-feature" });
 ```
 
 ---
