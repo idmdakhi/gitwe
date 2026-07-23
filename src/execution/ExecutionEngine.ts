@@ -1,3 +1,10 @@
+import { ExecutionLogger } from "#gitwe/execution/ExecutionLogger";
+import { Pipeline } from "#gitwe/pipeline/Pipeline";
+import { PipelineContext } from "#gitwe/pipeline/PipelineContext";
+import { ExecutionOptions } from "#gitwe/execution/ExecutionOptions";
+import { ExecutionContext } from "#gitwe/execution/ExecutionContext";
+import { ExecutionResult } from "#gitwe/execution/ExecutionResult";
+import { ExecutionState } from "#gitwe/execution/ExecutionState";
 export class ExecutionEngine {
   constructor(private readonly logger: ExecutionLogger) {}
 
@@ -12,7 +19,7 @@ export class ExecutionEngine {
 
     const execution = new ExecutionContext();
 
-    for (const step of pipeline.steps) {
+    for (const step of pipeline.getSteps()) {
       execution.currentStep = step.constructor.name;
 
       if (options.verbose) {
@@ -27,10 +34,9 @@ export class ExecutionEngine {
 
       duration: Date.now() - started,
 
-      steps: pipeline.steps.length,
+      steps: pipeline.getSteps().length,
 
       errors: execution.errors,
     };
   }
 }
-

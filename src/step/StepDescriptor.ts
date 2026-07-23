@@ -1,3 +1,4 @@
+import { StepFactory } from "#gitwe/pipeline/registry/StepFactory";
 export interface StepDescriptor {
   id: string;
 
@@ -7,4 +8,3 @@ export interface StepDescriptor {
 
   factory: StepFactory;
 }
-

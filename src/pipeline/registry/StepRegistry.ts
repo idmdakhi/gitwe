@@ -1,3 +1,4 @@
+import type { StepFactory } from "#gitwe/pipeline/registry/StepFactory";
 export class StepRegistry {
   private readonly map = new Map<string, StepFactory>();
 
@@ -23,4 +24,3 @@ export class StepRegistry {
     return factory;
   }
 }
-

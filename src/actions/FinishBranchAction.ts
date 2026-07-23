@@ -1,4 +1,4 @@
-import type { GitRepository } from "#gitwe/git";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
 import type { GitweConfig } from "#gitwe/config";
 
 export interface FinishOptions {
@@ -26,18 +26,16 @@ export class FinishBranchAction {
     for (const target of targets) {
       await this.git.checkout(target);
 
-      await this.git.merge({
-        source: `${type.prefix}${options.branchName}`,
+      await this.git.merge(
+        `${type.prefix}${options.branchName}`,
 
         target,
-      });
+      );
     }
 
     if (type.tag) {
       if (this.config.tag.enabled) {
-        await this.git.tag({
-          name: `${this.config.tag.prefix}${options.branchName}`,
-        });
+        await this.git.createTag(`${this.config.tag.prefix}${options.branchName}`);
       }
     }
 

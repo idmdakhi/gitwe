@@ -1,4 +1,4 @@
-import type { GitRepository } from "#gitwe/git";
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
 
 import { MergeExecutor } from "#gitwe/merge/MergeExecutor";
 import { MergeValidator } from "#gitwe/merge/MergeValidator";
@@ -25,9 +25,7 @@ export class MergeService {
       );
 
     if (request.createTag && request.tagName) {
-      await this.git.tag({
-        name: request.tagName,
-      });
+      await this.git.createTag(request.tagName);
     }
 
     if (request.deleteSource) {

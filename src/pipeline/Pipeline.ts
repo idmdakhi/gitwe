@@ -1,3 +1,5 @@
+import { Step } from "#gitwe/pipeline/Step";
+import { PipelineContext } from "#gitwe/pipeline/PipelineContext";
 export class Pipeline {
   constructor(private readonly steps: Step[]) {}
 
@@ -6,5 +8,7 @@ export class Pipeline {
       await step.execute(context);
     }
   }
+  getSteps(): Step[] {
+    return this.steps;
+  }
 }
-

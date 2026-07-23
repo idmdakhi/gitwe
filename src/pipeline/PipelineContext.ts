@@ -1,3 +1,6 @@
+import { GitRepository } from "#gitwe/domain/ports/GitRepository";
+import { GitweConfig } from "#gitwe/config";
+import { Branch } from "#gitwe/branch/Branch";
 export class PipelineContext {
   constructor(
     public readonly git: GitRepository,
@@ -13,4 +16,3 @@ export class PipelineContext {
 
   deleted = false;
 }
-

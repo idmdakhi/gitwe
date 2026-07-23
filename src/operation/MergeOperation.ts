@@ -1,10 +1,9 @@
+import { Operation } from "#gitwe/operation/Operation";
+import { OperationContext } from "#gitwe/operation/OperationContext";
 export class MergeOperation implements Operation {
   async execute(ctx: OperationContext) {
-    await ctx.git.merge({
-      source: ctx.source,
+    if (!ctx.source || !ctx.target) throw new Error("source and target required");
 
-      target: ctx.target,
-    });
+    await ctx.git.merge(ctx.source, ctx.target);
   }
 }
-

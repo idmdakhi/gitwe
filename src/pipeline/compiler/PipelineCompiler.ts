@@ -1,3 +1,6 @@
+import { StepRegistry } from "#gitwe/pipeline/registry/StepRegistry";
+import { PipelineDefinition } from "#gitwe/pipeline/definition/PipelineDefinition";
+import { Pipeline } from "#gitwe/pipeline/Pipeline";
 export class PipelineCompiler {
   constructor(private readonly registry: StepRegistry) {}
 
@@ -13,4 +16,3 @@ export class PipelineCompiler {
     return new Pipeline(steps);
   }
 }
-

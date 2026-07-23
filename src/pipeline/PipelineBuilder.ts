@@ -1,3 +1,5 @@
+import { Step } from "#gitwe/pipeline/Step";
+import { Pipeline } from "#gitwe/pipeline/Pipeline";
 export class PipelineBuilder {
   private readonly steps: Step[] = [];
 
@@ -11,4 +13,3 @@ export class PipelineBuilder {
     return new Pipeline(this.steps);
   }
 }
-

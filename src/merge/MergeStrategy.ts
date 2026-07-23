@@ -1,5 +1,4 @@
-import type { GitRepository } from "#gitwe/git";
-
+import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
 import type { MergeRequest } from "#gitwe/merge/MergeRequest";
 
 export interface IFMergeStrategy {
@@ -18,24 +17,10 @@ export class MergeStrategy implements IFMergeStrategy {
   ) {
     await git.checkout(request.target);
 
-    await git.merge({
-      source: request.source,
+    await git.merge(
+      request.source,
 
-      target: request.target,
-    });
-  }
-}
-export class SquashMergeStrategy implements IFMergeStrategy {
-  async execute(git: GitRepository, request: MergeRequest) {
-    /*
-           git merge --squash
-        */
-  }
-}
-export class RebaseMergeStrategy implements MergeStrategy {
-  async execute(git: GitRepository, request: MergeRequest) {
-    /*
-            git rebase
-        */
+      request.target,
+    );
   }
 }

@@ -1,3 +1,4 @@
+import { ExecutionState } from "#gitwe/execution/ExecutionState";
 export interface ExecutionResult {
   state: ExecutionState;
 
@@ -7,4 +8,3 @@ export interface ExecutionResult {
 
   errors: Error[];
 }
-
