@@ -86,3 +86,14 @@ export class HookExecutionError extends DomainError {
     super(`Hook "${phase}" failed running "${command}": ${reason}`);
   }
 }
+
+export class InvalidCliOptionError extends DomainError {
+  readonly code = "INVALID_CLI_OPTION";
+  constructor(
+    public readonly option: string,
+    public readonly value: string,
+    public readonly allowed: string[],
+  ) {
+    super(`Invalid value "${value}" for option "${option}". Allowed values: ${allowed.join(", ")}`);
+  }
+}
