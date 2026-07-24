@@ -1,0 +1,15 @@
+# .github/workflows/gitwe-reusable.yml
+name: GitWe Reusable
+
+on:
+  workflow_call:
+    inputs:
+      command:
+        required: true
+        type: string
+
+jobs:
+  run:
+    uses: git-workflow-engine/gitwe@v1
+    with:
+      command: ${{ inputs.command }}

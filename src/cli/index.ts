@@ -23,7 +23,10 @@ import { registerInitCommand } from "#gitwe/cli/commands/init";
 import { registerCommitLintCommand } from "#gitwe/cli/commands/commitLint";
 
 const program = new Command();
-
+// const opts = program.opts<GlobalOpts>();
+// if (process.argv[2] && Container.workflow.cli.aliases[process.argv[2]]) {
+//  منطق alias resolution
+// }
 program
   .name("gitwe")
   .description(

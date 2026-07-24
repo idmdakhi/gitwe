@@ -1,8 +1,6 @@
 {
   "version": 1,
-
   "workflow": "git-flow",
-
   "branches": {
     "main": {
       "protected": true
@@ -11,7 +9,6 @@
       "protected": true
     }
   },
-
   "types": {
     "feature": {
       "prefix": "feature/",
@@ -19,50 +16,39 @@
       "target": "develop",
       "deleteAfterFinish": true
     },
-
     "release": {
       "prefix": "release/",
       "base": "develop",
-      "target": ["main", "develop"],
+      "target": [
+        "main",
+        "develop"
+      ],
       "tag": true
     },
-
     "hotfix": {
       "prefix": "hotfix/",
       "base": "main",
-      "target": ["main", "develop"]
+      "target": [
+        "main",
+        "develop"
+      ]
     }
   },
-
   "merge": {
     "strategy": "merge",
     "deleteSource": true
   },
-
   "tag": {
     "enabled": true,
     "prefix": "v"
   },
-
   "commit": {
     "conventional": {
-      "enabled": true
+      "enabled": false
     }
   },
-
   "branchNaming": {
     "case": "kebab-case",
     "maxLength": 80
-  },
-
-  "hooks": {
-    "preFinish": [],
-    "postFinish": []
-  },
-
-  "remote": {
-    "remote": "origin",
-    "autoPush": false,
-    "autoPull": false
   }
 }

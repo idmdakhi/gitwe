@@ -97,3 +97,23 @@ export class InvalidCliOptionError extends DomainError {
     super(`Invalid value "${value}" for option "${option}". Allowed values: ${allowed.join(", ")}`);
   }
 }
+
+export class StateCorruptedError extends DomainError {
+  readonly code = "STATE_CORRUPTED";
+  constructor(
+    public readonly filePath: string,
+    public readonly reason: string,
+  ) {
+    super(`State file at "${filePath}" is corrupted or unreadable: ${reason}`);
+  }
+}
+
+export class PluginLoadError extends DomainError {
+  readonly code = "PLUGIN_LOAD_FAILED";
+  constructor(
+    public readonly specifier: string,
+    public readonly reason: string,
+  ) {
+    super(`Failed to load plugin "${specifier}": ${reason}`);
+  }
+}

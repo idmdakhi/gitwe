@@ -30,6 +30,9 @@ import { GetStatusHandler } from "#gitwe/application/handlers/GetStatusHandler";
 import { ValidateWorkflowHandler } from "#gitwe/application/handlers/ValidateWorkflowHandler";
 import { DoctorHandler } from "#gitwe/application/handlers/DoctorHandler";
 import { CleanupHandler } from "#gitwe/application/handlers/CleanupHandler";
+// import { NodePluginLoader } from "#gitwe/infrastructure/plugins/NodePluginLoader";
+import { FileStateStore } from "#gitwe/infrastructure/state/FileStateStore";
+// import { PluginService } from "#gitwe/application/services/PluginService";
 
 export interface ContainerOptions {
   /** Path to a JSON/YAML workflow config file. Falls back to the built-in git-flow workflow. */
@@ -87,13 +90,19 @@ export class Container {
     const remoteService = new RemoteService(this.git);
     const statusService = new StatusService(this.git);
 
+    const stateStore = new FileStateStore(cwd);
+
     this.startBranchHandler = new StartBranchHandler(
       this.workflow,
       branchService,
       hookService,
       eventBus,
       this.logger,
+      stateStore,
     );
+
+    // pluginContext هر بار از همین وابستگی‌ها ساخته می‌شه، نه singleton، چون workflow می‌تونه per-command عوض بشه
+
     this.finishBranchHandler = new FinishBranchHandler(
       this.workflow,
       this.git,
@@ -110,5 +119,15 @@ export class Container {
     this.validateWorkflowHandler = new ValidateWorkflowHandler(configLoader);
     this.doctorHandler = new DoctorHandler(this.git, this.workflow);
     this.cleanupHandler = new CleanupHandler(this.git, this.workflow);
+  }
+
+  static async create(options: ContainerOptions = {}): Promise<Container> {
+    const instance = new Container(options);
+    // بارگذاری پلاگین‌ها به صورت ناهمزمان
+    // const pluginSpecifiers = instance.workflow.plugins ?? [];
+    // const pluginLoader = new NodePluginLoader(pluginSpecifiers, options.cwd ?? process.cwd());
+    // const plugins = await pluginLoader.load();
+    // const pluginService = new PluginService(plugins);
+    return instance;
   }
 }

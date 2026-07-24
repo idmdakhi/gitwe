@@ -5,6 +5,7 @@ import { BranchNamingPolicy } from "#gitwe/domain/valueObjects/BranchNamingPolic
 import { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCommitPolicy";
 import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
+import { CliConfig } from "#gitwe/domain/valueObjects/CliConfig";
 
 /**
  * The `Workflow` aggregate root. It owns and enforces every invariant a
@@ -27,6 +28,9 @@ export class Workflow {
     public readonly branchNaming: BranchNamingPolicy,
     public readonly mergeStrategy: MergeStrategy,
     public readonly commitPolicy: ConventionalCommitPolicy,
+
+    public readonly plugins: readonly string[] = [],
+    public readonly cli: CliConfig,
   ) {}
 
   static create(props: {
@@ -38,6 +42,8 @@ export class Workflow {
     branchNaming?: BranchNamingPolicy;
     mergeStrategy?: MergeStrategy;
     commitPolicy?: ConventionalCommitPolicy;
+    plugins?: string[];
+    cli?: CliConfig;
   }): Workflow {
     Workflow.assertValid(props.name, props.branchTypes);
     return new Workflow(
@@ -49,6 +55,8 @@ export class Workflow {
       props.branchNaming ?? BranchNamingPolicy.create(),
       props.mergeStrategy ?? "merge",
       props.commitPolicy ?? ConventionalCommitPolicy.create(),
+      props.plugins ?? [],
+      props.cli ?? CliConfig.create(),
     );
   }
 
