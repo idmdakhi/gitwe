@@ -1,4 +1,4 @@
-import type { KernelModule } from "../KernelModule";
+import type { KernelModule } from "#gitwe/kernel/KernelModule";
 import type { GetStatusHandler } from "#gitwe/application/handlers/GetStatusHandler";
 import type { GetStatusQuery } from "#gitwe/application/queries/GetStatusQuery";
 import type { StatusReport } from "#gitwe/application/dto/StatusReport";

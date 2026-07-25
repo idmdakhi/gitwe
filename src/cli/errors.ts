@@ -1,4 +1,4 @@
-import { DomainError } from "../domain/errors";
+import { DomainError } from "#gitwe/domain/errors";
 
 /** Thrown when a CLI flag is given a value outside its allowed set (e.g. `--strategy bogus`). */
 export class InvalidCliOptionError extends DomainError {

@@ -1,4 +1,4 @@
-import type { KernelModule } from "../KernelModule";
+import type { KernelModule } from "#gitwe/kernel/KernelModule";
 import type { CleanupHandler, CleanupResult } from "#gitwe/application/handlers/CleanupHandler";
 
 export interface CleanupInput {

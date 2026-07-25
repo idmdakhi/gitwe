@@ -5,7 +5,7 @@ import { printResult } from "#gitwe/cli/output";
 import type { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
 import type { FinishBranchResult } from "#gitwe/application/dto/FinishBranchResult";
 import { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
-import { InvalidCliOptionError } from "../errors";
+import { InvalidCliOptionError } from "#gitwe/cli/errors";
 import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 
 const MERGE_STRATEGIES: readonly MergeStrategy[] = ["merge", "squash", "rebase"];

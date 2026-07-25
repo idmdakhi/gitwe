@@ -1,6 +1,6 @@
 import type { Command } from "commander";
 import type { Container } from "#gitwe/cli/container";
-import type { CleanupInput } from "../../kernel/modules/CleanupModule";
+import type { CleanupInput } from "#gitwe/kernel/modules/CleanupModule";
 import type { CleanupResult } from "#gitwe/application/handlers/CleanupHandler";
 import { reportError } from "#gitwe/cli/reportError";
 import { printResult } from "#gitwe/cli/output";

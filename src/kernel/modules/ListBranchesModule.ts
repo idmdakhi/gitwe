@@ -1,4 +1,4 @@
-import type { KernelModule } from "../KernelModule";
+import type { KernelModule } from "#gitwe/kernel/KernelModule";
 import type { ListBranchesHandler } from "#gitwe/application/handlers/ListBranchesHandler";
 import type { BranchSummaryDto } from "#gitwe/application/dto/StatusReport";
 

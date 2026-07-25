@@ -1,4 +1,4 @@
-import type { KernelModule } from "../KernelModule";
+import type { KernelModule } from "#gitwe/kernel/KernelModule";
 import type { StartBranchHandler } from "#gitwe/application/handlers/StartBranchHandler";
 import type { StartBranchCommand } from "#gitwe/application/commands/StartBranchCommand";
 import type { StartBranchResult } from "#gitwe/application/dto/StartBranchResult";

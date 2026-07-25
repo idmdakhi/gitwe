@@ -1,4 +1,4 @@
-import type { KernelModule } from "../KernelModule";
+import type { KernelModule } from "#gitwe/kernel/KernelModule";
 import type { DoctorHandler, DoctorReport } from "#gitwe/application/handlers/DoctorHandler";
 
 export class DoctorModule implements KernelModule<void, DoctorReport> {

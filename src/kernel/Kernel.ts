@@ -1,5 +1,5 @@
-import type { KernelModule } from "./KernelModule";
-import { ModuleNotFoundError, DuplicateModuleError } from "./errors";
+import type { KernelModule } from "#gitwe/kernel/KernelModule";
+import { ModuleNotFoundError, DuplicateModuleError } from "#gitwe/kernel/errors";
 
 export interface KernelModuleInfo {
   readonly name: string;

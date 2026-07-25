@@ -4,7 +4,7 @@ import type { GetStatusQuery } from "#gitwe/application/queries/GetStatusQuery";
 import type { StatusReport } from "#gitwe/application/dto/StatusReport";
 import { reportError } from "#gitwe/cli/reportError";
 import { printResult } from "#gitwe/cli/output";
-import { renderTree } from "../renderTree";
+import { renderTree } from "#gitwe/cli/renderTree";
 
 export function registerGraphCommand(
   program: Command,
