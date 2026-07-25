@@ -17,6 +17,9 @@
 - 🔌 **Hooks** – Run custom scripts before/after operations (lint, test, build, deploy)
 - 🏷️ **Auto-tagging** – Automatically create version tags for releases
 - 🌐 **Remote support** – Auto-push and auto-pull with configurable remotes
+- 🔄 **gitwe sync** – Keep all topic branches up to date in one command
+- ✅ **Schema validation** – Validate your workflow config with Zod
+- 🧪 **dry-run & strategy** – More control in GitHub Actions
 
 ---
 
@@ -325,16 +328,16 @@ gitwe --config my-workflow.yaml finish feature/login --keep --tag
 
 ### `BranchTypeRule`
 
-| Field                | Type            | Required | Description                                                          |
-| -------------------- | --------------- | -------- | --------------------------------------------------------------------- |
-| `name`               | `string`        | ✅       | Unique type name (e.g., `"feature"`)                                 |
-| `prefix`             | `string`        | ✅       | Branch name prefix (e.g., `"feature/"`)                              |
-| `baseBranch`         | `string`        | ✅       | Branch to start from (e.g., `"develop"`)                             |
-| `mergeTargets`       | `string[]`      | ✅       | Branches to merge into when finishing (order matters)                |
-| `deleteOnFinish`     | `boolean`       | ❌       | Auto‑delete after finish (default `true`)                            |
-| `autoTag`            | `AutoTagConfig` | ❌       | Automatic version tagging (useful for releases)                      |
-| `mergeStrategy`      | `MergeStrategy` | ❌       | Overrides the workflow's `finish` merge strategy for this type only  |
-| `downstreamStrategy` | `UpdateStrategy`| ❌       | How `update` catches this type up with its base (`merge`\|`rebase`, default `merge`) |
+| Field                | Type             | Required | Description                                                                          |
+| -------------------- | ---------------- | -------- | ------------------------------------------------------------------------------------ |
+| `name`               | `string`         | ✅       | Unique type name (e.g., `"feature"`)                                                 |
+| `prefix`             | `string`         | ✅       | Branch name prefix (e.g., `"feature/"`)                                              |
+| `baseBranch`         | `string`         | ✅       | Branch to start from (e.g., `"develop"`)                                             |
+| `mergeTargets`       | `string[]`       | ✅       | Branches to merge into when finishing (order matters)                                |
+| `deleteOnFinish`     | `boolean`        | ❌       | Auto‑delete after finish (default `true`)                                            |
+| `autoTag`            | `AutoTagConfig`  | ❌       | Automatic version tagging (useful for releases)                                      |
+| `mergeStrategy`      | `MergeStrategy`  | ❌       | Overrides the workflow's `finish` merge strategy for this type only                  |
+| `downstreamStrategy` | `UpdateStrategy` | ❌       | How `update` catches this type up with its base (`merge`\|`rebase`, default `merge`) |
 
 ### `AutoTagConfig`
 
@@ -402,4 +405,3 @@ npm test
 ## License
 
 MIT
-

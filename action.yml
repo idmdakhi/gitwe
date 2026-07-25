@@ -45,6 +45,14 @@ inputs:
     description: "Directory of the git repository to operate on (must already be checked out)"
     required: false
     default: "."
+  dry-run:
+    description: "If true, only show what would happen without changing anything"
+    required: false
+    default: "false"
+  strategy:
+    description: "Merge strategy: merge | squash | rebase"
+    required: false
+    default: "merge"
 
 outputs:
   branch-name:
@@ -91,6 +99,8 @@ runs:
         IN_PUSH: ${{ inputs.push }}
         IN_ABORT_ON_CONFLICT: ${{ inputs.abort-on-conflict }}
         IN_ROOT: ${{ inputs.root }}
+        IN_DRY_RUN: ${{ inputs.dry-run }}
+        IN_STRATEGY: ${{ inputs.strategy }}
       run: |
         set -e
 
@@ -111,6 +121,8 @@ runs:
             [ "$IN_DELETE_BRANCH" = "false" ] && ARGS+=(--no-delete)
             [ "$IN_PUSH" = "true" ] && ARGS+=(--push)
             [ "$IN_ABORT_ON_CONFLICT" = "true" ] && ARGS+=(--abort-on-conflict)
+            [ "$IN_DRY_RUN" = "true" ] && ARGS+=(--dry-run)
+            [ -n "$IN_STRATEGY" ] && ARGS+=(--strategy "$IN_STRATEGY")
             ;;
           validate)
             ARGS+=("$IN_CONFIG")
@@ -142,4 +154,3 @@ runs:
         echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
 
         exit $EXIT_CODE
-

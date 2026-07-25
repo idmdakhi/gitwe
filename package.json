@@ -86,6 +86,7 @@
   "dependencies": {
     "commander": "^12.1.0",
     "js-yaml": "^4.1.0",
-    "simple-git": "^3.36.0"
+    "simple-git": "^3.36.0",
+    "zod": "^4.4.3"
   }
 }

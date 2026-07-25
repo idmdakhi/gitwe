@@ -23,6 +23,7 @@ import { registerInitCommand } from "#gitwe/cli/commands/init";
 import { registerCommitLintCommand } from "#gitwe/cli/commands/commitLint";
 import { registerModulesCommand } from "#gitwe/cli/commands/modules";
 import { registerUpdateCommand } from "#gitwe/cli/commands/update";
+import { registerSyncCommand } from "#gitwe/cli/commands/sync";
 
 const program = new Command();
 
@@ -89,5 +90,6 @@ registerInitCommand(program);
 registerCommitLintCommand(program, getContainer, getJson);
 registerModulesCommand(program, getContainer, getJson);
 registerUpdateCommand(program, getContainer, getJson);
+registerSyncCommand(program, getContainer, getJson);
 
 program.parse(process.argv);
