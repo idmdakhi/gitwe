@@ -160,6 +160,69 @@ describe("FinishBranchHandler", () => {
     expect(outcomes.every((o) => o.fastForward)).toBe(true);
   });
 
+  it("uses a branch type's own mergeStrategy override instead of the workflow default", async () => {
+    const workflowWithOverride = Workflow.create({
+      name: "test",
+      mergeStrategy: "merge", // workflow default
+      branchTypes: [
+        BranchTypeRule.create({
+          name: "feature",
+          prefix: "feature/",
+          baseBranch: "develop",
+          mergeTargets: ["develop"],
+          mergeStrategy: "squash", // per-type override
+        }),
+      ],
+    });
+    const handlerWithOverride = new FinishBranchHandler(
+      workflowWithOverride,
+      git,
+      new RuleEvaluator([new WorkingTreeCleanRule()]),
+      new MergeService(git),
+      new TagService(git),
+      new HookService(new InMemoryHookRunner()),
+      new RemoteService(git),
+      new InMemoryEventBus(new NoopLogger()),
+      new NoopLogger(),
+    );
+
+    await handlerWithOverride.handle({ branchName: "feature/login" });
+
+    // Squash always force-deletes (see the dedicated test above), so this
+    // only happens if the branch type's "squash" override actually won.
+    expect(git.getLastDeleteForce()).toBe(true);
+  });
+
+  it("a CLI-level `strategy` still wins over a branch type's own override", async () => {
+    const workflowWithOverride = Workflow.create({
+      name: "test",
+      branchTypes: [
+        BranchTypeRule.create({
+          name: "feature",
+          prefix: "feature/",
+          baseBranch: "develop",
+          mergeTargets: ["develop"],
+          mergeStrategy: "squash",
+        }),
+      ],
+    });
+    const handlerWithOverride = new FinishBranchHandler(
+      workflowWithOverride,
+      git,
+      new RuleEvaluator([new WorkingTreeCleanRule()]),
+      new MergeService(git),
+      new TagService(git),
+      new HookService(new InMemoryHookRunner()),
+      new RemoteService(git),
+      new InMemoryEventBus(new NoopLogger()),
+      new NoopLogger(),
+    );
+
+    await handlerWithOverride.handle({ branchName: "feature/login", strategy: "merge" });
+
+    expect(git.getLastDeleteForce()).toBe(false);
+  });
+
   it("refuses to finish a protected branch", async () => {
     const protectedWorkflow = Workflow.create({
       name: "test",

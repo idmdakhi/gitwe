@@ -1,5 +1,5 @@
-export { DomainError } from "#gitwe/domain/errors/DomainError";
-import { DomainError } from "#gitwe/domain/errors/DomainError";
+export { DomainError } from "./DomainError";
+import { DomainError } from "./DomainError";
 
 export class BranchAlreadyExistsError extends DomainError {
   readonly code = "BRANCH_ALREADY_EXISTS";
@@ -84,36 +84,5 @@ export class HookExecutionError extends DomainError {
     reason: string,
   ) {
     super(`Hook "${phase}" failed running "${command}": ${reason}`);
-  }
-}
-
-export class InvalidCliOptionError extends DomainError {
-  readonly code = "INVALID_CLI_OPTION";
-  constructor(
-    public readonly option: string,
-    public readonly value: string,
-    public readonly allowed: string[],
-  ) {
-    super(`Invalid value "${value}" for option "${option}". Allowed values: ${allowed.join(", ")}`);
-  }
-}
-
-export class StateCorruptedError extends DomainError {
-  readonly code = "STATE_CORRUPTED";
-  constructor(
-    public readonly filePath: string,
-    public readonly reason: string,
-  ) {
-    super(`State file at "${filePath}" is corrupted or unreadable: ${reason}`);
-  }
-}
-
-export class PluginLoadError extends DomainError {
-  readonly code = "PLUGIN_LOAD_FAILED";
-  constructor(
-    public readonly specifier: string,
-    public readonly reason: string,
-  ) {
-    super(`Failed to load plugin "${specifier}": ${reason}`);
   }
 }

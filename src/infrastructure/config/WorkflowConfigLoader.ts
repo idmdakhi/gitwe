@@ -10,7 +10,6 @@ import { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCom
 import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
 import type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
-import { CliConfig } from "#gitwe/domain/valueObjects/CliConfig";
 
 /**
  * Raw config shape as authored in `gitwe.json`/`gitwe.yaml`. This is
@@ -74,16 +73,6 @@ interface RawWorkflow {
     postFinish?: string[];
   };
   remote?: { remote?: string; autoPush?: boolean; autoPull?: boolean };
-  cli?: {
-    enabled?: boolean;
-    commands?: Record<string, any>;
-    aliases?: Record<string, string>;
-    interactive?: boolean;
-    autocomplete?: boolean;
-    color?: boolean;
-    emoji?: boolean;
-    hooks?: Record<string, string[]>;
-  };
 }
 
 /**
@@ -117,14 +106,14 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
         `"${filePath}" is missing a "workflow" (or "name") field`,
       );
     }
+
     const globalTag: RawTagConfig = raw.tag ?? {};
     const globalMerge: RawMergeConfig = raw.merge ?? {};
+
     const branchTypes = this.resolveBranchTypes(raw, globalTag, globalMerge);
     const protectedBranches = Object.entries(raw.branches ?? {})
       .filter(([, info]) => info.protected)
       .map(([branchName]) => branchName);
-
-    const cli = raw.cli ? CliConfig.create(raw.cli) : undefined;
 
     return Workflow.create({
       name,
@@ -143,7 +132,6 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
       commitPolicy: raw.commit?.conventional
         ? ConventionalCommitPolicy.create({ enabled: raw.commit.conventional.enabled })
         : undefined,
-      cli,
     });
   }
 

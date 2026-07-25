@@ -17,7 +17,6 @@ import { HookService } from "#gitwe/application/services/HookService";
 import { RemoteService } from "#gitwe/application/services/RemoteService";
 import { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
 import { FinishBranchResult } from "#gitwe/application/dto/FinishBranchResult";
-// import { PluginService } from "#gitwe/application/services/PluginService";
 
 /**
  * Use case: finish a branch — merge it into every configured target, tag
@@ -39,7 +38,6 @@ export class FinishBranchHandler {
     private readonly remoteService: RemoteService,
     private readonly eventBus: EventBus,
     private readonly logger: Logger,
-    // private readonly pluginService: PluginService,
   ) {}
 
   async handle(command: FinishBranchCommand): Promise<FinishBranchResult> {
@@ -55,7 +53,6 @@ export class FinishBranchHandler {
       throw new BranchNotFoundError(branchName);
     }
     const rule = this.workflow.findRuleForBranch(branchName);
-    // await this.pluginService.runPreStart(ctx, branchName, command.shortName);
     if (!rule) throw new UnrecognizedBranchError(branchName);
 
     if (this.workflow.isProtected(branchName)) {
@@ -71,7 +68,10 @@ export class FinishBranchHandler {
 
     const willDelete = deleteAfterMerge && rule.deleteOnFinish;
     const tagName = AutoTagPolicy.tagNameFor(rule, branchName);
-    const resolvedStrategy = strategy ?? this.workflow.mergeStrategy;
+    // Precedence: CLI --strategy (highest) > this branch type's own override
+    // > the workflow's default. Mirrors gitwe's existing config-precedence
+    // pattern (workflow default, overridable per-type, overridable per-call).
+    const resolvedStrategy = strategy ?? rule.mergeStrategy ?? this.workflow.mergeStrategy;
 
     if (dryRun) {
       return {
@@ -119,7 +119,6 @@ export class FinishBranchHandler {
     );
     this.logger.info(`Finished branch ${branchName}`);
 
-    // await this.pluginService.runPostStart(ctx, branchName);
     return {
       dryRun: false,
       merges: outcomes.map((o) => ({

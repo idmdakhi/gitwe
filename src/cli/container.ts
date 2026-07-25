@@ -30,9 +30,19 @@ import { GetStatusHandler } from "#gitwe/application/handlers/GetStatusHandler";
 import { ValidateWorkflowHandler } from "#gitwe/application/handlers/ValidateWorkflowHandler";
 import { DoctorHandler } from "#gitwe/application/handlers/DoctorHandler";
 import { CleanupHandler } from "#gitwe/application/handlers/CleanupHandler";
-// import { NodePluginLoader } from "#gitwe/infrastructure/plugins/NodePluginLoader";
-import { FileStateStore } from "#gitwe/infrastructure/state/FileStateStore";
-// import { PluginService } from "#gitwe/application/services/PluginService";
+import { UpdateBranchHandler } from "#gitwe/application/handlers/UpdateBranchHandler";
+
+import { Kernel } from "#gitwe/kernel/Kernel";
+import {
+  StartModule,
+  FinishModule,
+  UpdateModule,
+  ListBranchesModule,
+  StatusModule,
+  ValidateWorkflowModule,
+  DoctorModule,
+  CleanupModule,
+} from "#gitwe/kernel/modules";
 
 export interface ContainerOptions {
   /** Path to a JSON/YAML workflow config file. Falls back to the built-in git-flow workflow. */
@@ -63,6 +73,15 @@ export class Container {
   readonly validateWorkflowHandler: ValidateWorkflowHandler;
   readonly doctorHandler: DoctorHandler;
   readonly cleanupHandler: CleanupHandler;
+  readonly updateBranchHandler: UpdateBranchHandler;
+
+  /**
+   * The dispatch surface: every capability above is also registered here
+   * under a short name. Prefer this over the handler properties when you
+   * want to call a capability generically (by name, e.g. from a script or
+   * a future plugin) rather than importing its concrete handler type.
+   */
+  readonly kernel: Kernel;
 
   constructor(options: ContainerOptions = {}) {
     const cwd = options.cwd ?? process.cwd();
@@ -90,19 +109,13 @@ export class Container {
     const remoteService = new RemoteService(this.git);
     const statusService = new StatusService(this.git);
 
-    const stateStore = new FileStateStore(cwd);
-
     this.startBranchHandler = new StartBranchHandler(
       this.workflow,
       branchService,
       hookService,
       eventBus,
       this.logger,
-      stateStore,
     );
-
-    // pluginContext هر بار از همین وابستگی‌ها ساخته می‌شه، نه singleton، چون workflow می‌تونه per-command عوض بشه
-
     this.finishBranchHandler = new FinishBranchHandler(
       this.workflow,
       this.git,
@@ -119,15 +132,16 @@ export class Container {
     this.validateWorkflowHandler = new ValidateWorkflowHandler(configLoader);
     this.doctorHandler = new DoctorHandler(this.git, this.workflow);
     this.cleanupHandler = new CleanupHandler(this.git, this.workflow);
-  }
+    this.updateBranchHandler = new UpdateBranchHandler(this.workflow, this.git, this.logger);
 
-  static async create(options: ContainerOptions = {}): Promise<Container> {
-    const instance = new Container(options);
-    // بارگذاری پلاگین‌ها به صورت ناهمزمان
-    // const pluginSpecifiers = instance.workflow.plugins ?? [];
-    // const pluginLoader = new NodePluginLoader(pluginSpecifiers, options.cwd ?? process.cwd());
-    // const plugins = await pluginLoader.load();
-    // const pluginService = new PluginService(plugins);
-    return instance;
+    this.kernel = new Kernel()
+      .register(new StartModule(this.startBranchHandler))
+      .register(new FinishModule(this.finishBranchHandler))
+      .register(new UpdateModule(this.updateBranchHandler))
+      .register(new ListBranchesModule(this.listBranchesHandler))
+      .register(new StatusModule(this.getStatusHandler))
+      .register(new ValidateWorkflowModule(this.validateWorkflowHandler))
+      .register(new DoctorModule(this.doctorHandler))
+      .register(new CleanupModule(this.cleanupHandler));
   }
 }

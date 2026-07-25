@@ -32,6 +32,7 @@ export { BranchNamingRule } from "#gitwe/domain/rules/BranchNamingRule";
 export { BranchNamingPolicy } from "#gitwe/domain/valueObjects/BranchNamingPolicy";
 export type { BranchNameCase } from "#gitwe/domain/valueObjects/BranchNamingPolicy";
 export type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
+export type { UpdateStrategy } from "#gitwe/domain/valueObjects/UpdateStrategy";
 export { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCommitPolicy";
 
 // Application
@@ -42,6 +43,7 @@ export { GetStatusHandler } from "#gitwe/application/handlers/GetStatusHandler";
 export { ValidateWorkflowHandler } from "#gitwe/application/handlers/ValidateWorkflowHandler";
 export { DoctorHandler } from "#gitwe/application/handlers/DoctorHandler";
 export { CleanupHandler } from "#gitwe/application/handlers/CleanupHandler";
+export { UpdateBranchHandler } from "#gitwe/application/handlers/UpdateBranchHandler";
 export { BranchService } from "#gitwe/application/services/BranchService";
 export { MergeService } from "#gitwe/application/services/MergeService";
 export { TagService } from "#gitwe/application/services/TagService";
@@ -50,10 +52,12 @@ export { RemoteService } from "#gitwe/application/services/RemoteService";
 export { StatusService } from "#gitwe/application/services/StatusService";
 export type { StartBranchCommand } from "#gitwe/application/commands/StartBranchCommand";
 export type { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
+export type { UpdateBranchCommand } from "#gitwe/application/commands/UpdateBranchCommand";
 export type { GetStatusQuery } from "#gitwe/application/queries/GetStatusQuery";
 export type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
 export type { StartBranchResult } from "#gitwe/application/dto/StartBranchResult";
 export type { FinishBranchResult, MergeResultDto } from "#gitwe/application/dto/FinishBranchResult";
+export type { UpdateBranchResult } from "#gitwe/application/dto/UpdateBranchResult";
 export type {
   BranchSummaryDto,
   BranchTreeNode,
@@ -80,6 +84,23 @@ export {
 
 // Shared
 export type { Logger } from "#gitwe/shared/logging/Logger";
+
+// Kernel
+export { Kernel } from "#gitwe/kernel/Kernel";
+export type { KernelModule } from "#gitwe/kernel/KernelModule";
+export type { KernelModuleInfo } from "#gitwe/kernel/Kernel";
+export { ModuleNotFoundError, DuplicateModuleError } from "#gitwe/kernel/errors";
+export {
+  StartModule,
+  FinishModule,
+  UpdateModule,
+  ListBranchesModule,
+  StatusModule,
+  ValidateWorkflowModule,
+  DoctorModule,
+  CleanupModule,
+} from "#gitwe/kernel/modules";
+export type { CleanupInput } from "#gitwe/kernel/modules/CleanupModule";
 
 // CLI composition root (useful for embedding the CLI's wiring elsewhere)
 export { Container } from "#gitwe/cli/container";

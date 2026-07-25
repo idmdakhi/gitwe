@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import type { Container } from "#gitwe/cli/container";
+import type { ValidateWorkflowResult } from "#gitwe/application/handlers/ValidateWorkflowHandler";
 import { printResult } from "#gitwe/cli/output";
 
 export function registerValidateCommand(
@@ -10,9 +11,12 @@ export function registerValidateCommand(
   program
     .command("validate <configPath>")
     .description("Validate a workflow config file (JSON or YAML) without touching the repo")
-    .action((configPath: string) => {
+    .action(async (configPath: string) => {
       const container = getContainer();
-      const result = container.validateWorkflowHandler.handle(configPath);
+      const result = await container.kernel.run<string, ValidateWorkflowResult>(
+        "validate",
+        configPath,
+      );
       printResult(getJson(), result, (r) => {
         if (r.valid) {
           console.log(`✅ "${r.workflowName}" is valid (${r.branchTypeCount} branch type(s)).`);

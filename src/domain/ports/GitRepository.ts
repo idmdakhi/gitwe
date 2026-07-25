@@ -41,6 +41,8 @@ export interface GitRepository {
   checkout(name: string): Promise<void>;
   /** Merges `source` into `target`, checking out `target` first if needed. */
   merge(source: string, target: string, options?: MergeOptions): Promise<MergeOutcome>;
+  /** Rebases `branch` onto `onto`, checking out `branch` first if needed. Leaves `branch` checked out. */
+  rebase(branch: string, onto: string): Promise<void>;
   /** Deletes a local branch. Refuses if unmerged, like `git branch -d`, unless `force` is set. */
   deleteBranch(name: string, force?: boolean): Promise<void>;
   createTag(name: string, message?: string): Promise<void>;

@@ -5,6 +5,8 @@
 
 **gitwe** (Git Workflow Engine) is a configurable, rule-based git branching workflow engine. It goes beyond classic git-flow by letting you define your own branch types and rules via a simple JSON or YAML config.
 
+> The core is a minimal **kernel**: each capability (start, finish, cleanup, doctor, status, list, validate) is a self-contained module registered into it. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the kernel-vs-microkernel design decision behind that.
+
 ## Features
 
 - 🚀 **Custom workflows** – Define any branching strategy (git-flow, GitHub Flow, trunk-based, multi-stage, etc.)
@@ -58,11 +60,18 @@ gitwe finish feature/login-page
 # without changing the workflow's configured default
 gitwe finish release/1.2.0 --strategy squash
 
+# Bring a topic branch up to date with its base branch (default: current branch)
+gitwe update
+gitwe update feature/login-page --rebase   # or --merge
+
 # Show visual branch tree
 gitwe status
 
 # Use a custom config (JSON or YAML)
 gitwe --config my-workflow.yaml start change fix-issue
+
+# Introspect what capabilities the kernel currently has loaded
+gitwe modules
 ```
 
 ### As a Library
@@ -316,14 +325,16 @@ gitwe --config my-workflow.yaml finish feature/login --keep --tag
 
 ### `BranchTypeRule`
 
-| Field            | Type            | Required | Description                                           |
-| ---------------- | --------------- | -------- | ----------------------------------------------------- |
-| `name`           | `string`        | ✅       | Unique type name (e.g., `"feature"`)                  |
-| `prefix`         | `string`        | ✅       | Branch name prefix (e.g., `"feature/"`)               |
-| `baseBranch`     | `string`        | ✅       | Branch to start from (e.g., `"develop"`)              |
-| `mergeTargets`   | `string[]`      | ✅       | Branches to merge into when finishing (order matters) |
-| `deleteOnFinish` | `boolean`       | ❌       | Auto‑delete after finish (default `true`)             |
-| `autoTag`        | `AutoTagConfig` | ❌       | Automatic version tagging (useful for releases)       |
+| Field                | Type            | Required | Description                                                          |
+| -------------------- | --------------- | -------- | --------------------------------------------------------------------- |
+| `name`               | `string`        | ✅       | Unique type name (e.g., `"feature"`)                                 |
+| `prefix`             | `string`        | ✅       | Branch name prefix (e.g., `"feature/"`)                              |
+| `baseBranch`         | `string`        | ✅       | Branch to start from (e.g., `"develop"`)                             |
+| `mergeTargets`       | `string[]`      | ✅       | Branches to merge into when finishing (order matters)                |
+| `deleteOnFinish`     | `boolean`       | ❌       | Auto‑delete after finish (default `true`)                            |
+| `autoTag`            | `AutoTagConfig` | ❌       | Automatic version tagging (useful for releases)                      |
+| `mergeStrategy`      | `MergeStrategy` | ❌       | Overrides the workflow's `finish` merge strategy for this type only  |
+| `downstreamStrategy` | `UpdateStrategy`| ❌       | How `update` catches this type up with its base (`merge`\|`rebase`, default `merge`) |
 
 ### `AutoTagConfig`
 

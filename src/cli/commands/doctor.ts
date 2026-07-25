@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import type { Container } from "#gitwe/cli/container";
+import type { DoctorReport } from "#gitwe/application/handlers/DoctorHandler";
 import { reportError } from "#gitwe/cli/reportError";
 import { printResult } from "#gitwe/cli/output";
 
@@ -14,7 +15,7 @@ export function registerDoctorCommand(
     .action(async () => {
       const container = getContainer();
       try {
-        const report = await container.doctorHandler.handle();
+        const report = await container.kernel.run<void, DoctorReport>("doctor", undefined);
         printResult(getJson(), report, (r) => {
           for (const check of r.checks) {
             const icon = check.passed ? "✅" : "❌";

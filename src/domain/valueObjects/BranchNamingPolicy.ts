@@ -20,7 +20,9 @@ export class BranchNamingPolicy {
     public readonly pattern?: string,
   ) {}
 
-  static create(props: { case?: BranchNameCase; maxLength?: number; pattern?: string } = {}): BranchNamingPolicy {
+  static create(
+    props: { case?: BranchNameCase; maxLength?: number; pattern?: string } = {},
+  ): BranchNamingPolicy {
     return new BranchNamingPolicy(props.case ?? "any", props.maxLength ?? 100, props.pattern);
   }
 
@@ -38,4 +40,3 @@ export class BranchNamingPolicy {
     return undefined;
   }
 }
-

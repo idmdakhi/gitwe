@@ -1,3 +1,6 @@
+import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
+import type { UpdateStrategy } from "#gitwe/domain/valueObjects/UpdateStrategy";
+
 /** Auto-tagging configuration for a branch type (e.g. releases). */
 export interface AutoTagConfig {
   /** Prefix for the tag, e.g. "v" -> "v1.2.0". Defaults to "v". */
@@ -20,6 +23,10 @@ export class BranchTypeRule {
     public readonly mergeTargets: readonly string[],
     public readonly deleteOnFinish: boolean,
     public readonly autoTag?: AutoTagConfig,
+    /** Overrides the workflow's default merge strategy on `finish`, for this branch type only. */
+    public readonly mergeStrategy?: MergeStrategy,
+    /** How `update` catches this branch type up with its base branch. Defaults to "merge". */
+    public readonly downstreamStrategy?: UpdateStrategy,
   ) {}
 
   static create(props: {
@@ -29,6 +36,8 @@ export class BranchTypeRule {
     mergeTargets: string[];
     deleteOnFinish?: boolean;
     autoTag?: AutoTagConfig;
+    mergeStrategy?: MergeStrategy;
+    downstreamStrategy?: UpdateStrategy;
   }): BranchTypeRule {
     return new BranchTypeRule(
       props.name,
@@ -37,6 +46,8 @@ export class BranchTypeRule {
       props.mergeTargets,
       props.deleteOnFinish ?? true,
       props.autoTag,
+      props.mergeStrategy,
+      props.downstreamStrategy,
     );
   }
 
@@ -44,4 +55,3 @@ export class BranchTypeRule {
     return fullBranchName.startsWith(this.prefix);
   }
 }
-

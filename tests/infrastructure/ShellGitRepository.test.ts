@@ -105,6 +105,49 @@ describe("ShellGitRepository", () => {
     expect(result.fastForward).toBe(true);
   });
 
+  it("rebases a branch onto another, leaving it checked out with the new history", async () => {
+    await repo.createBranch("develop", { checkout: true });
+    commit(repoDir, "develop.txt", "develop work\n", "develop work");
+    await repo.checkout("main");
+
+    await repo.createBranch("feature/login", { from: "main", checkout: true });
+    commit(repoDir, "login.txt", "login feature\n", "add login feature");
+
+    await repo.rebase("feature/login", "develop");
+
+    expect(await repo.getCurrentBranch()).toBe("feature/login");
+    // After a clean rebase onto develop, feature/login's history now
+    // includes develop's commit too.
+    expect(await repo.isMerged("develop", "feature/login")).toBe(true);
+  });
+
+  it("throws when rebasing a branch that doesn't exist", async () => {
+    await expect(repo.rebase("nonexistent", "main")).rejects.toThrow(BranchNotFoundError);
+  });
+
+  it("throws when rebasing onto a branch that doesn't exist", async () => {
+    await repo.createBranch("feature/login", { checkout: true });
+    await expect(repo.rebase("feature/login", "nonexistent")).rejects.toThrow(BranchNotFoundError);
+  });
+
+  it("captures stdout (not just stderr) on a failed git command, since git writes conflict diagnostics there", async () => {
+    await repo.createBranch("develop", { checkout: true });
+    writeFileSync(join(repoDir, "shared.txt"), "develop version\n");
+    sh(repoDir, "add", ".");
+    sh(repoDir, "commit", "-m", "develop change");
+
+    await repo.checkout("main");
+    await repo.createBranch("feature/clash", { checkout: true });
+    writeFileSync(join(repoDir, "shared.txt"), "feature version\n");
+    sh(repoDir, "add", ".");
+    sh(repoDir, "commit", "-m", "feature change");
+
+    await expect(repo.merge("develop", "feature/clash")).rejects.toMatchObject({
+      code: "GIT_COMMAND_FAILED",
+      stdout: expect.stringContaining("CONFLICT"),
+    });
+  });
+
   it("deletes a branch after it has been merged", async () => {
     await repo.createBranch("develop", { checkout: true });
     await repo.createBranch("feature/login", { checkout: true });

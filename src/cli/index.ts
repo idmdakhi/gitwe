@@ -21,12 +21,11 @@ import { registerAbortCommand } from "#gitwe/cli/commands/abort";
 import { registerCleanCommand } from "#gitwe/cli/commands/clean";
 import { registerInitCommand } from "#gitwe/cli/commands/init";
 import { registerCommitLintCommand } from "#gitwe/cli/commands/commitLint";
+import { registerModulesCommand } from "#gitwe/cli/commands/modules";
+import { registerUpdateCommand } from "#gitwe/cli/commands/update";
 
 const program = new Command();
-// const opts = program.opts<GlobalOpts>();
-// if (process.argv[2] && Container.workflow.cli.aliases[process.argv[2]]) {
-//  منطق alias resolution
-// }
+
 program
   .name("gitwe")
   .description(
@@ -88,5 +87,7 @@ registerAbortCommand(program, getContainer, getJson);
 registerCleanCommand(program, getContainer, getJson);
 registerInitCommand(program);
 registerCommitLintCommand(program, getContainer, getJson);
+registerModulesCommand(program, getContainer, getJson);
+registerUpdateCommand(program, getContainer, getJson);
 
 program.parse(process.argv);

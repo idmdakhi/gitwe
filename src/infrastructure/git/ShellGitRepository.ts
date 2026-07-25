@@ -35,6 +35,7 @@ export class ShellGitRepository implements GitRepository {
         `Git command failed: git ${args.join(" ")}`,
         `git ${args.join(" ")}`,
         result.stderr,
+        result.stdout,
       );
     }
     return result.stdout.trim();
@@ -145,6 +146,14 @@ export class ShellGitRepository implements GitRepository {
     await this.runGit(["merge", "--ff-only", source]);
 
     return MergeOutcome.of(source, target, true);
+  }
+
+  async rebase(branch: string, onto: string): Promise<void> {
+    if (!(await this.branchExists(branch))) throw new BranchNotFoundError(branch);
+    if (!(await this.branchExists(onto))) throw new BranchNotFoundError(onto);
+
+    await this.checkout(branch);
+    await this.runGit(["rebase", onto]);
   }
 
   async deleteBranch(name: string, force = false): Promise<void> {

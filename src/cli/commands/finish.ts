@@ -2,8 +2,10 @@ import type { Command } from "commander";
 import type { Container } from "#gitwe/cli/container";
 import { reportError } from "#gitwe/cli/reportError";
 import { printResult } from "#gitwe/cli/output";
+import type { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
+import type { FinishBranchResult } from "#gitwe/application/dto/FinishBranchResult";
 import { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
-import { InvalidCliOptionError } from "#gitwe/domain/errors";
+import { InvalidCliOptionError } from "../errors";
 import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 
 const MERGE_STRATEGIES: readonly MergeStrategy[] = ["merge", "squash", "rebase"];
@@ -53,13 +55,16 @@ export function registerFinishCommand(
         try {
           const strategy = parseStrategy(opts.strategy);
           const target = branchName ?? (await container.git.getCurrentBranch());
-          const result = await container.finishBranchHandler.handle({
-            branchName: target,
-            deleteAfterMerge: opts.delete,
-            pushAfterFinish: opts.push,
-            dryRun: opts.dryRun,
-            strategy,
-          });
+          const result = await container.kernel.run<FinishBranchCommand, FinishBranchResult>(
+            "finish",
+            {
+              branchName: target,
+              deleteAfterMerge: opts.delete,
+              pushAfterFinish: opts.push,
+              dryRun: opts.dryRun,
+              strategy,
+            },
+          );
           printResult(json, result, (r) => {
             const verb = r.dryRun ? "would merge" : "merged";
             console.log(
@@ -75,7 +80,10 @@ export function registerFinishCommand(
         } catch (error) {
           const isConflict =
             error instanceof GitCommandError &&
-            (error.stderr.includes("CONFLICT") || error.stderr.includes("Automatic merge failed"));
+            (error.stdout.includes("CONFLICT") ||
+              error.stdout.includes("Automatic merge failed") ||
+              error.stderr.includes("CONFLICT") ||
+              error.stderr.includes("Automatic merge failed"));
 
           if (isConflict && opts.abortOnConflict) {
             await container.git.runRaw(["merge", "--abort"]);

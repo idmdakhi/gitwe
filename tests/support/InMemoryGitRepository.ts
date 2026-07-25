@@ -16,6 +16,7 @@ export class InMemoryGitRepository implements GitRepository {
   private deletedBranches: string[] = [];
   private lastDeleteForce: boolean | undefined;
   private mergeLog: MergeOutcome[] = [];
+  private rebaseLog: Array<{ branch: string; onto: string }> = [];
   private tags: string[] = [];
   private pushedRemotes: string[] = [];
   private parents = new Map<string, string>();
@@ -52,6 +53,14 @@ export class InMemoryGitRepository implements GitRepository {
     const outcome = MergeOutcome.of(source, target, fastForward);
     this.mergeLog.push(outcome);
     return outcome;
+  }
+
+  async rebase(branch: string, onto: string): Promise<void> {
+    if (!this.branches.has(branch)) throw new BranchNotFoundError(branch);
+    if (!this.branches.has(onto)) throw new BranchNotFoundError(onto);
+    this.current = branch;
+    this.parents.set(branch, onto);
+    this.rebaseLog.push({ branch, onto });
   }
 
   async deleteBranch(name: string, force = false): Promise<void> {
@@ -124,6 +133,10 @@ export class InMemoryGitRepository implements GitRepository {
 
   getMergeLog(): readonly MergeOutcome[] {
     return this.mergeLog;
+  }
+
+  getRebaseLog(): readonly { branch: string; onto: string }[] {
+    return this.rebaseLog;
   }
 
   getTags(): readonly string[] {
