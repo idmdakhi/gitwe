@@ -1,0 +1,150 @@
+name: Publish Package
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22
+  NPM_ID_TOKEN: ${{secrets.NPM_ID_TOKEN}}
+  GITHUB_ID_TOKEN: ${{secrets.GITHUB_ID_TOKEN}}
+
+jobs:
+  ################################################################################
+  # BUILD
+  ################################################################################
+
+  build:
+    name: Build & Test
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Typecheck
+        run: npm run typecheck --if-present
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify Version
+        run: |
+          VERSION="v$(node -p "require('./package.json').version")"
+
+          if [ "$VERSION" != "${GITHUB_REF_NAME}" ]; then
+            echo "Version mismatch"
+            exit 1
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+
+        with:
+          name: package
+          retention-days: 1
+          path: |
+            dist
+            package.json
+            README.md
+            LICENSE
+
+  ################################################################################
+  # PUBLISH
+  ################################################################################
+
+  publish:
+    needs: build
+
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+
+      matrix:
+        include:
+          - registry: https://registry.npmjs.org
+            package: gitwe
+            token: NPM_ID_TOKEN # ${{ env.NPM_ID_TOKEN }}
+            provenance: true
+
+          # - registry: https://registry.npmjs.org
+          #   package: "@idmdakhi/gitwe"
+          #   token: NPM_ID_TOKEN # ${{ env.NPM_ID_TOKEN }}
+          #   provenance: false
+
+          - registry: https://npm.pkg.github.com
+            package: "gitwe"
+            token: GITHUB_ID_TOKEN # ${{ env.GITHUB_ID_TOKEN }}
+            provenance: false
+
+          # - registry: https://npm.pkg.github.com
+          #   package: "@idmdakhi/gitwe"
+          #   token: GITHUB_ID_TOKEN # ${{ env.GITHUB_ID_TOKEN }}
+          #   provenance: false
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write # Required for OIDC
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: ${{ matrix.registry }}
+          always-auth: true
+          package-manager-cache: false # never use caching in release builds
+          cache: npm
+
+      - name: Download Build
+        uses: actions/download-artifact@v4
+
+        with:
+          name: package
+
+      - name: Install Production Dependencies
+        run: npm ci
+
+      - name: Remove docs
+        run: rm -rf docs
+
+      - name: Remove tests
+        run: rm -rf tests
+
+      - name: Set Package Name
+        run: npm pkg set name="${{ matrix.package }}"
+
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets[matrix.token] }}
+        run: |
+          if [ "${{ matrix.provenance }}" = "true" ]; then
+            npm stage publish --provenance --access public
+          else
+            npm stage publish
+          fi

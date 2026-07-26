@@ -1,0 +1,156 @@
+name: "gitwe"
+description: "Run gitwe git-workflow commands (start, finish, status, etc.) against the checked-out repository."
+author: "Mohammad Amanalikhani"
+branding:
+  icon: "git-branch"
+  color: "purple"
+
+inputs:
+  command:
+    description: "gitwe command to run: start, finish, status, graph, current, list, types, validate, doctor, config"
+    required: true
+  type:
+    description: 'Branch type (for "start"), e.g. feature, release, hotfix'
+    required: false
+  short-name:
+    description: 'Short branch name (for "start"), e.g. login'
+    required: false
+  branch-name:
+    description: 'Full branch name (for "finish")'
+    required: false
+  workflow:
+    description: "Built-in workflow to use: git-flow | github-flow | trunk-based. Ignored if `config` is set."
+    required: false
+    default: "git-flow"
+  config:
+    description: "Path (relative to working-directory) to a custom JSON/YAML workflow config file"
+    required: false
+  delete-branch:
+    description: 'Delete the branch after finishing (for "finish")'
+    required: false
+    default: "true"
+  push:
+    description: 'Push to the remote after finishing (for "finish")'
+    required: false
+    default: "false"
+  abort-on-conflict:
+    description: 'Automatically run `git merge --abort` on conflict (for "finish")'
+    required: false
+    default: "false"
+  root:
+    description: 'Root branch to summarize/draw from (for "status"/"graph")'
+    required: false
+    default: "main"
+  working-directory:
+    description: "Directory of the git repository to operate on (must already be checked out)"
+    required: false
+    default: "."
+  dry-run:
+    description: "If true, only show what would happen without changing anything"
+    required: false
+    default: "false"
+  strategy:
+    description: "Merge strategy: merge | squash | rebase"
+    required: false
+    default: "merge"
+
+outputs:
+  branch-name:
+    description: 'The branch name created (for "start") or finished (for "finish")'
+    value: ${{ steps.run.outputs.branch-name }}
+  merged-into:
+    description: 'Comma-separated list of branches merged into (for "finish")'
+    value: ${{ steps.run.outputs.merged-into }}
+  tags:
+    description: 'Comma-separated list of tags created (for "finish")'
+    value: ${{ steps.run.outputs.tags }}
+  result-json:
+    description: "Full raw JSON result from the command"
+    value: ${{ steps.run.outputs.result-json }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Install and build gitwe
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}"
+        npm ci
+        npm run build
+
+    - name: Run gitwe
+      id: run
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        GITWE_BIN: ${{ github.action_path }}/dist/cli/index.js
+        IN_COMMAND: ${{ inputs.command }}
+        IN_TYPE: ${{ inputs.type }}
+        IN_SHORT_NAME: ${{ inputs.short-name }}
+        IN_BRANCH_NAME: ${{ inputs.branch-name }}
+        IN_WORKFLOW: ${{ inputs.workflow }}
+        IN_CONFIG: ${{ inputs.config }}
+        IN_DELETE_BRANCH: ${{ inputs.delete-branch }}
+        IN_PUSH: ${{ inputs.push }}
+        IN_ABORT_ON_CONFLICT: ${{ inputs.abort-on-conflict }}
+        IN_ROOT: ${{ inputs.root }}
+        IN_DRY_RUN: ${{ inputs.dry-run }}
+        IN_STRATEGY: ${{ inputs.strategy }}
+      run: |
+        set -e
+
+        GLOBAL_ARGS=(--json)
+        if [ -n "$IN_CONFIG" ]; then
+          GLOBAL_ARGS+=(--config "$IN_CONFIG")
+        else
+          GLOBAL_ARGS+=(--workflow "$IN_WORKFLOW")
+        fi
+
+        ARGS=("$IN_COMMAND")
+        case "$IN_COMMAND" in
+          start)
+            ARGS+=("$IN_TYPE" "$IN_SHORT_NAME")
+            ;;
+          finish)
+            ARGS+=("$IN_BRANCH_NAME")
+            [ "$IN_DELETE_BRANCH" = "false" ] && ARGS+=(--no-delete)
+            [ "$IN_PUSH" = "true" ] && ARGS+=(--push)
+            [ "$IN_ABORT_ON_CONFLICT" = "true" ] && ARGS+=(--abort-on-conflict)
+            [ "$IN_DRY_RUN" = "true" ] && ARGS+=(--dry-run)
+            [ -n "$IN_STRATEGY" ] && ARGS+=(--strategy "$IN_STRATEGY")
+            ;;
+          validate)
+            ARGS+=("$IN_CONFIG")
+            ;;
+          status|graph)
+            ARGS+=(--root "$IN_ROOT")
+            ;;
+        esac
+
+        set +e
+        OUTPUT=$(node "$GITWE_BIN" "${GLOBAL_ARGS[@]}" "${ARGS[@]}")
+        EXIT_CODE=$?
+        set -e
+
+        echo "$OUTPUT"
+
+        {
+          echo "result-json<<GITWE_EOF"
+          echo "$OUTPUT"
+          echo "GITWE_EOF"
+        } >> "$GITHUB_OUTPUT"
+
+        BRANCH=$(node -e "try{const r=JSON.parse(process.argv[1]);console.log(r.branchName??'')}catch{}" "$OUTPUT")
+        MERGED=$(node -e "try{const r=JSON.parse(process.argv[1]);console.log((r.merges||[]).map(m=>m.target).join(','))}catch{}" "$OUTPUT")
+        TAGS=$(node -e "try{const r=JSON.parse(process.argv[1]);console.log((r.tags||[]).join(','))}catch{}" "$OUTPUT")
+
+        echo "branch-name=$BRANCH" >> "$GITHUB_OUTPUT"
+        echo "merged-into=$MERGED" >> "$GITHUB_OUTPUT"
+        echo "tags=$TAGS" >> "$GITHUB_OUTPUT"
+
+        exit $EXIT_CODE
