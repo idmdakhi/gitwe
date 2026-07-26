@@ -10,20 +10,22 @@
   "bin": {
     "gitwe": "dist/cli/index.js"
   },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
+  "keywords": [
+    "git",
+    "workflow",
+    "branching",
+    "git-flow",
+    "cli",
+    "automation"
   ],
-  "directories": {
-    "docs": "docs",
-    "examples": "examples",
-    "src": "src",
-    "tests": "tests"
+  "engines": {
+    "node": ">=20.x"
   },
+  "man": [
+    "docs/README.md",
+    "docs/01-vision.md",
+    "docs/02-core.md"
+  ],
   "scripts": {
     "start": "node dist/cli/index.js",
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
@@ -49,14 +51,17 @@
     "#gitwe/*": "./src/*.js",
     "#tests/*": "./src/*.js"
   },
-  "keywords": [
-    "git",
-    "workflow",
-    "branching",
-    "git-flow",
-    "cli",
-    "automation"
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "directories": {
+    "docs": "docs",
+    "examples": "examples",
+    "src": "src",
+    "tests": "tests"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/idmdakhi/gitwe.git"
