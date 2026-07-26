@@ -11,24 +11,24 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # مهم برای graph/status
 
       - name: Validate workflow config
-        uses: ./.github/workflows/gitwe
+        uses: ./action.yml
         with:
           command: validate
-          config: .gitwe/gitwe.json
+          config: ./.gitwe/gitwe.json
 
       - name: Doctor check
-        uses: ./.github/workflows/gitwe
+        uses: ./action.yml
         with:
           command: doctor
 
       - name: Start feature branch (PR context)
         if: github.event_name == 'pull_request'
-        uses: ./.github/workflows/gitwe
+        uses: ./action.yml
         with:
           command: start
           type: feature
@@ -36,7 +36,7 @@ jobs:
 
       - name: Finish release (manual or on tag)
         if: startsWith(github.ref, 'refs/tags/v')
-        uses: ./.github/workflows/gitwe
+        uses: ./action.yml
         with:
           command: finish
           branch-name: ${{ github.ref_name }}
