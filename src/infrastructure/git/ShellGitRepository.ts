@@ -132,9 +132,21 @@ export class ShellGitRepository implements GitRepository {
     const current = await this.getCurrentBranch();
     if (current !== target) await this.checkout(target);
 
+    // ۱. اجرای git merge --squash
     await this.runGit(["merge", "--squash", source]);
-    const message = options.message ?? `Squash merge ${source} into ${target}`;
-    await this.runGit(["commit", "-m", message]);
+
+    // ۲. بررسی وجود تغییرات در منطقه‌ی آماده‌سازی
+    const status = await this.runGit(["diff", "--cached", "--quiet"]);
+    const hasChanges = status.trim().length !== 0;
+
+    if (hasChanges) {
+      // ۳. اگر تغییر وجود دارد، commit را انجام بده
+      const message = options.message ?? `Squash merge ${source} into ${target}`;
+      await this.runGit(["commit", "-m", message]);
+    } else {
+      // ۴. اگر تغییری وجود ندارد، commit را رد کن و لاگ کن
+      this.logger.info(`هیچ تغییری برای squash merge از ${source} به ${target} وجود ندارد.`);
+    }
 
     return MergeOutcome.of(source, target, false);
   }
