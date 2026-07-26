@@ -57,8 +57,8 @@ jobs:
 
       - name: Verify Version
         run: |
-          VERSION="v$(node -p "require('./package.json').version")
-          echo "Skipping version check $VERSION"
+          echo "Skipping version check"
+          # VERSION="v$(node -p "require('./package.json').version")
           # if git rev-parse "$VERSION" >/dev/null 2>&1; then
           #   echo "Version mismatch: tag $VERSION already exists"
           #   exit 1
