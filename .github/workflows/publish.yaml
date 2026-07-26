@@ -15,7 +15,7 @@ concurrency:
 
 env:
   NODE_VERSION: 22
-  NPM_ID_TOKEN: ${{secrets.NPM_TOKEN}}
+  NPM_TOKEN: ${{secrets.NPM_TOKEN}}
   GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
 jobs:
@@ -25,8 +25,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -51,7 +51,7 @@ jobs:
           # fi
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           name: package
           retention-days: 1
@@ -70,24 +70,24 @@ jobs:
         include:
           - registry: https://registry.npmjs.org
             package: gitwe
-            token: ${{ env.NPM_ID_TOKEN }}
+            token: env.NPM_TOKEN
             provenance: false
 
           # - registry: https://registry.npmjs.org
           #   package: "@idmdakhi/gitwe"
           #   scope: '@idmdakhi'
-          #   token: NPM_ID_TOKEN # ${{ env.NPM_ID_TOKEN }}
+          #   token: NPM_TOKEN # ${{ env.NPM_TOKEN }}
           #   provenance: false
 
           - registry: https://npm.pkg.github.com
             package: "gitwe"
-            token: ${{ env.GH_TOKEN }}
+            token: env.GH_TOKEN
             provenance: false
 
           # - registry: https://npm.pkg.github.com
           #   package: "@idmdakhi/gitwe"
           #   scope: '@idmdakhi'
-          #   token: GH_TOKEN # ${{ env.GH_TOKEN }}
+          #   token: env.GH_TOKEN # ${{ env.GH_TOKEN }}
           #   provenance: false
 
     permissions:
@@ -96,8 +96,8 @@ jobs:
       id-token: write # Required for OIDC
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
 
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -107,7 +107,7 @@ jobs:
           cache: npm
 
       - name: Download Build
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@v6
 
         with:
           name: package
