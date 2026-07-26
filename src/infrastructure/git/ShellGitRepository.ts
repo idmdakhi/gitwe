@@ -181,14 +181,11 @@ export class ShellGitRepository implements GitRepository {
   }
 
   async push(remote = "origin", branch?: string): Promise<void> {
-    const args = ["push", remote];
-    if (branch) args.push(branch);
-    else {
-      // اگر branch مشخص نشده، شاخه‌ی فعلی را دریافت کن
-      const currentBranch = await this.getCurrentBranch();
-      args.push(currentBranch);
-      // در اولین بار که شاخه push می‌شود، upstream را تنظیم کن
-      // (اگر قبلاً تنظیم شده باشد، این گزینه خطا نمی‌دهد)
+    const targetBranch = branch ?? (await this.getCurrentBranch());
+    const remoteBranches = await this.runGit(["branch", "-r"]);
+    const remoteBranchExists = remoteBranches.includes(`${remote}/${targetBranch}`);
+    const args = ["push", remote, targetBranch];
+    if (!remoteBranchExists) {
       args.push("--set-upstream");
     }
     await this.runGit(args);
