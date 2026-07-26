@@ -1,0 +1,48 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  e2e:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Build
+        run: npm run build
+
+      - name: Setup test repository
+        run: |
+          mkdir -p /tmp/test-repo
+          cd /tmp/test-repo
+          git init -b main
+          git config user.name "Test User"
+          git config user.email "test@example.com"
+          echo "# Test Repo" > README.md
+          git add README.md
+          git commit -m "Initial commit"
+          git checkout -b develop
+          git checkout main
+
+      - name: Run E2E scenarios
+        run: |
+          cd /tmp/test-repo
+          node ${{ github.workspace }}/dist/cli/index.js --workflow git-flow start feature login
+          node ${{ github.workspace }}/dist/cli/index.js --workflow git-flow status
+          node ${{ github.workspace }}/dist/cli/index.js --workflow git-flow finish feature/login --no-delete
+          node ${{ github.workspace }}/dist/cli/index.js --workflow git-flow doctor

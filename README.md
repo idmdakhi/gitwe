@@ -1,11 +1,11 @@
 # gitwe
 
-[![npm version](https://badge.fury.io/js/gitwe.svg)](https://www.npmjs.com/package/gitwe)
+[![npm version](https://badge.fury.io/js/gitwe.svg)](https://www.npmjs.com/package/@idmdakhi/gitwe)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **gitwe** (Git Workflow Engine) is a configurable, rule-based git branching workflow engine. It goes beyond classic git-flow by letting you define your own branch types and rules via a simple JSON or YAML config.
 
-> The core is a minimal **kernel**: each capability (start, finish, cleanup, doctor, status, list, validate) is a self-contained module registered into it. See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the kernel-vs-microkernel design decision behind that.
+> The core is a minimal **kernel**: each capability (start, finish, cleanup, doctor, status, list, validate) is a self-contained module registered into it.
 
 ## Features
 

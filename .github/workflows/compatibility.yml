@@ -1,0 +1,40 @@
+name: Compatibility Tests
+
+on:
+  schedule:
+    - cron: "0 0 * * 1" # هفته‌ای یکبار، دوشنبه‌ها
+  push:
+    branches: [main]
+
+jobs:
+  compatibility:
+    name: Compatibility
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18, 20, 22]
+        git-version: [2.30, 2.40, 2.45]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install specific Git version
+        run: |
+          sudo add-apt-repository ppa:git-core/ppa -y
+          sudo apt-get update
+          sudo apt-get install -y git=${{ matrix.git-version }}.*
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Build
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
