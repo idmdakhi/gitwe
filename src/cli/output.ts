@@ -6,4 +6,3 @@ export function printResult<T>(json: boolean, data: T, human: (data: T) => void)
     human(data);
   }
 }
-

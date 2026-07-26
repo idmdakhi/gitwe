@@ -34,4 +34,3 @@ export class BranchService {
     return fullName;
   }
 }
-

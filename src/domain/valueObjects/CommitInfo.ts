@@ -4,4 +4,3 @@ export interface CommitInfo {
   readonly author: string;
   readonly message: string;
 }
-

@@ -1,4 +1,4 @@
-name: Release
+name: Publish Package
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
       - "v*.*.*"
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: publish-${{ github.ref }}
   cancel-in-progress: false
 
 env:
   NODE_VERSION: 22
-  NPM_TOKEN: ${{secrets.NPM_TOKEN}}
-  GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  NPM_ID_TOKEN: ${{secrets.NPM_ID_TOKEN}}
+  GITHUB_ID_TOKEN: ${{secrets.GITHUB_ID_TOKEN}}
 
 jobs:
   ################################################################################
@@ -68,7 +68,6 @@ jobs:
           path: |
             dist
             package.json
-            package-lock.json
             README.md
             LICENSE
 
@@ -88,28 +87,28 @@ jobs:
         include:
           - registry: https://registry.npmjs.org
             package: gitwe
-            token: NPM_TOKEN # ${{ env.NPM_TOKEN }}
+            token: NPM_ID_TOKEN # ${{ env.NPM_ID_TOKEN }}
             provenance: true
 
-          - registry: https://registry.npmjs.org
-            package: "@idmdakhi/gitwe"
-            token: NPM_TOKEN # ${{ env.NPM_TOKEN }}
-            provenance: false
+          # - registry: https://registry.npmjs.org
+          #   package: "@idmdakhi/gitwe"
+          #   token: NPM_ID_TOKEN # ${{ env.NPM_ID_TOKEN }}
+          #   provenance: false
 
           - registry: https://npm.pkg.github.com
             package: "gitwe"
-            token: GITHUB_TOKEN # ${{ env.GITHUB_TOKEN }}
-            provenance: true
-
-          - registry: https://npm.pkg.github.com
-            package: "@idmdakhi/gitwe"
-            token: GITHUB_TOKEN # ${{ env.GITHUB_TOKEN }}
+            token: GITHUB_ID_TOKEN # ${{ env.GITHUB_ID_TOKEN }}
             provenance: false
+
+          # - registry: https://npm.pkg.github.com
+          #   package: "@idmdakhi/gitwe"
+          #   token: GITHUB_ID_TOKEN # ${{ env.GITHUB_ID_TOKEN }}
+          #   provenance: false
 
     permissions:
       contents: read
       packages: write
-      id-token: write
+      id-token: write # Required for OIDC
 
     steps:
       - uses: actions/checkout@v4
@@ -119,6 +118,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: ${{ matrix.registry }}
           always-auth: true
+          package-manager-cache: false # never use caching in release builds
           cache: npm
 
       - name: Download Build

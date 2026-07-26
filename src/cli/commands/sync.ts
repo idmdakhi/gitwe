@@ -46,11 +46,12 @@ export function registerSyncCommand(
             if (opts.push) {
               await container.git.push("origin", branch.name);
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
             results.push({
               branch: branch.name,
               status: "failed",
-              error: error.message,
+              error: message,
             });
           }
         }

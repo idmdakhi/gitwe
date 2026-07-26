@@ -4,4 +4,3 @@ export enum HookPhase {
   PreFinish = "preFinish",
   PostFinish = "postFinish",
 }
-

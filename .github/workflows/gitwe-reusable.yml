@@ -10,6 +10,6 @@ on:
 
 jobs:
   run:
-    uses: git-workflow-engine/gitwe@v1
+    uses: "./.github/workflows/gitwe.yaml"
     with:
       command: ${{ inputs.command }}

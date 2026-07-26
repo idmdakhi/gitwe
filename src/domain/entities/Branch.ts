@@ -10,4 +10,3 @@ export class Branch {
     public readonly isRemote: boolean,
   ) {}
 }
-

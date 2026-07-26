@@ -62,4 +62,3 @@ export class CleanupHandler {
     return { candidates, deleted, dryRun };
   }
 }
-

@@ -12,4 +12,3 @@ export class HookService {
     await this.hookRunner.run(phase, commands);
   }
 }
-

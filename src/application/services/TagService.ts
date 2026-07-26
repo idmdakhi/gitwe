@@ -14,4 +14,3 @@ export class TagService {
     return tagName;
   }
 }
-

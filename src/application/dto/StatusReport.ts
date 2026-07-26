@@ -15,4 +15,3 @@ export interface StatusReport {
   readonly branchTypes: string[];
   readonly tree: BranchTreeNode;
 }
-
