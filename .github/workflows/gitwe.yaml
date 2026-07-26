@@ -16,6 +16,12 @@ jobs:
         with:
           fetch-depth: 0 # ضروری برای graph/status
 
+      - name: Configure git for push
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
       - name: Validate workflow config
         uses: ./
         with:
