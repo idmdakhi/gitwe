@@ -2,8 +2,13 @@ name: Publish Package
 
 on:
   push:
+    branches:
+      - main
     tags:
       - "v*.*.*"
+    pull_request:
+      branches:
+        - main
 
 concurrency:
   group: publish-${{ github.ref }}
@@ -29,14 +34,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
 
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install
-        run: npm ci
+        run: npm ci --no-fund --no-audit
 
       - name: Lint
         run: npm run lint --if-present
@@ -60,7 +65,7 @@ jobs:
           fi
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
 
         with:
           name: package
@@ -92,6 +97,7 @@ jobs:
 
           # - registry: https://registry.npmjs.org
           #   package: "@idmdakhi/gitwe"
+          #   scope: '@idmdakhi'
           #   token: NPM_ID_TOKEN # ${{ env.NPM_ID_TOKEN }}
           #   provenance: false
 
@@ -102,6 +108,7 @@ jobs:
 
           # - registry: https://npm.pkg.github.com
           #   package: "@idmdakhi/gitwe"
+          #   scope: '@idmdakhi'
           #   token: GITHUB_ID_TOKEN # ${{ env.GITHUB_ID_TOKEN }}
           #   provenance: false
 
@@ -112,7 +119,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
 
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -122,19 +129,28 @@ jobs:
           cache: npm
 
       - name: Download Build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
 
         with:
           name: package
 
       - name: Install Production Dependencies
-        run: npm ci
+        run: npm ci --no-fund --no-audit
 
-      - name: Remove docs
-        run: rm -rf docs
+      # - name: Remove docs
+      #   run: rm -rf docs
 
-      - name: Remove tests
-        run: rm -rf tests
+      # - name: Remove .github
+      #   run: rm -rf .github
+
+      # - name: Remove .vscode
+      #   run: rm -rf .vscode
+
+      # - name: Remove examples
+      #   run: rm -rf examples
+
+      # - name: Remove tests
+      #   run: rm -rf tests
 
       - name: Set Package Name
         run: npm pkg set name="${{ matrix.package }}"

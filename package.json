@@ -1,6 +1,6 @@
 {
   "name": "gitwe",
-  "version": "1.0.0",
+  "version": "1.0.5",
   "description": "git workflow engine — git-flow is just one example workflow.",
   "license": "MIT",
   "author": "Mohammad Amanalikhani <idmdakhi@gmail.com>",
@@ -10,20 +10,22 @@
   "bin": {
     "gitwe": "dist/cli/index.js"
   },
-  "engines": {
-    "node": ">=18.0.0"
-  },
-  "files": [
-    "dist",
-    "README.md",
-    "LICENSE"
+  "keywords": [
+    "git",
+    "workflow",
+    "branching",
+    "git-flow",
+    "cli",
+    "automation"
   ],
-  "directories": {
-    "docs": "docs",
-    "examples": "examples",
-    "src": "src",
-    "tests": "tests"
+  "engines": {
+    "node": ">=20.x"
   },
+  "man": [
+    "docs/README.md",
+    "docs/01-vision.md",
+    "docs/02-core.md"
+  ],
   "scripts": {
     "start": "node dist/cli/index.js",
     "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
@@ -49,14 +51,17 @@
     "#gitwe/*": "./src/*.js",
     "#tests/*": "./src/*.js"
   },
-  "keywords": [
-    "git",
-    "workflow",
-    "branching",
-    "git-flow",
-    "cli",
-    "automation"
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "directories": {
+    "docs": "docs",
+    "examples": "examples",
+    "src": "src",
+    "tests": "tests"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/idmdakhi/gitwe.git"
@@ -70,20 +75,19 @@
     "@types/node": "^20.14.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
-    "@vitest/coverage-v8": "^2.0.0",
-    "eslint": "^8.57.0",
-    "eslint-config-prettier": "^9.1.0",
-    "gitwe": "file:",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.2",
     "prettier": "^3.3.2",
     "tsc-alias": "^1.9.1",
     "tsx": "^4.23.1",
     "typescript": "^5.9.3",
     "vite-tsconfig-paths": "^6.1.1",
-    "vitest": "^2.0.0"
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "commander": "^12.1.0",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.2.2",
     "simple-git": "^3.36.0",
     "zod": "^4.4.3"
   }
