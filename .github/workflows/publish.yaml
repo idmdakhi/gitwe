@@ -4,8 +4,7 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*.*.*"
+      - publish
   pull_request:
     branches:
       - main
@@ -17,44 +16,31 @@ concurrency:
 env:
   NODE_VERSION: 22
   NPM_ID_TOKEN: ${{secrets.NPM_TOKEN}}
-  GITHUB_ID_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
 jobs:
-  ################################################################################
-  # BUILD
-  ################################################################################
-
   build:
     name: Build & Test
-
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v7
-
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install
         run: npm ci --no-fund --no-audit
-
-      - name: Lint
-        run: npm run lint --if-present
-
-      - name: Typecheck
-        run: npm run typecheck --if-present
-
+      - name: Lint & Typecheck
+        run: |
+          npm run lint --if-present
+          npm run typecheck --if-present
       - name: Test
         run: npm test
-
       - name: Build
         run: npm run build
-
       - name: Verify Version
         run: |
           echo "Skipping version check"
@@ -66,7 +52,6 @@ jobs:
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v7
-
         with:
           name: package
           retention-days: 1
@@ -76,24 +61,17 @@ jobs:
             README.md
             LICENSE
 
-  ################################################################################
-  # PUBLISH
-  ################################################################################
-
   publish:
     needs: build
-
     runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
-
       matrix:
         include:
           - registry: https://registry.npmjs.org
             package: gitwe
-            token: NPM_ID_TOKEN # ${{ env.NPM_ID_TOKEN }}
-            provenance: true
+            token: ${{ env.NPM_ID_TOKEN }}
+            provenance: false
 
           # - registry: https://registry.npmjs.org
           #   package: "@idmdakhi/gitwe"
@@ -103,13 +81,13 @@ jobs:
 
           - registry: https://npm.pkg.github.com
             package: "gitwe"
-            token: GITHUB_ID_TOKEN # ${{ env.GITHUB_ID_TOKEN }}
+            token: ${{ env.GH_TOKEN }}
             provenance: false
 
           # - registry: https://npm.pkg.github.com
           #   package: "@idmdakhi/gitwe"
           #   scope: '@idmdakhi'
-          #   token: GITHUB_ID_TOKEN # ${{ env.GITHUB_ID_TOKEN }}
+          #   token: GH_TOKEN # ${{ env.GH_TOKEN }}
           #   provenance: false
 
     permissions:
