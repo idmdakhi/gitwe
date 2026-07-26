@@ -41,14 +41,14 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
-      - name: Verify Version
-        run: |
-          echo "Skipping version check"
-          # VERSION="v$(node -p "require('./package.json').version")
-          # if git rev-parse "$VERSION" >/dev/null 2>&1; then
-          #   echo "Version mismatch: tag $VERSION already exists"
-          #   exit 1
-          # fi
+      # - name: Verify Version
+      #   run: |
+      #     echo "Skipping version check"
+      #     VERSION="v$(node -p "require('./package.json').version")
+      #     if git rev-parse "$VERSION" >/dev/null 2>&1; then
+      #       echo "Version mismatch: tag $VERSION already exists"
+      #       exit 1
+      #     fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v6
@@ -70,7 +70,7 @@ jobs:
         include:
           - registry: https://registry.npmjs.org
             package: gitwe
-            token: env.NPM_TOKEN
+            token: NPM_TOKEN
             provenance: false
 
           # - registry: https://registry.npmjs.org
@@ -81,13 +81,13 @@ jobs:
 
           - registry: https://npm.pkg.github.com
             package: "gitwe"
-            token: env.GH_TOKEN
+            token: GITHUB_TOKEN
             provenance: false
 
           # - registry: https://npm.pkg.github.com
           #   package: "@idmdakhi/gitwe"
           #   scope: '@idmdakhi'
-          #   token: env.GH_TOKEN # ${{ env.GH_TOKEN }}
+          #   token: GITHUB_TOKEN # ${{ env.GH_TOKEN }}
           #   provenance: false
 
     permissions:
