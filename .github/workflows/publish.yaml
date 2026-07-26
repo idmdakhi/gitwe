@@ -6,9 +6,9 @@ on:
       - main
     tags:
       - "v*.*.*"
-    pull_request:
-      branches:
-        - main
+  pull_request:
+    branches:
+      - main
 
 concurrency:
   group: publish-${{ github.ref }}
@@ -17,7 +17,7 @@ concurrency:
 env:
   NODE_VERSION: 22
   NPM_ID_TOKEN: ${{secrets.NPM_ID_TOKEN}}
-  GITHUB_ID_TOKEN: ${{secrets.GITHUB_ID_TOKEN}}
+  GITHUB_ID_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
 jobs:
   ################################################################################
@@ -124,7 +124,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: ${{ matrix.registry }}
-          always-auth: true
+          # always-auth: true
           package-manager-cache: false # never use caching in release builds
           cache: npm
 
@@ -160,7 +160,13 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets[matrix.token] }}
         run: |
           if [ "${{ matrix.provenance }}" = "true" ]; then
-            npm stage publish --provenance --access public
+            npm publish --provenance --access public
           else
-            npm stage publish
+            npm publish
           fi
+          # if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+          #   npm publish
+          # elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+          #   npm version prerelease --preid=beta --no-git-tag-version
+          #   npm publish --tag beta
+          # fi
