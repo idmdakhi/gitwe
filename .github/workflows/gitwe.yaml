@@ -102,10 +102,10 @@ jobs:
           branch-name: feature/login-page
           dry-run: true
 
-      - name: Finish with squash strategy (demo)
-        uses: ./
-        with:
-          command: finish
-          branch-name: feature/login-page
-          strategy: squash
-          push: true
+      # - name: Finish with squash strategy (demo)
+      #   uses: ./
+      #   with:
+      #     command: finish
+      #     branch-name: feature/login-page
+      #     strategy: squash
+      #     push: true
