@@ -2,21 +2,16 @@ name: Publish Package
 
 on:
   push:
-    branches:
-      - main
-      - publish
-  pull_request:
-    branches:
-      - main
+    branches: [main, publish]
+    tags: ["v*"]
+  workflow_dispatch:
 
 concurrency:
   group: publish-${{ github.ref }}
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: 22
-  NPM_TOKEN: ${{secrets.NPM_TOKEN}}
-  GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+  NODE_VERSION: "20"
 
 jobs:
   build:
@@ -25,126 +20,90 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install
         run: npm ci --no-fund --no-audit
+
       - name: Lint & Typecheck
         run: |
           npm run lint --if-present
           npm run typecheck --if-present
+
       - name: Test
         run: npm test
+
       - name: Build
         run: npm run build
-      # - name: Verify Version
-      #   run: |
-      #     echo "Skipping version check"
-      #     VERSION="v$(node -p "require('./package.json').version")
-      #     if git rev-parse "$VERSION" >/dev/null 2>&1; then
-      #       echo "Version mismatch: tag $VERSION already exists"
-      #       exit 1
-      #     fi
 
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v6
+      - name: Pack dry-run
+        run: npm pack --dry-run
+
+      - name: Upload package sources
+        uses: actions/upload-artifact@v4
         with:
           name: package
           retention-days: 1
           path: |
             dist
             package.json
+            package-lock.json
             README.md
             LICENSE
 
   publish:
     needs: build
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/publish'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - registry: https://registry.npmjs.org
-            package: gitwe
-            token: NPM_TOKEN
-            provenance: false
-
-          # - registry: https://registry.npmjs.org
-          #   package: "@idmdakhi/gitwe"
-          #   scope: '@idmdakhi'
-          #   token: NPM_TOKEN # ${{ env.NPM_TOKEN }}
-          #   provenance: false
-
+            package_name: "gitwe"
+            token_secret: NPM_TOKEN
+            provenance: true
           - registry: https://npm.pkg.github.com
-            package: "gitwe"
-            token: GITHUB_TOKEN
+            package_name: "@idmdakhi/gitwe"
+            token_secret: GITHUB_TOKEN
             provenance: false
-
-          # - registry: https://npm.pkg.github.com
-          #   package: "@idmdakhi/gitwe"
-          #   scope: '@idmdakhi'
-          #   token: GITHUB_TOKEN # ${{ env.GH_TOKEN }}
-          #   provenance: false
 
     permissions:
       contents: read
       packages: write
-      id-token: write # Required for OIDC
+      id-token: write
 
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: ${{ matrix.registry }}
-          # always-auth: true
-          package-manager-cache: false # never use caching in release builds
+          always-auth: true
           cache: npm
 
-      - name: Download Build
-        uses: actions/download-artifact@v6
-
-        with:
-          name: package
-
-      - name: Install Production Dependencies
+      - name: Install
         run: npm ci --no-fund --no-audit
 
-      # - name: Remove docs
-      #   run: rm -rf docs
-
-      # - name: Remove .github
-      #   run: rm -rf .github
-
-      # - name: Remove .vscode
-      #   run: rm -rf .vscode
-
-      # - name: Remove examples
-      #   run: rm -rf examples
-
-      # - name: Remove tests
-      #   run: rm -rf tests
-
-      - name: Set Package Name
-        run: npm pkg set name="${{ matrix.package }}"
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: package
+          path: .
 
       - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets[matrix.token] }}
         run: |
+          npm pkg set name="${{ matrix.package_name }}"
           if [ "${{ matrix.provenance }}" = "true" ]; then
             npm publish --provenance --access public
           else
             npm publish --access public
           fi
-          # if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          #   npm publish
-          # elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
-          #   npm version prerelease --preid=beta --no-git-tag-version
-          #   npm publish --tag beta
-          # fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets[matrix.token_secret] }}
