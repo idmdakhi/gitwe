@@ -16,7 +16,7 @@ concurrency:
 
 env:
   NODE_VERSION: 22
-  NPM_ID_TOKEN: ${{secrets.NPM_ID_TOKEN}}
+  NPM_ID_TOKEN: ${{secrets.NPM_TOKEN}}
   GITHUB_ID_TOKEN: ${{secrets.GITHUB_TOKEN}}
 
 jobs:
@@ -162,7 +162,7 @@ jobs:
           if [ "${{ matrix.provenance }}" = "true" ]; then
             npm publish --provenance --access public
           else
-            npm publish
+            npm publish --access public
           fi
           # if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
           #   npm publish
