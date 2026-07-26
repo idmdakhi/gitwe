@@ -25,16 +25,12 @@ jobs:
       - name: Ensure main and develop branches exist on remote
         run: |
           git fetch origin
-          # اگر main وجود ندارد، آن را ایجاد کن
-          if ! git ls-remote --heads origin main | grep -q main; then
-            git checkout -b main
-            git push -u origin main
-          fi
-          # اگر develop وجود ندارد، آن را ایجاد کن
-          if ! git ls-remote --heads origin develop | grep -q develop; then
-            git checkout -b develop
-            git push -u origin develop
-          fi
+          for branch in main develop; do
+            if ! git ls-remote --heads origin $branch | grep -q $branch; then
+              git checkout -b $branch
+              git push -u origin $branch
+            fi
+          done
 
       - name: Validate workflow config
         uses: ./
