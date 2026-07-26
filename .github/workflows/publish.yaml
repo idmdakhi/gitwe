@@ -41,7 +41,7 @@ jobs:
           cache: npm
 
       - name: Install
-        run: npm ci
+        run: npm ci --no-fund --no-audit
 
       - name: Lint
         run: npm run lint --if-present
@@ -135,7 +135,7 @@ jobs:
           name: package
 
       - name: Install Production Dependencies
-        run: npm ci
+        run: npm ci --no-fund --no-audit
 
       # - name: Remove docs
       #   run: rm -rf docs
