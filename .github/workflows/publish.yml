@@ -97,6 +97,7 @@ jobs:
 
           # - registry: https://registry.npmjs.org
           #   package: "@idmdakhi/gitwe"
+          #   scope: '@idmdakhi'
           #   token: NPM_ID_TOKEN # ${{ env.NPM_ID_TOKEN }}
           #   provenance: false
 
@@ -107,6 +108,7 @@ jobs:
 
           # - registry: https://npm.pkg.github.com
           #   package: "@idmdakhi/gitwe"
+          #   scope: '@idmdakhi'
           #   token: GITHUB_ID_TOKEN # ${{ env.GITHUB_ID_TOKEN }}
           #   provenance: false
 
@@ -135,11 +137,20 @@ jobs:
       - name: Install Production Dependencies
         run: npm ci
 
-      - name: Remove docs
-        run: rm -rf docs
+      # - name: Remove docs
+      #   run: rm -rf docs
 
-      - name: Remove tests
-        run: rm -rf tests
+      # - name: Remove .github
+      #   run: rm -rf .github
+
+      # - name: Remove .vscode
+      #   run: rm -rf .vscode
+
+      # - name: Remove examples
+      #   run: rm -rf examples
+
+      # - name: Remove tests
+      #   run: rm -rf tests
 
       - name: Set Package Name
         run: npm pkg set name="${{ matrix.package }}"
