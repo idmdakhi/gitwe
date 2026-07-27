@@ -18,9 +18,10 @@ export function registerVersionCommand(
       const json = opts.json ?? getJson();
       try {
         const input: VersionShowInput = {}; // خالی
-        const result = await container.kernel.run<VersionShowInput, VersionShowOutput>(
-          "version:show",
-          input,
+        const result = await container.capabilities.run<VersionInput, VersionOutput>(
+          "version",
+          { action: "resolve" },
+          context,
         );
         printResult(json, result, (r: VersionShowOutput) => {
           console.log(`Current version: ${r.version}`);

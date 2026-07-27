@@ -49,6 +49,10 @@ import { PackageJsonVersionStore } from "#gitwe/infrastructure/version/PackageJs
 import { CompositeVersionStore } from "#gitwe/infrastructure/version/CompositeVersionStore";
 import { ConventionalChangelogWriter } from "#gitwe/infrastructure/version/ConventionalChangelogWriter";
 import { VersionShowModule, VersionBumpModule } from "#gitwe/kernel/modules/VersionModule";
+import { CapabilityRegistry } from "#gitwe/kernel/CapabilityRegistry";
+import { VersionCapability } from "#gitwe/kernel/capabilities/VersionCapability";
+import { TagCapability } from "#gitwe/kernel/capabilities/TagCapability";
+import { ChangelogCapability } from "#gitwe/kernel/capabilities/ChangelogCapability";
 
 export interface ContainerOptions {
   /** Path to a JSON/YAML workflow config file. Falls back to the built-in git-flow workflow. */
@@ -138,6 +142,11 @@ export class Container {
       tagPrefix: "v",
     });
 
+    const capabilityRegistry = new CapabilityRegistry()
+      .register(new VersionCapability(versionService))
+      .register(new TagCapability(this.git))
+      .register(new ChangelogCapability(changelogWriter));
+
     this.finishBranchHandler = new FinishBranchHandler(
       this.workflow,
       this.git,
@@ -159,7 +168,17 @@ export class Container {
 
     this.kernel = new Kernel()
       .register(new StartModule(this.startBranchHandler))
-      .register(new FinishModule(this.finishBranchHandler))
+      .register(
+        new FinishModule(
+          this.finishBranchHandler,
+          capabilityRegistry,
+          this.workflow,
+          this.git,
+          eventBus,
+          stateStore,
+          this.logger,
+        ),
+      )
       .register(new UpdateModule(this.updateBranchHandler))
       .register(new ListBranchesModule(this.listBranchesHandler))
       .register(new StatusModule(this.getStatusHandler))

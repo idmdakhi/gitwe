@@ -18,7 +18,8 @@
       "base": "develop",
       "target": "develop",
       "deleteAfterFinish": true,
-      "bumpVersion": "minor"
+      "bumpVersion": null,
+      "changelog": false
     },
 
     "release": {
@@ -26,14 +27,28 @@
       "base": "develop",
       "target": ["main", "develop"],
       "tag": true,
-      "bumpVersion": "major"
+      "bumpVersion": "major",
+      "tagPrefix": "v",
+      "changelog": true
     },
 
     "hotfix": {
       "prefix": "hotfix/",
       "base": "main",
       "target": ["main", "develop"],
-      "bumpVersion": "patch"
+      "bumpVersion": "patch",
+      "tagPrefix": "v",
+      "changelog": true
+    }
+  },
+
+  "versioning": {
+    "enabled": true,
+    "defaultBump": "patch",
+    "tagPrefix": "v",
+    "changelog": {
+      "enabled": true,
+      "path": "CHANGELOG.md"
     }
   },
 
