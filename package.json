@@ -86,7 +86,7 @@
     "vitest": "^2.1.9"
   },
   "dependencies": {
-    "commander": "^12.1.0",
+    "commander": "^15.0.0",
     "js-yaml": "^5.2.2",
     "simple-git": "^3.36.0",
     "zod": "^4.4.3"
