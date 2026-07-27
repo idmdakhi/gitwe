@@ -24,6 +24,8 @@ import { registerCommitLintCommand } from "#gitwe/cli/commands/commitLint";
 import { registerModulesCommand } from "#gitwe/cli/commands/modules";
 import { registerUpdateCommand } from "#gitwe/cli/commands/update";
 import { registerSyncCommand } from "#gitwe/cli/commands/sync";
+import { registerVersionCommand } from "#gitwe/cli/commands/version";
+import { registerVersionBumpCommand } from "#gitwe/cli/commands/version-bump";
 
 const program = new Command();
 
@@ -91,5 +93,7 @@ registerCommitLintCommand(program, getContainer, getJson);
 registerModulesCommand(program, getContainer, getJson);
 registerUpdateCommand(program, getContainer, getJson);
 registerSyncCommand(program, getContainer, getJson);
+registerVersionCommand(program, getContainer, getJson);
+registerVersionBumpCommand(program, getContainer, getJson);
 
 program.parse(process.argv);

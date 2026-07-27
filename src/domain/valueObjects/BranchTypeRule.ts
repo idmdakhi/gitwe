@@ -1,5 +1,6 @@
 import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 import type { UpdateStrategy } from "#gitwe/domain/valueObjects/UpdateStrategy";
+import type { VersionBump } from "#gitwe/domain/valueObjects/VersionBump";
 
 /** Auto-tagging configuration for a branch type (e.g. releases). */
 export interface AutoTagConfig {
@@ -27,6 +28,7 @@ export class BranchTypeRule {
     public readonly mergeStrategy?: MergeStrategy,
     /** How `update` catches this branch type up with its base branch. Defaults to "merge". */
     public readonly downstreamStrategy?: UpdateStrategy,
+    public readonly bumpVersion?: VersionBump,
   ) {}
 
   static create(props: {
@@ -38,6 +40,7 @@ export class BranchTypeRule {
     autoTag?: AutoTagConfig;
     mergeStrategy?: MergeStrategy;
     downstreamStrategy?: UpdateStrategy;
+    bumpVersion?: VersionBump;
   }): BranchTypeRule {
     return new BranchTypeRule(
       props.name,
@@ -48,6 +51,7 @@ export class BranchTypeRule {
       props.autoTag,
       props.mergeStrategy,
       props.downstreamStrategy,
+      props.bumpVersion ?? "patch",
     );
   }
 

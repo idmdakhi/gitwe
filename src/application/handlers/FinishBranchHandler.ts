@@ -15,6 +15,7 @@ import { MergeService } from "#gitwe/application/services/MergeService";
 import { TagService } from "#gitwe/application/services/TagService";
 import { HookService } from "#gitwe/application/services/HookService";
 import { RemoteService } from "#gitwe/application/services/RemoteService";
+import type { VersionService } from "#gitwe/application/services/VersionService";
 import { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
 import { FinishBranchResult } from "#gitwe/application/dto/FinishBranchResult";
 
@@ -38,6 +39,7 @@ export class FinishBranchHandler {
     private readonly remoteService: RemoteService,
     private readonly eventBus: EventBus,
     private readonly logger: Logger,
+    private readonly versionService: VersionService,
   ) {}
 
   async handle(command: FinishBranchCommand): Promise<FinishBranchResult> {
@@ -72,6 +74,21 @@ export class FinishBranchHandler {
     // > the workflow's default. Mirrors gitwe's existing config-precedence
     // pattern (workflow default, overridable per-type, overridable per-call).
     const resolvedStrategy = strategy ?? rule.mergeStrategy ?? this.workflow.mergeStrategy;
+
+    if (rule.autoTag && rule.bumpVersion) {
+      try {
+        const bumpResult = await this.versionService.bump(rule.bumpVersion, undefined, dryRun);
+        this.logger.info(
+          `Version bumped: ${bumpResult.previous.toString()} → ${bumpResult.next.toString()}`,
+        );
+        // می‌توانید از bumpResult برای ذخیره‌ی نسخه‌ی جدید استفاده کنید
+      } catch (error) {
+        this.logger.warn(
+          `Version bump failed: ${error instanceof Error ? error.message : String(error)}`,
+        );
+        // ادامه بدهید، خطا نباید finish را متوقف کند
+      }
+    }
 
     if (dryRun) {
       return {
@@ -109,6 +126,7 @@ export class FinishBranchHandler {
     await this.remoteService.pushIfNeeded(this.workflow.remote, pushAfterFinish);
 
     const tags = createdTag ? [createdTag] : [];
+
     await this.eventBus.publish(
       new BranchFinishedEvent(
         branchName,

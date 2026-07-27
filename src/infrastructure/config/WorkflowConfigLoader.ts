@@ -10,6 +10,7 @@ import { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCom
 import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
 import type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
+import { VersionBump } from "#gitwe/domain/valueObjects/VersionBump";
 
 /**
  * Raw config shape as authored in `gitwe.json`/`gitwe.yaml`. This is
@@ -29,6 +30,7 @@ interface RawBranchType {
   deleteOnFinish?: boolean; // legacy alias for `deleteAfterFinish`
   tag?: boolean | { prefix?: string; pattern?: string };
   autoTag?: { prefix?: string; pattern?: string }; // legacy alias for `tag: {...}`
+  bumpVersion?: VersionBump;
 }
 
 interface RawBranchInfo {
@@ -38,6 +40,7 @@ interface RawBranchInfo {
 interface RawMergeConfig {
   strategy?: MergeStrategy;
   deleteSource?: boolean;
+  bumpVersion?: VersionBump;
 }
 
 interface RawTagConfig {
@@ -167,6 +170,8 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
         type.deleteAfterFinish ?? type.deleteOnFinish ?? globalMerge.deleteSource ?? true;
       const autoTag = this.resolveAutoTag(type, globalTag);
 
+      const bumpVersion = type.bumpVersion ?? globalMerge.bumpVersion ?? "patch";
+
       return BranchTypeRule.create({
         name,
         prefix: type.prefix,
@@ -174,6 +179,7 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
         mergeTargets,
         deleteOnFinish,
         autoTag,
+        bumpVersion,
       });
     });
   }

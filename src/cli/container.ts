@@ -43,6 +43,12 @@ import {
   DoctorModule,
   CleanupModule,
 } from "#gitwe/kernel/modules";
+import { VersionService } from "#gitwe/application/services/VersionService";
+import { GitTagVersionStore } from "#gitwe/infrastructure/version/GitTagVersionStore";
+import { PackageJsonVersionStore } from "#gitwe/infrastructure/version/PackageJsonVersionStore";
+import { CompositeVersionStore } from "#gitwe/infrastructure/version/CompositeVersionStore";
+import { ConventionalChangelogWriter } from "#gitwe/infrastructure/version/ConventionalChangelogWriter";
+import { VersionShowModule, VersionBumpModule } from "#gitwe/kernel/modules/VersionModule";
 
 export interface ContainerOptions {
   /** Path to a JSON/YAML workflow config file. Falls back to the built-in git-flow workflow. */
@@ -116,6 +122,22 @@ export class Container {
       eventBus,
       this.logger,
     );
+
+    const versionStores = [
+      new GitTagVersionStore(this.git, "v"),
+      new PackageJsonVersionStore("package.json"),
+    ];
+    const compositeStore = new CompositeVersionStore(versionStores, "highest");
+    const changelogWriter = new ConventionalChangelogWriter(this.git, this.logger);
+    const versionService = new VersionService({
+      stores: [compositeStore],
+      git: this.git,
+      changelogWriter,
+      logger: this.logger,
+      requireCleanTree: true,
+      tagPrefix: "v",
+    });
+
     this.finishBranchHandler = new FinishBranchHandler(
       this.workflow,
       this.git,
@@ -126,6 +148,7 @@ export class Container {
       remoteService,
       eventBus,
       this.logger,
+      versionService,
     );
     this.listBranchesHandler = new ListBranchesHandler(this.git);
     this.getStatusHandler = new GetStatusHandler(this.workflow, statusService);
@@ -142,6 +165,8 @@ export class Container {
       .register(new StatusModule(this.getStatusHandler))
       .register(new ValidateWorkflowModule(this.validateWorkflowHandler))
       .register(new DoctorModule(this.doctorHandler))
-      .register(new CleanupModule(this.cleanupHandler));
+      .register(new CleanupModule(this.cleanupHandler))
+      .register(new VersionShowModule(versionService, "v"))
+      .register(new VersionBumpModule(versionService));
   }
 }

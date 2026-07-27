@@ -17,26 +17,30 @@
       "prefix": "feature/",
       "base": "develop",
       "target": "develop",
-      "deleteAfterFinish": true
+      "deleteAfterFinish": true,
+      "bumpVersion": "minor"
     },
 
     "release": {
       "prefix": "release/",
       "base": "develop",
       "target": ["main", "develop"],
-      "tag": true
+      "tag": true,
+      "bumpVersion": "major"
     },
 
     "hotfix": {
       "prefix": "hotfix/",
       "base": "main",
-      "target": ["main", "develop"]
+      "target": ["main", "develop"],
+      "bumpVersion": "patch"
     }
   },
 
   "merge": {
     "strategy": "merge",
-    "deleteSource": true
+    "deleteSource": true,
+    "bumpVersion": "minor"
   },
 
   "tag": {

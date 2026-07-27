@@ -35,11 +35,11 @@ jobs:
           npm run lint --if-present
           npm run typecheck --if-present
 
-      - name: Test
-        run: npm test
-
       - name: Build
         run: npm run build
+
+      - name: Test
+        run: npm test
 
       - name: Pack dry-run
         run: npm pack --dry-run
@@ -52,7 +52,6 @@ jobs:
           path: |
             dist
             package.json
-            package-lock.json
             README.md
             LICENSE
 
