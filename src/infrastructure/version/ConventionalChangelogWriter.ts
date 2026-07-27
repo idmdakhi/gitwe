@@ -21,7 +21,6 @@ export class ConventionalChangelogWriter implements ChangelogWriter {
     const from = params.fromRef ?? (await this.getLastTag()) ?? "HEAD";
     const to = params.toRef ?? "HEAD";
 
-    // Get commits between from and to
     const range = from === to ? "HEAD" : `${from}..${to}`;
     const commits = await this.getCommits(range);
 
@@ -32,17 +31,15 @@ export class ConventionalChangelogWriter implements ChangelogWriter {
 
     const entry = this.formatEntry(params.version, commits);
 
-    // Prepend to file
     let content = "";
     try {
       content = await readFile(filePath, "utf-8");
     } catch {
-      // File doesn't exist
+      // فایل وجود ندارد، با header ایجاد می‌کنیم
       content = "# Changelog\n\n";
     }
 
-    const newContent = content.replace("# Changelog\n\n", `# Changelog\n\n${entry}\n`);
-
+    const newContent = content.replace(/# Changelog\n\n/, `# Changelog\n\n${entry}\n`);
     await mkdir(path.dirname(filePath), { recursive: true });
     await writeFile(filePath, newContent, "utf-8");
 

@@ -4,13 +4,23 @@ import { Container } from "#gitwe/cli/container";
 
 describe("Container + Kernel wiring", () => {
   it("registers every application capability into the kernel", () => {
-    // No real git commands run during construction, so a plain tmpdir is fine.
     const container = new Container({ cwd: os.tmpdir(), quiet: true });
 
     const names = container.kernel.list().map((m) => m.name);
-    expect(names).toEqual(
-      ["cleanup", "doctor", "finish", "list", "start", "status", "update", "validate"].sort(),
-    );
+    // لیست ماژول‌های ثبت‌شده در container.ts
+    const expectedModules = [
+      "start",
+      "finish",
+      "update",
+      "list",
+      "status",
+      "validate",
+      "doctor",
+      "cleanup",
+      "version:show",
+      "version:bump",
+    ].sort();
+    expect(names).toEqual(expectedModules);
   });
 
   it("dispatching through the kernel reaches the same handler as calling it directly", async () => {

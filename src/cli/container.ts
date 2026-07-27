@@ -34,9 +34,6 @@ import { UpdateBranchHandler } from "#gitwe/application/handlers/UpdateBranchHan
 
 import { Kernel } from "#gitwe/kernel/Kernel";
 import {
-  StartModule,
-  FinishModule,
-  UpdateModule,
   ListBranchesModule,
   StatusModule,
   ValidateWorkflowModule,
@@ -49,10 +46,39 @@ import { PackageJsonVersionStore } from "#gitwe/infrastructure/version/PackageJs
 import { CompositeVersionStore } from "#gitwe/infrastructure/version/CompositeVersionStore";
 import { ConventionalChangelogWriter } from "#gitwe/infrastructure/version/ConventionalChangelogWriter";
 import { VersionShowModule, VersionBumpModule } from "#gitwe/kernel/modules/VersionModule";
-import { CapabilityRegistry } from "#gitwe/kernel/CapabilityRegistry";
-import { VersionCapability } from "#gitwe/kernel/capabilities/VersionCapability";
-import { TagCapability } from "#gitwe/kernel/capabilities/TagCapability";
-import { ChangelogCapability } from "#gitwe/kernel/capabilities/ChangelogCapability";
+// ===== Imports =====
+import { TransitionRuntime } from "#gitwe/kernel/pipeline/TransitionRuntime";
+import { PipelineStage } from "#gitwe/kernel/pipeline/Stage";
+import { PolicyEngine } from "#gitwe/kernel/policy/PolicyEngine";
+
+// ===== Capabilities =====
+// Validate
+import { WorkingTreeCleanCapability } from "#gitwe/kernel/capabilities/validate/WorkingTreeCleanCapability";
+import { BranchExistsCapability } from "#gitwe/kernel/capabilities/validate/BranchExistsCapability";
+import { ProtectedBranchCapability } from "#gitwe/kernel/capabilities/validate/ProtectedBranchCapability";
+
+// Transition
+import { MergeCapability } from "#gitwe/kernel/capabilities/transitions/MergeCapability";
+import { DeleteBranchCapability } from "#gitwe/kernel/capabilities/transitions/DeleteBranchCapability";
+import { CreateBranchCapability } from "#gitwe/kernel/capabilities/transitions/CreateBranchCapability";
+
+// Post Transition
+import { VersionBumpCapability } from "#gitwe/kernel/capabilities/post/VersionBumpCapability";
+import { TagCapability } from "#gitwe/kernel/capabilities/post/TagCapability";
+import { ChangelogCapability } from "#gitwe/kernel/capabilities/post/ChangelogCapability";
+
+// Finalize
+import { PushCapability } from "#gitwe/kernel/capabilities/finalize/PushCapability";
+import { EventPublishCapability } from "#gitwe/kernel/capabilities/finalize/EventPublishCapability";
+
+// ===== Modules =====
+import { StartModule } from "#gitwe/kernel/modules/StartModule";
+import { FinishModule } from "#gitwe/kernel/modules/FinishModule";
+import { UpdateModule } from "#gitwe/kernel/modules/UpdateModule";
+import { RuleValidationCapability } from "#gitwe/kernel/capabilities/validate/RuleValidationCapability";
+import { PublishStartEventCapability } from "#gitwe/kernel/capabilities/finalize/PublishStartEventCapability";
+import { NoopStateStore } from "#gitwe/infrastructure/state/NoopStateStore";
+import type { StateStore } from "#gitwe/domain/ports/StateStore";
 
 export interface ContainerOptions {
   /** Path to a JSON/YAML workflow config file. Falls back to the built-in git-flow workflow. */
@@ -96,6 +122,8 @@ export class Container {
   constructor(options: ContainerOptions = {}) {
     const cwd = options.cwd ?? process.cwd();
     this.logger = options.logger ?? (options.quiet ? new NoopLogger() : new ConsoleLogger());
+
+    const stateStore: StateStore = new NoopStateStore();
 
     const configLoader = new WorkflowConfigLoader();
     this.workflow = options.configPath
@@ -142,10 +170,41 @@ export class Container {
       tagPrefix: "v",
     });
 
-    const capabilityRegistry = new CapabilityRegistry()
-      .register(new VersionCapability(versionService))
-      .register(new TagCapability(this.git))
-      .register(new ChangelogCapability(changelogWriter));
+    // 1. Policy Engine
+    const policyEngine = new PolicyEngine(this.workflow);
+    policyEngine.loadFromConfig();
+
+    // 2. Transition Runtime
+    const runtime = new TransitionRuntime({
+      failFast: true,
+      continueOnFailure: false,
+    });
+    runtime.setPolicyEngine(policyEngine);
+
+    // 3. Register Capabilities
+
+    // VALIDATE
+    runtime.register(new WorkingTreeCleanCapability(), PipelineStage.VALIDATE);
+    runtime.register(new BranchExistsCapability(), PipelineStage.VALIDATE);
+    runtime.register(new ProtectedBranchCapability(), PipelineStage.VALIDATE);
+    runtime.register(new RuleValidationCapability(ruleEvaluator), PipelineStage.VALIDATE);
+
+    // TRANSITION
+    runtime.register(new MergeCapability(mergeService), PipelineStage.TRANSITION);
+    runtime.register(new DeleteBranchCapability(this.git), PipelineStage.TRANSITION);
+    runtime.register(new CreateBranchCapability(branchService), PipelineStage.TRANSITION);
+
+    // POST_TRANSITION
+    runtime.register(new VersionBumpCapability(versionService), PipelineStage.POST_TRANSITION);
+    runtime.register(new TagCapability(tagService), PipelineStage.POST_TRANSITION);
+    runtime.register(new ChangelogCapability(changelogWriter), PipelineStage.POST_TRANSITION);
+
+    // FINALIZE
+    runtime.register(new PushCapability(this.git), PipelineStage.FINALIZE);
+    runtime.register(new EventPublishCapability(eventBus), PipelineStage.FINALIZE);
+    runtime.register(new PublishStartEventCapability(eventBus), PipelineStage.FINALIZE);
+
+    runtime.register(new PublishStartEventCapability(eventBus), PipelineStage.FINALIZE);
 
     this.finishBranchHandler = new FinishBranchHandler(
       this.workflow,
@@ -167,19 +226,15 @@ export class Container {
     this.updateBranchHandler = new UpdateBranchHandler(this.workflow, this.git, this.logger);
 
     this.kernel = new Kernel()
-      .register(new StartModule(this.startBranchHandler))
       .register(
-        new FinishModule(
-          this.finishBranchHandler,
-          capabilityRegistry,
-          this.workflow,
-          this.git,
-          eventBus,
-          stateStore,
-          this.logger,
-        ),
+        new StartModule(runtime, this.workflow, this.git, eventBus, stateStore, this.logger),
       )
-      .register(new UpdateModule(this.updateBranchHandler))
+      .register(
+        new FinishModule(runtime, this.workflow, this.git, eventBus, stateStore, this.logger),
+      )
+      .register(
+        new UpdateModule(runtime, this.workflow, this.git, eventBus, stateStore, this.logger),
+      )
       .register(new ListBranchesModule(this.listBranchesHandler))
       .register(new StatusModule(this.getStatusHandler))
       .register(new ValidateWorkflowModule(this.validateWorkflowHandler))

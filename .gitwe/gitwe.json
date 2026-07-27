@@ -9,36 +9,35 @@
     },
     "develop": {
       "protected": true
-    }
+    },
+    "staging": { "protected": true }
   },
-
+  "pipelines": {
+    "start": ["validate", "transition", "finalize"],
+    "finish": ["validate", "transition", "post_transition", "finalize"],
+    "update": ["validate", "transition"]
+  },
   "types": {
     "feature": {
       "prefix": "feature/",
       "base": "develop",
       "target": "develop",
       "deleteAfterFinish": true,
-      "bumpVersion": null,
-      "changelog": false
+      "bumpVersion": "none"
     },
-
     "release": {
       "prefix": "release/",
       "base": "develop",
       "target": ["main", "develop"],
       "tag": true,
-      "bumpVersion": "major",
-      "tagPrefix": "v",
-      "changelog": true
+      "bumpVersion": "major"
     },
-
     "hotfix": {
       "prefix": "hotfix/",
       "base": "main",
       "target": ["main", "develop"],
-      "bumpVersion": "patch",
-      "tagPrefix": "v",
-      "changelog": true
+      "tag": true,
+      "bumpVersion": "patch"
     }
   },
 
@@ -54,13 +53,7 @@
 
   "merge": {
     "strategy": "merge",
-    "deleteSource": true,
-    "bumpVersion": "minor"
-  },
-
-  "tag": {
-    "enabled": true,
-    "prefix": "v"
+    "deleteSource": true
   },
 
   "commit": {
@@ -75,8 +68,10 @@
   },
 
   "hooks": {
-    "preFinish": [],
-    "postFinish": []
+    "preStart": ["npm run lint"],
+    "postStart": ["echo '🎉 Branch created!'"],
+    "preFinish": ["npm run test", "npm run build"],
+    "postFinish": ["echo '✅ Branch finished!'"]
   },
 
   "remote": {

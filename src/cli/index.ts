@@ -26,6 +26,7 @@ import { registerUpdateCommand } from "#gitwe/cli/commands/update";
 import { registerSyncCommand } from "#gitwe/cli/commands/sync";
 import { registerVersionCommand } from "#gitwe/cli/commands/version";
 import { registerVersionBumpCommand } from "#gitwe/cli/commands/version-bump";
+import { registerTagCommand } from "#gitwe/cli/commands/tag";
 
 const program = new Command();
 
@@ -95,5 +96,6 @@ registerUpdateCommand(program, getContainer, getJson);
 registerSyncCommand(program, getContainer, getJson);
 registerVersionCommand(program, getContainer, getJson);
 registerVersionBumpCommand(program, getContainer, getJson);
+registerTagCommand(program, getContainer, getJson);
 
 program.parse(process.argv);

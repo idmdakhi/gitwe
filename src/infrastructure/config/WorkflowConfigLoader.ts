@@ -11,6 +11,7 @@ import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
 import type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
 import { VersionBump } from "#gitwe/domain/valueObjects/VersionBump";
+import { PipelineStage } from "#gitwe/kernel/pipeline/Stage";
 
 /**
  * Raw config shape as authored in `gitwe.json`/`gitwe.yaml`. This is
@@ -76,6 +77,11 @@ interface RawWorkflow {
     postFinish?: string[];
   };
   remote?: { remote?: string; autoPush?: boolean; autoPull?: boolean };
+  pipelines?: {
+    start?: PipelineStage[];
+    finish?: PipelineStage[];
+    update?: PipelineStage[];
+  };
 }
 
 /**
@@ -118,6 +124,22 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
       .filter(([, info]) => info.protected)
       .map(([branchName]) => branchName);
 
+    const pipelines = raw.pipelines ?? {
+      start: [
+        PipelineStage.VALIDATE,
+        PipelineStage.TRANSITION,
+        PipelineStage.POST_TRANSITION,
+        PipelineStage.FINALIZE,
+      ],
+      finish: [
+        PipelineStage.VALIDATE,
+        PipelineStage.TRANSITION,
+        PipelineStage.POST_TRANSITION,
+        PipelineStage.FINALIZE,
+      ],
+      update: [PipelineStage.VALIDATE, PipelineStage.TRANSITION, PipelineStage.FINALIZE],
+    };
+
     return Workflow.create({
       name,
       branchTypes,
@@ -135,6 +157,7 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
       commitPolicy: raw.commit?.conventional
         ? ConventionalCommitPolicy.create({ enabled: raw.commit.conventional.enabled })
         : undefined,
+      pipelines,
     });
   }
 

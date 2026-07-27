@@ -11,9 +11,7 @@ export interface VersionServiceOptions {
   git: GitRepository;
   changelogWriter?: ChangelogWriter;
   logger: Logger;
-  /** Whether to require a clean working tree before bumping. */
   requireCleanTree?: boolean;
-  /** Prefix for tags (e.g. "v") */
   tagPrefix?: string;
 }
 
@@ -67,26 +65,25 @@ export class VersionService {
     if (!current) throw new VersionSourceMissingError();
 
     const next = current.bump(kind, prereleaseId);
-    const tag = this.options.tagPrefix ?? "v" + next.toString();
+    const tag = (this.options.tagPrefix ?? "v") + next.toString();
 
-    // Check if tag already exists
-    try {
-      const result = await this.options.git.runRaw(["rev-parse", tag]);
-      if (result.stdout.trim()) {
-        throw new VersionTagExistsError(tag);
-      }
-    } catch {
-      // Tag doesn't exist – good
-    }
-
+    // بررسی وجود تگ فقط در حالت غیر dry-run
     if (!dryRun) {
-      // Write to all stores
-      await Promise.all(this.options.stores.map((store) => store.write(next)));
+      try {
+        const result = await this.options.git.runRaw(["rev-parse", tag]);
+        if (result.stdout.trim()) {
+          throw new VersionTagExistsError(tag);
+        }
+      } catch (error) {
+        if (error instanceof VersionTagExistsError) {
+          throw error;
+        }
+        // در غیر این صورت، تگ وجود ندارد
+      }
 
-      // Create git tag
+      await Promise.all(this.options.stores.map((store) => store.write(next)));
       await this.options.git.runRaw(["tag", "-a", tag, "-m", `Release ${tag}`]);
 
-      // Generate changelog
       if (this.options.changelogWriter) {
         await this.options.changelogWriter.append({
           version: next,
@@ -97,7 +94,6 @@ export class VersionService {
     }
 
     this.options.logger.info(`Bumped version: ${current.toString()} → ${next.toString()}`);
-
     return { previous: current, next, tag };
   }
 

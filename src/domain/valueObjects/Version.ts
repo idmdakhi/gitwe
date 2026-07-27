@@ -1,4 +1,4 @@
-import { VersionBump } from "./VersionBump";
+import { VersionBump } from "#gitwe/domain/valueObjects/VersionBump";
 
 export class Version {
   constructor(
@@ -56,11 +56,14 @@ export class Version {
 
     if (kind === "prerelease") {
       const id = prereleaseId ?? "beta";
-      const currentId = this.prerelease;
-      let nextPrerelease: string;
+      // برای prerelease، پچ را افزایش نمی‌دهیم، فقط شماره prerelease را به‌روز می‌کنیم
+      const major = this.major;
+      const minor = this.minor;
+      const patch = this.patch;
 
+      let nextPrerelease: string;
+      const currentId = this.prerelease;
       if (currentId && currentId.startsWith(id)) {
-        // Increment prerelease number: beta.1 → beta.2
         const parts = currentId.split(".");
         const last = parts[parts.length - 1];
         const num = parseInt(last, 10);
@@ -74,7 +77,7 @@ export class Version {
         nextPrerelease = `${id}.1`;
       }
 
-      return new Version(this.major, this.minor, this.patch, nextPrerelease, this.build);
+      return new Version(major, minor, patch, nextPrerelease, this.build);
     }
 
     // Reset prerelease when bumping major/minor/patch

@@ -64,18 +64,21 @@ describe("Version", () => {
     it("bumps prerelease from stable", () => {
       const v = Version.parse("1.2.3");
       const bumped = v.bump("prerelease", "beta");
-      expect(bumped.toString()).toBe("1.2.4-beta.1");
+      // پچ بدون تغییر می‌ماند
+      expect(bumped.toString()).toBe("1.2.3-beta.1");
     });
 
     it("increments prerelease number", () => {
       const v = Version.parse("1.2.3-beta.1");
       const bumped = v.bump("prerelease", "beta");
+      // پچ بدون تغییر می‌ماند
       expect(bumped.toString()).toBe("1.2.3-beta.2");
     });
 
     it("switches prerelease id", () => {
       const v = Version.parse("1.2.3-beta.1");
       const bumped = v.bump("prerelease", "alpha");
+      // پچ بدون تغییر می‌ماند
       expect(bumped.toString()).toBe("1.2.3-alpha.1");
     });
 

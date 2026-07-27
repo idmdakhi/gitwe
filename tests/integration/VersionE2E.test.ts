@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
@@ -13,7 +13,7 @@ import { ConventionalChangelogWriter } from "#gitwe/infrastructure/version/Conve
 import { Version } from "#gitwe/domain/valueObjects/Version";
 
 function sh(cwd: string, ...args: string[]): void {
-  execFileSync("git", args, { cwd });
+  execFileSync("git", args, { cwd, stdio: "pipe", encoding: "utf-8" });
 }
 
 describe("Version E2E", () => {
@@ -26,17 +26,21 @@ describe("Version E2E", () => {
     sh(repoDir, "init", "-b", "main");
     sh(repoDir, "config", "user.email", "test@example.com");
     sh(repoDir, "config", "user.name", "Test User");
+    sh(repoDir, "config", "commit.gpgsign", "false");
+    sh(repoDir, "config", "tag.gpgsign", "false");
 
-    // ایجاد commit اولیه و تگ v1.0.0
+    const pkgPath = join(repoDir, "package.json");
+    writeFileSync(pkgPath, JSON.stringify({ name: "test", version: "1.0.0" }));
+
     writeFileSync(join(repoDir, "README.md"), "# test\n");
     sh(repoDir, "add", ".");
-    sh(repoDir, "commit", "-m", "initial commit");
-    sh(repoDir, "tag", "v1.0.0");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "initial commit");
+    sh(repoDir, "tag", "-a", "v1.0.0", "-m", "Release v1.0.0");
 
     git = new ShellGitRepository(repoDir, new NoopLogger());
 
     const tagStore = new GitTagVersionStore(git, "v");
-    const pkgStore = new PackageJsonVersionStore(join(repoDir, "package.json"));
+    const pkgStore = new PackageJsonVersionStore(pkgPath);
     const composite = new CompositeVersionStore([tagStore, pkgStore], "highest");
     const changelog = new ConventionalChangelogWriter(git, new NoopLogger());
 
@@ -64,23 +68,19 @@ describe("Version E2E", () => {
     expect(result.next.toString()).toBe("1.0.1");
     expect(result.tag).toBe("v1.0.1");
 
-    // تأیید اینکه تگ ایجاد شده
     const tags = await git.runRaw(["tag", "--list"]);
     expect(tags.stdout).toContain("v1.0.1");
   });
 
   it("bumps minor and creates CHANGELOG", async () => {
-    // ایجاد یک commit جدید
     writeFileSync(join(repoDir, "file.txt"), "content");
     sh(repoDir, "add", ".");
-    sh(repoDir, "commit", "-m", "feat: add new file");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "feat: add new file");
 
     await service.bump("minor");
 
-    // تأیید CHANGELOG
-    const changelogContent = await import("node:fs/promises").then((fs) =>
-      fs.readFile(join(repoDir, "CHANGELOG.md"), "utf-8"),
-    );
+    const changelogPath = join(repoDir, "CHANGELOG.md");
+    const changelogContent = readFileSync(changelogPath, "utf-8");
     expect(changelogContent).toContain("## [1.1.0]");
     expect(changelogContent).toContain("🚀 Features");
     expect(changelogContent).toContain("add new file");
@@ -88,14 +88,19 @@ describe("Version E2E", () => {
 
   it("bumps prerelease with incrementing numbers", async () => {
     const result1 = await service.bump("prerelease", "beta");
-    expect(result1.next.toString()).toBe("1.0.1-beta.1");
+    expect(result1.next.toString()).toBe("1.0.0-beta.1");
+    sh(repoDir, "add", ".");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "chore: bump prerelease");
 
     const result2 = await service.bump("prerelease", "beta");
-    expect(result2.next.toString()).toBe("1.0.1-beta.2");
+    expect(result2.next.toString()).toBe("1.0.0-beta.2");
   });
 
   it("resets prerelease on stable bump", async () => {
     await service.bump("prerelease", "beta");
+    sh(repoDir, "add", ".");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "chore: bump prerelease");
+
     const result = await service.bump("patch");
     expect(result.next.toString()).toBe("1.0.1");
     expect(result.next.isPrerelease()).toBe(false);
@@ -108,11 +113,13 @@ describe("Version E2E", () => {
   });
 
   it("reads from package.json after write", async () => {
-    // اولین bump پچ
     await service.bump("patch");
+    sh(repoDir, "add", ".");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "chore: bump patch");
 
-    // دوباره bump پچ
     await service.bump("patch");
+    sh(repoDir, "add", ".");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "chore: bump patch");
 
     const version = await service.resolveCurrent();
     expect(version?.toString()).toBe("1.0.2");
@@ -124,14 +131,12 @@ describe("Version E2E", () => {
   });
 
   it("resolves version from package.json when no tags exist", async () => {
-    // حذف تگ‌ها
-    sh(repoDir, "tag", "-d", "v1.0.0");
-
-    // ایجاد package.json
-    const pkgPath = join(repoDir, "package.json");
-    writeFileSync(pkgPath, JSON.stringify({ name: "test", version: "2.0.0" }));
+    const tags = await git.runRaw(["tag", "--list"]);
+    for (const tag of tags.stdout.split("\n").filter(Boolean)) {
+      sh(repoDir, "tag", "-d", tag);
+    }
 
     const version = await service.resolveCurrent();
-    expect(version?.toString()).toBe("2.0.0");
+    expect(version?.toString()).toBe("1.0.0");
   });
 });

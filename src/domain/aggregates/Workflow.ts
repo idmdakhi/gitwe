@@ -5,6 +5,7 @@ import { BranchNamingPolicy } from "#gitwe/domain/valueObjects/BranchNamingPolic
 import { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCommitPolicy";
 import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
+import { PipelineStage } from "#gitwe/kernel/pipeline/Stage";
 
 /**
  * The `Workflow` aggregate root. It owns and enforces every invariant a
@@ -27,6 +28,17 @@ export class Workflow {
     public readonly branchNaming: BranchNamingPolicy,
     public readonly mergeStrategy: MergeStrategy,
     public readonly commitPolicy: ConventionalCommitPolicy,
+    public readonly pipelines: {
+      start: PipelineStage[];
+      finish: PipelineStage[];
+      update: PipelineStage[];
+    },
+    public readonly versioning: {
+      enabled: boolean;
+      defaultBump: string;
+      tagPrefix: string;
+      changelog: { enabled: boolean; path: string };
+    },
   ) {}
 
   static create(props: {
@@ -38,8 +50,45 @@ export class Workflow {
     branchNaming?: BranchNamingPolicy;
     mergeStrategy?: MergeStrategy;
     commitPolicy?: ConventionalCommitPolicy;
+    pipelines?: {
+      start?: PipelineStage[];
+      finish?: PipelineStage[];
+      update?: PipelineStage[];
+    };
+    versioning?: {
+      enabled?: boolean;
+      defaultBump?: string;
+      tagPrefix?: string;
+      changelog?: { enabled?: boolean; path?: string };
+    };
   }): Workflow {
     Workflow.assertValid(props.name, props.branchTypes);
+    const defaultPipelines = {
+      start: [PipelineStage.VALIDATE, PipelineStage.TRANSITION, PipelineStage.FINALIZE],
+      finish: [
+        PipelineStage.VALIDATE,
+        PipelineStage.TRANSITION,
+        PipelineStage.POST_TRANSITION,
+        PipelineStage.FINALIZE,
+      ],
+      update: [PipelineStage.VALIDATE, PipelineStage.TRANSITION, PipelineStage.FINALIZE],
+    };
+    const pipelines = {
+      ...defaultPipelines,
+      ...(props.pipelines || {}),
+    } as { start: PipelineStage[]; finish: PipelineStage[]; update: PipelineStage[] };
+    const versioning = {
+      enabled: true,
+      defaultBump: "patch",
+      tagPrefix: "v",
+      changelog: { enabled: true, path: "CHANGELOG.md" },
+      ...(props.versioning || {}),
+    } as {
+      enabled: boolean;
+      defaultBump: string;
+      tagPrefix: string;
+      changelog: { enabled: boolean; path: string };
+    };
     return new Workflow(
       props.name,
       props.branchTypes,
@@ -49,6 +98,8 @@ export class Workflow {
       props.branchNaming ?? BranchNamingPolicy.create(),
       props.mergeStrategy ?? "merge",
       props.commitPolicy ?? ConventionalCommitPolicy.create(),
+      pipelines,
+      versioning,
     );
   }
 

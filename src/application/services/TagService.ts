@@ -13,4 +13,8 @@ export class TagService {
     await this.git.createTag(tagName, `Release ${tagName}`);
     return tagName;
   }
+
+  async createTag(name: string, message?: string): Promise<void> {
+    await this.git.createTag(name, message);
+  }
 }

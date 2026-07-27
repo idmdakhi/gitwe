@@ -1,6 +1,7 @@
-import type { KernelModule } from "../KernelModule";
-import type { CapabilityRegistry, WorkflowContext } from "../Capability";
-import type { FinishBranchHandler } from "#gitwe/application/handlers/FinishBranchHandler";
+// src/kernel/modules/FinishModule.ts
+import type { KernelModule } from "#gitwe/kernel/KernelModule";
+import type { TransitionRuntime } from "#gitwe/kernel/pipeline/TransitionRuntime";
+import { PipelineContext, PipelineResult } from "#gitwe/kernel/pipeline/Stage";
 import type { FinishBranchCommand } from "#gitwe/application/commands/FinishBranchCommand";
 import type { FinishBranchResult } from "#gitwe/application/dto/FinishBranchResult";
 import type { Workflow } from "#gitwe/domain/aggregates/Workflow";
@@ -8,14 +9,15 @@ import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
 import type { EventBus } from "#gitwe/domain/ports/EventBus";
 import type { StateStore } from "#gitwe/domain/ports/StateStore";
 import type { Logger } from "#gitwe/shared/logging/Logger";
+import { ExecutionPlanBuilder } from "#gitwe/kernel/pipeline/ExecutionPlan";
+import { PipelineState } from "#gitwe/kernel/pipeline/PipelineState";
 
 export class FinishModule implements KernelModule<FinishBranchCommand, FinishBranchResult> {
   readonly name = "finish";
-  readonly description = "Finish a branch with optional versioning, tagging, and changelog";
+  readonly description = "Finish a branch through a pipeline of capabilities";
 
   constructor(
-    private readonly handler: FinishBranchHandler,
-    private readonly capabilities: CapabilityRegistry,
+    private readonly runtime: TransitionRuntime,
     private readonly workflow: Workflow,
     private readonly git: GitRepository,
     private readonly eventBus: EventBus,
@@ -24,79 +26,49 @@ export class FinishModule implements KernelModule<FinishBranchCommand, FinishBra
   ) {}
 
   async execute(input: FinishBranchCommand): Promise<FinishBranchResult> {
-    // 1. Build workflow context
-    const context: WorkflowContext = {
+    // ۱. ساخت Execution Plan
+    const plan = ExecutionPlanBuilder.buildForFinish(this.workflow, input);
+
+    // ۲. اگر حالت dry-run است، فقط Plan را نمایش بده
+    if (input.dryRun) {
+      // در اینجا می‌توان Plan را به‌عنوان خروجی JSON بازگرداند
+      return {
+        dryRun: true,
+        merges: [],
+        tags: [],
+        deleted: false,
+        // می‌توان plan را هم در metadata قرار داد
+      } as FinishBranchResult;
+    }
+
+    // ۳. آماده‌سازی Context
+    const context: PipelineContext<FinishBranchCommand, FinishBranchResult> = {
+      input,
+      output: undefined,
+      metadata: new Map(),
+      stageResults: new Map(),
+      currentStage: undefined,
       workflow: this.workflow,
       git: this.git,
       eventBus: this.eventBus,
       stateStore: this.stateStore,
       logger: this.logger,
-      metadata: new Map(),
+      dryRun: input.dryRun ?? false,
+      failed: false,
+      error: undefined,
+      state: new PipelineState(),
     };
 
-    // 2. Run the main finish handler (merge, delete, etc.)
-    const result = await this.handler.handle(input);
+    // ۴. استخراج Stages از Plan
+    const stages = plan.stages.map((s) => s.stage);
 
-    // 3. Find the branch rule for versioning policy
-    const rule = this.workflow.findRuleForBranch(input.branchName);
-    if (!rule) return result;
+    // ۵. اجرا
+    const result: PipelineResult<FinishBranchResult> = await this.runtime.run(stages, context);
 
-    // 4. Determine if versioning is needed
-    const bumpVersion = rule.bumpVersion ?? this.workflow.mergeStrategy;
-    const shouldVersion = rule.autoTag && bumpVersion && bumpVersion !== "none";
-
-    if (shouldVersion && !input.dryRun) {
-      try {
-        // 4a. Bump version using VersionCapability
-        const versionResult = await this.capabilities.run<VersionInput, VersionOutput>(
-          "version",
-          {
-            action: "bump",
-            bumpKind: bumpVersion,
-            dryRun: input.dryRun,
-          },
-          context,
-        );
-
-        // 4b. Create tag using TagCapability
-        if (versionResult.tag) {
-          await this.capabilities.run<TagInput, TagOutput>(
-            "tag",
-            {
-              tag: versionResult.tag,
-              message: `Release ${versionResult.tag}`,
-              annotated: true,
-              push: input.pushAfterFinish ?? false,
-            },
-            context,
-          );
-        }
-
-        // 4c. Generate changelog using ChangelogCapability
-        if (versionResult.next) {
-          const version = Version.parse(versionResult.next);
-          await this.capabilities.run<ChangelogInput, ChangelogOutput>(
-            "changelog",
-            {
-              version,
-              fromRef: versionResult.previous,
-              toRef: "HEAD",
-            },
-            context,
-          );
-        }
-
-        // Add version info to result (we'll need to extend the DTO)
-        (result as any).version = versionResult.next;
-        (result as any).tag = versionResult.tag;
-      } catch (error) {
-        this.logger.warn(
-          `Versioning failed: ${error instanceof Error ? error.message : String(error)}`,
-        );
-        // Continue; versioning failure shouldn't block the finish
-      }
+    if (!result.output) {
+      throw new Error("Finish pipeline did not produce an output");
     }
 
-    return result;
+    return result.output;
   }
 }
