@@ -33,7 +33,7 @@ import { registerProjectConfigCommand } from "#gitwe/cli/commands/projectConfig"
 
 import { UpdateChecker } from "#gitwe/infrastructure/update/Updatechecker";
 
-const CURRENT_VERSION = "2.1.0";
+const CURRENT_VERSION = "1.0.0";
 
 const program = new Command();
 program
