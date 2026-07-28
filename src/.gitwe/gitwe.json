@@ -1,32 +1,34 @@
 {
-  "version": 2,
+  "version": 1,
+
   "workflow": "git-flow",
   "description": "GitWe workflow configuration - Enhanced with powerful CLI support",
 
   "branches": {
     "main": {
-      "protected": true,
-      "requiredReviews": 2,
-      "requireStatusChecks": true,
-      "statusCheckContexts": ["ci/build", "ci/test", "security/scan"]
+      "protected": true
     },
     "develop": {
-      "protected": true,
-      "requiredReviews": 1,
-      "requireStatusChecks": true
-    }
+      "protected": true
+    },
+    "staging": { "protected": true }
   },
-
+  "pipelines": {
+    "start": ["validate", "transition", "finalize"],
+    "finish": ["validate", "transition", "post_transition", "finalize"],
+    "update": ["validate", "transition"]
+  },
   "types": {
     "feature": {
       "prefix": "feature/",
       "base": "develop",
       "target": "develop",
       "deleteAfterFinish": true,
+      "bumpVersion": "none",
       "allowSquash": true,
-      "requireDescription": true
+      "requireDescription": true,
+      "labels": ["feature"]
     },
-
     "release": {
       "prefix": "release/",
       "base": "develop",
@@ -36,31 +38,44 @@
       "changelog": true,
       "notify": ["slack", "teams"]
     },
-
     "hotfix": {
       "prefix": "hotfix/",
       "base": "main",
       "target": ["main", "develop"],
-      "deleteAfterFinish": true,
-      "requireUrgent": true,
-      "bumpVersion": "patch"
+      "tag": true,
+      "bumpVersion": "patch",
+      "labels": ["hot"]
     },
-
     "bugfix": {
       "prefix": "bugfix/",
       "base": "develop",
       "target": "develop",
-      "deleteAfterFinish": true,
       "labels": ["bug"]
     },
-
-    "chore": {
-      "prefix": "chore/",
+    "support": {
+      "prefix": "support/",
+      "base": "main",
+      "tag": true,
+      "bumpVersion": "patch",
+      "labels": ["lts"]
+    },
+    "experiment": {
+      "aliases": ["spike"],
+      "prefix": "experiment/",
       "base": "develop",
       "target": "develop",
+      "deleteAfterFinish": true,
+      "allowSquash": true
+    },
+    "integration": {
+      "aliases": ["qa", "staging"],
+      "prefix": "stage/",
+      "base": "develop",
+      "target": "main",
       "deleteAfterFinish": true
     }
   },
+
   "cli": {
     "enabled": true,
     "commands": {
@@ -99,6 +114,19 @@
     }
   },
 
+  "versioning": {
+    "enabled": true,
+    "defaultBump": "patch",
+    "tagPrefix": "v",
+    "format": "{{tagPrefix}}{{version}}",
+    "changelog": {
+      "enabled": true,
+      "path": "CHANGELOG.md"
+    },
+    "annotated": true,
+    "push": true
+  },
+
   "merge": {
     "strategy": "merge",
     "deleteSource": true,
@@ -108,17 +136,9 @@
       "requireConventional": true
     },
     "autoMerge": {
-      "enabled": true,
+      "enabled": false,
       "whenAllChecksPass": true
     }
-  },
-
-  "tag": {
-    "enabled": true,
-    "prefix": "v",
-    "annotated": true,
-    "push": true,
-    "format": "{{prefix}}{{version}}"
   },
 
   "commit": {
@@ -140,8 +160,18 @@
 
   "hooks": {
     "enabled": true,
+    "preStart": ["npm run lint"],
+    "postStart": ["echo '🎉 Branch created!'"],
+    "preFinish": ["npm run test", "npm run build"],
+    "postFinish": ["echo '✅ Branch finished!'"],
     "preCommit": ["conventional-commit", "lint-staged"],
     "prePush": ["test", "build"]
+  },
+
+  "remote": {
+    "remote": "origin",
+    "autoPush": false,
+    "autoPull": false
   },
 
   "integrations": {

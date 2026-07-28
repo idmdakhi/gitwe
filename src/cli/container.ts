@@ -79,6 +79,7 @@ import { RuleValidationCapability } from "#gitwe/kernel/capabilities/validate/Ru
 import { PublishStartEventCapability } from "#gitwe/kernel/capabilities/finalize/PublishStartEventCapability";
 import { NoopStateStore } from "#gitwe/infrastructure/state/NoopStateStore";
 import type { StateStore } from "#gitwe/domain/ports/StateStore";
+import { GitweProjectConfigService } from "#gitwe/infrastructure/config/GitweProjectConfigService";
 
 export interface ContainerOptions {
   /** Path to a JSON/YAML workflow config file. Falls back to the built-in git-flow workflow. */
@@ -99,6 +100,7 @@ export interface ContainerOptions {
  */
 export class Container {
   readonly workflow: Workflow;
+  readonly projectConfig: GitweProjectConfigService;
   readonly git: GitRepository;
   readonly logger: Logger;
 
@@ -123,12 +125,16 @@ export class Container {
     const cwd = options.cwd ?? process.cwd();
     this.logger = options.logger ?? (options.quiet ? new NoopLogger() : new ConsoleLogger());
 
+    this.projectConfig = new GitweProjectConfigService({ rootDir: cwd, logger: this.logger });
+
     const stateStore: StateStore = new NoopStateStore();
 
     const configLoader = new WorkflowConfigLoader();
     this.workflow = options.configPath
       ? configLoader.load(path.resolve(cwd, options.configPath))
-      : (builtInWorkflows[options.builtIn ?? "git-flow"] ?? gitFlowWorkflow);
+      : options.builtIn
+        ? (builtInWorkflows[options.builtIn] ?? gitFlowWorkflow)
+        : this.projectConfig.getWorkflow();
 
     this.git = new ShellGitRepository(cwd, this.logger);
     const hookRunner = new ShellHookRunner(cwd, this.logger);

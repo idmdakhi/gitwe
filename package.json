@@ -19,7 +19,7 @@
     "automation"
   ],
   "engines": {
-    "node": ">=20.x"
+    "node": ">=22"
   },
   "man": [
     "docs/README.md",
@@ -28,7 +28,8 @@
   ],
   "scripts": {
     "start": "node dist/cli/index.js",
-    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && npm run build:gitwe",
+    "build:gitwe": "tsc -p tsconfig.gitwe.json && tsc-alias -p tsconfig.gitwe.json",
     "dev": "tsx src/cli/index.ts",
     "clean": "rmdir /s dist",
     "lint": "eslint . --ext .ts",
@@ -45,11 +46,26 @@
     "./*": {
       "import": "./dist/*.js",
       "types": "./dist/*.d.ts"
+    },
+    "./.gitwe/*": {
+      "import": "./dist/.gitwe/*.js",
+      "types": "./dist/.gitwe/.d.ts"
+    },
+    "./.gitwe/*.[yaml,yml]": {
+      "import": [
+        "./dist/.gitwe/*.yaml",
+        "./dist/.gitwe/*."
+      ]
+    },
+    "./.gitwe/*.json": {
+      "import": [
+        "./dist/.gitwe/*.json"
+      ]
     }
   },
   "imports": {
     "#gitwe/*": "./src/*.js",
-    "#tests/*": "./src/*.js"
+    "#tests/*": "./tests/*.js"
   },
   "files": [
     "dist",

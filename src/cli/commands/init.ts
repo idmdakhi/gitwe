@@ -3,9 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
 
-type Template = Record<string, unknown>;
+type ConfigTemplate = Record<string, unknown>;
 
-const TEMPLATES: Record<string, Template> = {
+const CONFIG_TEMPLATES: Record<string, ConfigTemplate> = {
   "git-flow": {
     version: 1,
     workflow: "git-flow",
@@ -45,42 +45,171 @@ const TEMPLATES: Record<string, Template> = {
   },
 };
 
+const DEFAULT_COMMIT_TEMPLATE = `# <type>(<scope>): <subject>
+#
+# <body>
+#
+# <footer>
+#
+# Allowed types: feat, fix, docs, style, refactor, test, chore
+# Example: feat(auth): add password reset
+`;
+
+const DEFAULT_BRANCH_DESCRIPTION_TEMPLATE = `# Branch: {{branchName}}
+
+## Type: {{branchType}}
+
+## Base: {{baseBranch}}
+
+## Created: {{createdAt}}
+
+## Description:
+
+{{description}}
+`;
+
+const DEFAULT_REVIEW_POLICY = `# Review policies for protected branches.
+# Add one entry per branch that needs required reviews or status checks.
+policies:
+  - branch: main
+    requiredReviews: 2
+    requireStatusChecks: true
+    statusCheckContexts:
+      - ci/build
+      - ci/test
+  - branch: develop
+    requiredReviews: 1
+    requireStatusChecks: true
+`;
+
+const DEFAULT_STATE = { branches: {} };
+
+interface InitOptions {
+  template: string;
+  format: string;
+  dir: string;
+  output?: string;
+  force?: boolean;
+  minimal?: boolean;
+}
+
+interface ScaffoldResult {
+  created: string[];
+  skipped: string[];
+}
+
+/** Writes `content` to `filePath` unless it already exists and `force` is false. Tracks the outcome in `result`. */
+function writeScaffoldFile(
+  filePath: string,
+  content: string,
+  force: boolean,
+  result: ScaffoldResult,
+): void {
+  if (fs.existsSync(filePath) && !force) {
+    result.skipped.push(filePath);
+    return;
+  }
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, content, "utf-8");
+  result.created.push(filePath);
+}
+
+/** Ensures an (otherwise-empty) directory exists and is kept by git via a `.gitkeep` file. */
+function ensureScaffoldDir(dirPath: string, force: boolean, result: ScaffoldResult): void {
+  fs.mkdirSync(dirPath, { recursive: true });
+  writeScaffoldFile(path.join(dirPath, ".gitkeep"), "", force, result);
+}
+
 export function registerInitCommand(program: Command): void {
   program
     .command("init")
-    .description("Scaffold a new workflow config file in the current directory")
+    .description(
+      "Scaffold a full .gitwe/ project directory: config, workflows, templates, and policies",
+    )
     .option(
       "-t, --template <name>",
-      "template to start from: git-flow | github-flow | trunk-based",
+      "workflow template to start from: git-flow | github-flow | trunk-based",
       "git-flow",
     )
-    .option("-f, --format <format>", "output format: json | yaml", "json")
-    .option("-o, --output <path>", "output file path (default: gitwe.json / gitwe.yaml)")
-    .option("--force", "overwrite the output file if it already exists")
-    .action((opts: { template: string; format: string; output?: string; force?: boolean }) => {
-      const template = TEMPLATES[opts.template];
-      if (!template) {
+    .option("-f, --format <format>", "main config file format: json | yaml", "json")
+    .option("-d, --dir <path>", "directory to scaffold", ".gitwe")
+    .option(
+      "-o, --output <path>",
+      "override the main config file's path (default: <dir>/gitwe.json)",
+    )
+    .option("--force", "overwrite files that already exist")
+    .option("--minimal", "only write the main config file — skip templates/policies/example dirs")
+    .action((opts: InitOptions) => {
+      const configTemplate = CONFIG_TEMPLATES[opts.template];
+      if (!configTemplate) {
         console.error(
-          `❌ Unknown template "${opts.template}". Choices: ${Object.keys(TEMPLATES).join(", ")}`,
+          `❌ Unknown template "${opts.template}". Choices: ${Object.keys(CONFIG_TEMPLATES).join(", ")}`,
         );
         process.exitCode = 1;
         return;
       }
 
       const isYaml = opts.format === "yaml" || opts.format === "yml";
-      const outputPath = path.resolve(opts.output ?? (isYaml ? "gitwe.yaml" : "gitwe.json"));
+      const gitweDir = path.resolve(opts.dir);
+      const configPath = path.resolve(
+        opts.output ?? path.join(gitweDir, isYaml ? "gitwe.yaml" : "gitwe.json"),
+      );
 
-      if (fs.existsSync(outputPath) && !opts.force) {
-        console.error(`❌ "${outputPath}" already exists. Re-run with --force to overwrite it.`);
-        process.exitCode = 1;
-        return;
+      const result: ScaffoldResult = { created: [], skipped: [] };
+
+      // Main workflow config.
+      const configContent = isYaml
+        ? yaml.dump(configTemplate)
+        : JSON.stringify(configTemplate, null, 2) + "\n";
+      writeScaffoldFile(configPath, configContent, Boolean(opts.force), result);
+
+      if (!opts.minimal) {
+        // Example subdirectories a project can drop custom files into.
+        ensureScaffoldDir(path.join(gitweDir, "workflows"), Boolean(opts.force), result);
+        ensureScaffoldDir(path.join(gitweDir, "hooks"), Boolean(opts.force), result);
+
+        // Ready-to-use templates and policy, so `renderTemplate`/`getPolicies` work out of the box.
+        writeScaffoldFile(
+          path.join(gitweDir, "templates", "commit-template.txt"),
+          DEFAULT_COMMIT_TEMPLATE,
+          Boolean(opts.force),
+          result,
+        );
+        writeScaffoldFile(
+          path.join(gitweDir, "templates", "branch-description.md"),
+          DEFAULT_BRANCH_DESCRIPTION_TEMPLATE,
+          Boolean(opts.force),
+          result,
+        );
+        writeScaffoldFile(
+          path.join(gitweDir, "policies", "review-policy.yaml"),
+          DEFAULT_REVIEW_POLICY,
+          Boolean(opts.force),
+          result,
+        );
+
+        // Empty state file so tools that read it don't need to special-case "not found".
+        writeScaffoldFile(
+          path.join(gitweDir, "state", "branches-state.json"),
+          JSON.stringify(DEFAULT_STATE, null, 2) + "\n",
+          Boolean(opts.force),
+          result,
+        );
       }
 
-      const content = isYaml ? yaml.dump(template) : JSON.stringify(template, null, 2) + "\n";
-      fs.writeFileSync(outputPath, content, "utf-8");
-      console.log(`✅ Wrote ${outputPath} from the "${opts.template}" template.`);
+      if (result.created.length) {
+        console.log(`✅ Scaffolded ${gitweDir}:`);
+        for (const file of result.created)
+          console.log(`   + ${path.relative(process.cwd(), file)}`);
+      }
+      if (result.skipped.length) {
+        console.log(`⚠️  Skipped (already exist — rerun with --force to overwrite):`);
+        for (const file of result.skipped)
+          console.log(`   - ${path.relative(process.cwd(), file)}`);
+      }
       console.log(
-        `   Run "gitwe validate ${outputPath}" to check it, or "gitwe --config ${outputPath} status" to use it.`,
+        `\nRun "gitwe validate ${path.relative(process.cwd(), configPath)}" to check it, ` +
+          `or "gitwe status" to use it (gitwe auto-discovers .gitwe/ in the current directory).`,
       );
     });
 }
