@@ -28,8 +28,7 @@
   ],
   "scripts": {
     "start": "node dist/cli/index.js",
-    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json && npm run build:gitwe",
-    "build:gitwe": "tsc -p tsconfig.gitwe.json && tsc-alias -p tsconfig.gitwe.json",
+    "build": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
     "dev": "tsx src/cli/index.ts",
     "clean": "rmdir /s dist",
     "lint": "eslint . --ext .ts",
@@ -47,19 +46,19 @@
       "import": "./dist/*.js",
       "types": "./dist/*.d.ts"
     },
-    "./.gitwe/*": {
-      "import": "./dist/.gitwe/*.js",
-      "types": "./dist/.gitwe/.d.ts"
+    "./config/*": {
+      "import": "./dist/config/*.js",
+      "types": "./dist/config/*.d.ts"
     },
-    "./.gitwe/*.[yaml,yml]": {
+    "./config/*.[yaml,yml]": {
       "import": [
-        "./dist/.gitwe/*.yaml",
-        "./dist/.gitwe/*."
+        "./dist/config/*.yaml",
+        "./dist/config/*.yml"
       ]
     },
-    "./.gitwe/*.json": {
+    "./config/*.json": {
       "import": [
-        "./dist/.gitwe/*.json"
+        "./dist/config/*.json"
       ]
     }
   },

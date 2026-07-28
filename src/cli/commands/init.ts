@@ -150,7 +150,9 @@ export function registerInitCommand(program: Command): void {
       }
 
       const isYaml = opts.format === "yaml" || opts.format === "yml";
-      const gitweDir = path.resolve(opts.dir);
+      // const gitweDir = path.resolve(opts.dir);
+      const rootDir = process.cwd();
+      const gitweDir = path.resolve(rootDir, opts.dir);
       const configPath = path.resolve(
         opts.output ?? path.join(gitweDir, isYaml ? "gitwe.yaml" : "gitwe.json"),
       );

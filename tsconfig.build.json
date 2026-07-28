@@ -7,6 +7,12 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts", "src/.gitwe/**/*.json", "src/.gitwe/**/*.yaml", "src/.gitwe/**/*.yml"],
+  "include": [
+    "src/**/*.ts",
+    "src/config/**/*.json",
+    "src/config/**/*.yaml",
+    "src/config/**/*.yml",
+    "src/config/**/*.sh"
+  ],
   "exclude": ["node_modules", "dist", "tests"]
 }

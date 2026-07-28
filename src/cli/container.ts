@@ -91,6 +91,7 @@ export interface ContainerOptions {
   /** Custom logger implementation. Takes precedence over `quiet` — pass this to route logs anywhere (e.g. a VS Code OutputChannel) instead of the console. */
   logger?: Logger;
   cwd?: string;
+  configDir?: string;
 }
 
 /**
@@ -125,7 +126,13 @@ export class Container {
     const cwd = options.cwd ?? process.cwd();
     this.logger = options.logger ?? (options.quiet ? new NoopLogger() : new ConsoleLogger());
 
-    this.projectConfig = new GitweProjectConfigService({ rootDir: cwd, logger: this.logger });
+    const configDir = options.configDir ?? ".gitwe";
+
+    this.projectConfig = new GitweProjectConfigService({
+      rootDir: cwd,
+      dirName: configDir,
+      logger: this.logger,
+    });
 
     const stateStore: StateStore = new NoopStateStore();
 
