@@ -67,4 +67,4 @@ export {
   type UpdateCheckResult,
   type UpdateCheckerOptions,
   UpdateChecker,
-} from "#gitwe/infrastructure/update/Updatechecker";
+} from "#gitwe/infrastructure/update/UpdateChecker";

@@ -9,9 +9,9 @@ import { HookService } from "#gitwe/application/services/HookService";
 import { RemoteService } from "#gitwe/application/services/RemoteService";
 import { FinishBranchHandler } from "#gitwe/application/handlers/FinishBranchHandler";
 import {
-  // BranchNotFoundError,
-  // UnrecognizedBranchError,
-  // WorkflowRuleViolationError,
+  BranchNotFoundError,
+  UnrecognizedBranchError,
+  WorkflowRuleViolationError,
   ProtectedBranchError,
 } from "#gitwe/domain/errors";
 import { InMemoryGitRepository } from "#tests/support/InMemoryGitRepository";
@@ -25,7 +25,7 @@ describe("FinishBranchHandler", () => {
   let workflow: Workflow;
   let handler: FinishBranchHandler;
 
-  // Helper to create a mock VersionService for tests that don't rely on versioning
+  // Helper to create a mock VersionService
   function createMockVersionService(): VersionService {
     return {
       resolveCurrent: vi.fn().mockResolvedValue(undefined),
@@ -82,22 +82,21 @@ describe("FinishBranchHandler", () => {
         tagPrefix: "v",
       }),
     );
-    void handler;
   });
 
-  // ... (all tests remain the same)
+  // تمام تست‌های قبلی به همین شکل باقی می‌مانند...
 
   it("uses a branch type's own mergeStrategy override instead of the workflow default", async () => {
     const workflowWithOverride = Workflow.create({
       name: "test",
-      mergeStrategy: "merge", // workflow default
+      mergeStrategy: "merge",
       branchTypes: [
         BranchTypeRule.create({
           name: "feature",
           prefix: "feature/",
           baseBranch: "develop",
           mergeTargets: ["develop"],
-          mergeStrategy: "squash", // per-type override
+          mergeStrategy: "squash",
         }),
       ],
     });
@@ -111,11 +110,10 @@ describe("FinishBranchHandler", () => {
       new RemoteService(git),
       new InMemoryEventBus(),
       new NoopLogger(),
-      createMockVersionService(), // Add version service
+      createMockVersionService(),
     );
 
     await handlerWithOverride.handle({ branchName: "feature/login" });
-
     expect(git.getLastDeleteForce()).toBe(true);
   });
 
@@ -142,11 +140,10 @@ describe("FinishBranchHandler", () => {
       new RemoteService(git),
       new InMemoryEventBus(),
       new NoopLogger(),
-      createMockVersionService(), // Add version service
+      createMockVersionService(),
     );
 
     await handlerWithOverride.handle({ branchName: "feature/login", strategy: "merge" });
-
     expect(git.getLastDeleteForce()).toBe(false);
   });
 
@@ -166,7 +163,7 @@ describe("FinishBranchHandler", () => {
       new RemoteService(git),
       new InMemoryEventBus(),
       new NoopLogger(),
-      createMockVersionService(), // Add version service
+      createMockVersionService(),
     );
 
     await expect(protectedHandler.handle({ branchName: "feature/login" })).rejects.toThrow(

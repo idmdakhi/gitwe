@@ -139,11 +139,6 @@ export class Container {
     const stateStore: StateStore = new NoopStateStore();
 
     const configLoader = new WorkflowConfigLoader();
-    this.workflow = options.configPath
-      ? configLoader.load(path.resolve(cwd, options.configPath))
-      : options.builtIn
-        ? (builtInWorkflows[options.builtIn] ?? gitFlowWorkflow)
-        : this.projectConfig.getWorkflow();
 
     // ۱. اگر --config مشخص شده
     if (options.configPath) {
@@ -294,8 +289,11 @@ export class Container {
 
     // ۲. در حالت تولید (نصب شده از npm): به دنبال dist/config/gitwe.json بگرد
     // __dirname در فایل کامپایل شده به dist/cli اشاره دارد.
-    const prodPath = path.join(__dirname, "../config/gitwe.json");
+    const prodPath = path.join(cwd, ".gitwe/gitwe.json");
     if (fs.existsSync(prodPath)) return prodPath;
+
+    const prodPathMain = path.join(cwd, "gitwe.json");
+    if (fs.existsSync(prodPathMain)) return prodPathMain;
 
     return null;
   }

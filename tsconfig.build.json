@@ -7,6 +7,12 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts",
+    "src/config/**/*.json",
+    "src/config/**/*.yaml",
+    "src/config/**/*.sh",
+    "src/config/**/*.js"
+  ],
   "exclude": ["node_modules", "dist", "tests"]
 }

@@ -29,7 +29,7 @@ import { registerVersionBumpCommand } from "#gitwe/cli/commands/version-bump";
 import { registerTagCommand } from "#gitwe/cli/commands/tag";
 import { registerProjectConfigCommand } from "#gitwe/cli/commands/projectConfig";
 
-import { UpdateChecker } from "#gitwe/infrastructure/update/Updatechecker";
+import { UpdateChecker } from "#gitwe/infrastructure/update/UpdateChecker";
 
 const CURRENT_VERSION = "2.1.0";
 

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { UpdateChecker, compareVersions } from "#gitwe/infrastructure/update/Updatechecker";
+import { UpdateChecker, compareVersions } from "#gitwe/infrastructure/update/UpdateChecker";
 
 describe("compareVersions", () => {
   it("returns negative when a < b", () => {
