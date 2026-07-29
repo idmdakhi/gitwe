@@ -21,13 +21,6 @@
       "#tests/*": ["./tests/*"]
     }
   },
-  "include": [
-    "src/**/*.ts",
-    "tests/**/*.ts",
-    "src/config/**/*.json",
-    "src/config/**/*.yaml",
-    "src/config/**/*.yml",
-    "src/config/**/*.sh"
-  ],
+  "include": ["src/**/*.ts", "tests/**/*.ts", "vitest.config.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,4 +1,6 @@
 import path from "node:path";
+import fs from "node:fs";
+
 import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
 import { BranchDoesNotExistRule } from "#gitwe/domain/rules/BranchDoesNotExistRule";
@@ -143,6 +145,36 @@ export class Container {
         ? (builtInWorkflows[options.builtIn] ?? gitFlowWorkflow)
         : this.projectConfig.getWorkflow();
 
+    // ۱. اگر --config مشخص شده
+    if (options.configPath) {
+      this.workflow = configLoader.load(path.resolve(cwd, options.configPath));
+    }
+    // ۲. اگر --workflow مشخص شده
+    else if (options.builtIn) {
+      this.workflow = builtInWorkflows[options.builtIn] ?? gitFlowWorkflow;
+    }
+    // ۳. بررسی .gitwe در دایرکتوری جاری
+    else {
+      const projectConfigService = new GitweProjectConfigService({
+        rootDir: cwd,
+        dirName: ".gitwe",
+        logger: this.logger,
+      });
+      const data = projectConfigService.load();
+      if (data.configPath) {
+        this.workflow = projectConfigService.getWorkflow();
+      } else {
+        // ۴. استفاده از فایل‌های پیش‌فرض (src/config یا dist/config)
+        const defaultPath = this.getDefaultConfigPath(cwd);
+        if (defaultPath) {
+          this.workflow = configLoader.load(defaultPath);
+        } else {
+          // ۵. در نهایت، گردش‌کار داخلی git-flow
+          this.workflow = gitFlowWorkflow;
+        }
+      }
+    }
+
     this.git = new ShellGitRepository(cwd, this.logger);
     const hookRunner = new ShellHookRunner(cwd, this.logger);
     const eventBus = new InMemoryEventBus(this.logger);
@@ -255,5 +287,18 @@ export class Container {
       .register(new CleanupModule(this.cleanupHandler))
       .register(new VersionShowModule(versionService, "v"))
       .register(new VersionBumpModule(versionService));
+  }
+
+  getDefaultConfigPath(cwd: string): string | null {
+    // ۱. در حالت توسعه (source code): به دنبال src/config/gitwe.json بگرد
+    const devPath = path.join(cwd, "src/config/gitwe.json");
+    if (fs.existsSync(devPath)) return devPath;
+
+    // ۲. در حالت تولید (نصب شده از npm): به دنبال dist/config/gitwe.json بگرد
+    // __dirname در فایل کامپایل شده به dist/cli اشاره دارد.
+    const prodPath = path.join(__dirname, "../config/gitwe.json");
+    if (fs.existsSync(prodPath)) return prodPath;
+
+    return null;
   }
 }
