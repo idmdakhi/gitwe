@@ -1,8 +1,6 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { Container } from "#gitwe/cli/container";
-import fs from "node:fs";
-import path from "node:path";
 
 import { registerStartCommand } from "#gitwe/cli/commands/start";
 import { registerFinishCommand } from "#gitwe/cli/commands/finish";
@@ -33,7 +31,7 @@ import { registerProjectConfigCommand } from "#gitwe/cli/commands/projectConfig"
 
 import { UpdateChecker } from "#gitwe/infrastructure/update/Updatechecker";
 
-const CURRENT_VERSION = "1.0.0";
+const CURRENT_VERSION = "2.1.0";
 
 const program = new Command();
 program
@@ -65,15 +63,12 @@ interface GlobalOpts {
 /** Built fresh per command invocation so each command sees up-to-date global options. */
 function getContainer(): Container {
   const opts = program.opts<GlobalOpts>();
-  const isGitweProject = fs.existsSync(path.join(process.cwd(), "src/config/gitwe.json"));
-
   // JSON mode implies quiet: informational logging would otherwise corrupt stdout for a parser.
   return new Container({
     configPath: opts.config,
     builtIn: opts.workflow,
     cwd: opts.cwd,
     quiet: opts.quiet || opts.json,
-    configDir: isGitweProject ? "src/config" : ".gitwe",
   });
 }
 
@@ -81,6 +76,8 @@ function getJson(): boolean {
   return Boolean(program.opts<GlobalOpts>().json);
 }
 
+// All commands must be registered BEFORE program.parseAsync() runs below —
+// commander resolves argv against whatever is registered at parse time.
 registerInitCommand(program);
 registerStartCommand(program, getContainer, getJson);
 registerFinishCommand(program, getContainer, getJson);
@@ -109,7 +106,8 @@ registerTagCommand(program, getContainer, getJson);
 registerProjectConfigCommand(program, getContainer, getJson);
 
 async function main(): Promise<void> {
-  // شروع بررسی نسخه هم‌زمان با اجرای دستور، نه قبلش — تاخیری اضافه نمی‌کنه
+  // Kicked off alongside command execution (not before it) so the registry
+  // lookup's latency never delays the command itself.
   const updateCheck = new UpdateChecker().check(CURRENT_VERSION).catch(() => null);
 
   await program.parseAsync(process.argv);
@@ -125,4 +123,5 @@ async function main(): Promise<void> {
     }
   }
 }
+
 main();

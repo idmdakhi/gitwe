@@ -249,8 +249,6 @@ export class Container {
     runtime.register(new EventPublishCapability(eventBus), PipelineStage.FINALIZE);
     runtime.register(new PublishStartEventCapability(eventBus), PipelineStage.FINALIZE);
 
-    runtime.register(new PublishStartEventCapability(eventBus), PipelineStage.FINALIZE);
-
     this.finishBranchHandler = new FinishBranchHandler(
       this.workflow,
       this.git,
