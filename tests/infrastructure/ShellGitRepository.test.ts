@@ -7,13 +7,15 @@ import { ShellGitRepository } from "#gitwe/infrastructure/git/ShellGitRepository
 import { BranchAlreadyExistsError, BranchNotFoundError } from "#gitwe/domain/errors";
 
 function sh(cwd: string, ...args: string[]): void {
-  execFileSync("git", args, { cwd });
+  execFileSync("git", args, { cwd, stdio: "pipe" });
 }
 
 function commit(cwd: string, filename: string, content: string, message: string): void {
   appendFileSync(join(cwd, filename), content);
   sh(cwd, "add", ".");
-  sh(cwd, "commit", "-m", message);
+  sh(cwd, "config", "commit.gpgsign", "false");
+  sh(cwd, "config", "tag.gpgsign", "false");
+  sh(cwd, "commit", "--no-gpg-sign", "-m", message);
 }
 
 describe("ShellGitRepository", () => {
@@ -25,9 +27,11 @@ describe("ShellGitRepository", () => {
     sh(repoDir, "init", "-b", "main");
     sh(repoDir, "config", "user.email", "test@example.com");
     sh(repoDir, "config", "user.name", "Test User");
+    sh(repoDir, "config", "commit.gpgsign", "false");
+    sh(repoDir, "config", "tag.gpgsign", "false");
     writeFileSync(join(repoDir, "README.md"), "# test repo\n");
     sh(repoDir, "add", ".");
-    sh(repoDir, "commit", "-m", "initial commit");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "initial commit");
     repo = new ShellGitRepository(repoDir);
   });
 
@@ -134,13 +138,13 @@ describe("ShellGitRepository", () => {
     await repo.createBranch("develop", { checkout: true });
     writeFileSync(join(repoDir, "shared.txt"), "develop version\n");
     sh(repoDir, "add", ".");
-    sh(repoDir, "commit", "-m", "develop change");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "develop change");
 
     await repo.checkout("main");
     await repo.createBranch("feature/clash", { checkout: true });
     writeFileSync(join(repoDir, "shared.txt"), "feature version\n");
     sh(repoDir, "add", ".");
-    sh(repoDir, "commit", "-m", "feature change");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "feature change");
 
     await expect(repo.merge("develop", "feature/clash")).rejects.toMatchObject({
       code: "GIT_COMMAND_FAILED",

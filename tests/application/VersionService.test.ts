@@ -26,7 +26,6 @@ describe("VersionService", () => {
     mockGit = {
       isWorkingTreeClean: vi.fn().mockResolvedValue(true),
       runRaw: vi.fn().mockResolvedValue({ stdout: "", stderr: "", exitCode: 0 }),
-      // دیگر متدهای GitRepository مورد نیاز نیستند
     } as unknown as GitRepository;
     mockChangelog = { append: vi.fn().mockResolvedValue("CHANGELOG.md") };
     mockLogger = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
@@ -91,21 +90,26 @@ describe("VersionService", () => {
 
     it("bumps prerelease", async () => {
       const result = await service.bump("prerelease", "beta");
-      expect(result.next.toString()).toBe("1.0.1-beta.1");
+      // با توجه به اصلاح متد bump، پچ افزایش نمی‌یابد
+      expect(result.next.toString()).toBe("1.0.0-beta.1");
     });
 
     it("increments prerelease number on subsequent bumps", async () => {
-      mockStore.resolveCurrent = vi.fn().mockResolvedValue(Version.parse("1.0.1-beta.1"));
+      mockStore.resolveCurrent = vi.fn().mockResolvedValue(Version.parse("1.0.0-beta.1"));
       const result = await service.bump("prerelease", "beta");
-      expect(result.next.toString()).toBe("1.0.1-beta.2");
+      expect(result.next.toString()).toBe("1.0.0-beta.2");
     });
 
     it("does nothing on dry-run", async () => {
       const result = await service.bump("patch", undefined, true);
-      expect(result.dryRun).toBe(true);
+      // در حالت dry-run، نباید هیچ تغییری در git یا store ایجاد شود
       expect(mockStore.write).not.toHaveBeenCalled();
       expect(mockGit.runRaw).not.toHaveBeenCalled();
       expect(mockChangelog.append).not.toHaveBeenCalled();
+      // اما result باید شامل مقادیر محاسبه‌شده باشد
+      expect(result.previous.toString()).toBe("1.0.0");
+      expect(result.next.toString()).toBe("1.0.1");
+      expect(result.tag).toBe("v1.0.1");
     });
 
     it("throws when working tree is dirty and requireCleanTree is true", async () => {

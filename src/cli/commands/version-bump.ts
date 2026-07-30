@@ -16,7 +16,7 @@ export function registerVersionBumpCommand(
     .option("--major", "Bump major version")
     .option("--minor", "Bump minor version")
     .option("--patch", "Bump patch version")
-    .option("--prerelease [id]", "Bump prerelease (e.g. beta, alpha)", "beta")
+    .option("--prerelease [id]", "Bump prerelease (e.g. beta, alpha)")
     .option("--dry-run", "Show what would happen without making changes")
     .option("--json", "Output as JSON (overrides global --json)")
     .action(
@@ -24,7 +24,7 @@ export function registerVersionBumpCommand(
         major?: boolean;
         minor?: boolean;
         patch?: boolean;
-        prerelease?: string;
+        prerelease?: string | boolean;
         dryRun?: boolean;
         json?: boolean;
       }) => {
@@ -32,9 +32,10 @@ export function registerVersionBumpCommand(
         const json = opts.json ?? getJson();
 
         let kind: VersionBump | undefined;
-        if (opts.major) kind = "major";
-        else if (opts.minor) kind = "minor";
-        else if (opts.patch) kind = "patch";
+        // فقط زمانی که flag به‌صراحت true باشد، kind را تنظیم کن
+        if (opts.major === true) kind = "major";
+        else if (opts.minor === true) kind = "minor";
+        else if (opts.patch === true) kind = "patch";
         else if (opts.prerelease !== undefined) kind = "prerelease";
 
         if (!kind) {
@@ -44,10 +45,14 @@ export function registerVersionBumpCommand(
         }
 
         try {
-          // نوع ورودی به‌درستی مشخص شده است
           const input: VersionBumpInput = {
             kind,
-            prereleaseId: kind === "prerelease" ? opts.prerelease : undefined,
+            prereleaseId:
+              kind === "prerelease" && typeof opts.prerelease === "string"
+                ? opts.prerelease
+                : kind === "prerelease"
+                  ? "beta"
+                  : undefined,
             dryRun: opts.dryRun ?? false,
           };
 
@@ -56,7 +61,7 @@ export function registerVersionBumpCommand(
             input,
           );
 
-          printResult(json, result, (r: VersionBumpOutput) => {
+          printResult(json, result, (r) => {
             const verb = r.dryRun ? "would bump" : "bumped";
             console.log(`✅ ${verb} ${r.previous} → ${r.next}`);
             console.log(`🏷️  Tag: ${r.tag}`);

@@ -17,12 +17,12 @@ export function registerVersionCommand(
       const container = getContainer();
       const json = opts.json ?? getJson();
       try {
-        const input: VersionShowInput = {}; // خالی
+        const input: VersionShowInput = {};
         const result = await container.kernel.run<VersionShowInput, VersionShowOutput>(
           "version:show",
           input,
         );
-        printResult(json, result, (r: VersionShowOutput) => {
+        printResult(json, result, (r) => {
           console.log(`Current version: ${r.version}`);
           if (r.source) console.log(`Source: ${r.source}`);
           if (r.isPrerelease) console.log("⚠️  Prerelease version");

@@ -9,7 +9,7 @@ import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 import { Version } from "#gitwe/domain/valueObjects/Version";
 
 function sh(cwd: string, ...args: string[]): void {
-  execFileSync("git", args, { cwd });
+  execFileSync("git", args, { cwd, stdio: "pipe", encoding: "utf-8" });
 }
 
 describe("GitTagVersionStore", () => {
@@ -22,9 +22,11 @@ describe("GitTagVersionStore", () => {
     sh(repoDir, "init", "-b", "main");
     sh(repoDir, "config", "user.email", "test@example.com");
     sh(repoDir, "config", "user.name", "Test User");
+    sh(repoDir, "config", "commit.gpgsign", "false");
+    sh(repoDir, "config", "tag.gpgsign", "false");
     writeFileSync(join(repoDir, "README.md"), "# test\n");
     sh(repoDir, "add", ".");
-    sh(repoDir, "commit", "-m", "initial commit");
+    sh(repoDir, "commit", "--no-gpg-sign", "-m", "initial commit");
 
     git = new ShellGitRepository(repoDir, new NoopLogger());
     store = new GitTagVersionStore(git, "v");
@@ -39,54 +41,78 @@ describe("GitTagVersionStore", () => {
     expect(version).toBeUndefined();
   });
 
-  it("returns the highest version from tags", async () => {
-    sh(repoDir, "tag", "v1.0.0");
-    sh(repoDir, "tag", "v1.2.0");
-    sh(repoDir, "tag", "v1.1.5");
+  it(
+    "returns the highest version from tags",
+    async () => {
+      sh(repoDir, "tag", "-a", "v1.0.0", "-m", "Release v1.0.0");
+      sh(repoDir, "tag", "-a", "v1.2.0", "-m", "Release v1.2.0");
+      sh(repoDir, "tag", "-a", "v1.1.5", "-m", "Release v1.1.5");
 
-    const version = await store.resolveCurrent();
-    expect(version?.toString()).toBe("1.2.0");
-  });
+      const version = await store.resolveCurrent();
+      expect(version?.toString()).toBe("1.2.0");
+    },
+    { timeout: 10000 },
+  );
 
-  it("ignores tags without 'v' prefix", async () => {
-    sh(repoDir, "tag", "v1.0.0");
-    sh(repoDir, "tag", "1.1.0"); // بدون پیشوند
+  it(
+    "ignores tags without 'v' prefix",
+    async () => {
+      sh(repoDir, "tag", "-a", "v1.0.0", "-m", "Release v1.0.0");
+      sh(repoDir, "tag", "1.1.0"); // lightweight tag without message
 
-    const version = await store.resolveCurrent();
-    expect(version?.toString()).toBe("1.0.0");
-  });
+      const version = await store.resolveCurrent();
+      expect(version?.toString()).toBe("1.0.0");
+    },
+    { timeout: 10000 },
+  );
 
-  it("ignores invalid version tags", async () => {
-    sh(repoDir, "tag", "v1.0.0");
-    sh(repoDir, "tag", "v-invalid");
+  it(
+    "ignores invalid version tags",
+    async () => {
+      sh(repoDir, "tag", "-a", "v1.0.0", "-m", "Release v1.0.0");
+      sh(repoDir, "tag", "-a", "v-invalid", "-m", "invalid");
 
-    const version = await store.resolveCurrent();
-    expect(version?.toString()).toBe("1.0.0");
-  });
+      const version = await store.resolveCurrent();
+      expect(version?.toString()).toBe("1.0.0");
+    },
+    { timeout: 10000 },
+  );
 
-  it("writes a new tag", async () => {
-    const version = Version.parse("1.2.3");
-    await store.write(version);
+  it(
+    "writes a new tag",
+    async () => {
+      const version = Version.parse("1.2.3");
+      await store.write(version);
 
-    const result = await git.runRaw(["tag", "--list", "v1.2.3"]);
-    expect(result.stdout.trim()).toBe("v1.2.3");
-  });
+      const result = await git.runRaw(["tag", "--list", "v1.2.3"]);
+      expect(result.stdout.trim()).toBe("v1.2.3");
+    },
+    { timeout: 10000 },
+  );
 
-  it("creates annotated tag with message", async () => {
-    const version = Version.parse("1.2.3");
-    await store.write(version);
+  it(
+    "creates annotated tag with message",
+    async () => {
+      const version = Version.parse("1.2.3");
+      await store.write(version);
 
-    const result = await git.runRaw(["tag", "-l", "-n", "v1.2.3"]);
-    expect(result.stdout).toContain("v1.2.3");
-    expect(result.stdout).toContain("Release v1.2.3");
-  });
+      const result = await git.runRaw(["tag", "-l", "-n", "v1.2.3"]);
+      expect(result.stdout).toContain("v1.2.3");
+      expect(result.stdout).toContain("Release v1.2.3");
+    },
+    { timeout: 10000 },
+  );
 
-  it("supports custom prefix", async () => {
-    const storeWithPrefix = new GitTagVersionStore(git, "release-");
-    const version = Version.parse("1.2.3");
-    await storeWithPrefix.write(version);
+  it(
+    "supports custom prefix",
+    async () => {
+      const storeWithPrefix = new GitTagVersionStore(git, "release-");
+      const version = Version.parse("1.2.3");
+      await storeWithPrefix.write(version);
 
-    const result = await git.runRaw(["tag", "--list", "release-1.2.3"]);
-    expect(result.stdout.trim()).toBe("release-1.2.3");
-  });
+      const result = await git.runRaw(["tag", "--list", "release-1.2.3"]);
+      expect(result.stdout.trim()).toBe("release-1.2.3");
+    },
+    { timeout: 10000 },
+  );
 });

@@ -1,4 +1,4 @@
-import { Version } from "../valueObjects/Version";
+import { Version } from "#gitwe/domain/valueObjects/Version";
 
 export interface VersionStore {
   /** Resolve the highest known version from the source. */

@@ -1,4 +1,4 @@
-import type { Version } from "../valueObjects/Version";
+import type { Version } from "#gitwe/domain/valueObjects/Version";
 
 export interface ChangelogWriter {
   append(params: {

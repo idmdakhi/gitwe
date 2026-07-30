@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
+import { load as yaml_load } from "js-yaml";
+
 import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 import { BranchTypeRule, AutoTagConfig } from "#gitwe/domain/valueObjects/BranchTypeRule";
 import { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
@@ -11,6 +12,7 @@ import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
 import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
 import type { WorkflowConfigReader } from "#gitwe/application/ports/WorkflowConfigReader";
 import { VersionBump } from "#gitwe/domain/valueObjects/VersionBump";
+import { PipelineStage } from "#gitwe/kernel/pipeline/Stage";
 
 /**
  * Raw config shape as authored in `gitwe.json`/`gitwe.yaml`. This is
@@ -76,6 +78,11 @@ interface RawWorkflow {
     postFinish?: string[];
   };
   remote?: { remote?: string; autoPush?: boolean; autoPull?: boolean };
+  pipelines?: {
+    start?: PipelineStage[];
+    finish?: PipelineStage[];
+    update?: PipelineStage[];
+  };
 }
 
 /**
@@ -93,7 +100,7 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
     const content = fs.readFileSync(filePath, "utf-8");
     const ext = path.extname(filePath).toLowerCase();
     const parsed: unknown =
-      ext === ".yaml" || ext === ".yml" ? yaml.load(content) : JSON.parse(content);
+      ext === ".yaml" || ext === ".yml" ? yaml_load(content) : JSON.parse(content);
 
     if (typeof parsed !== "object" || parsed === null) {
       throw new InvalidWorkflowDefinitionError("config must be a JSON/YAML object");
@@ -118,6 +125,22 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
       .filter(([, info]) => info.protected)
       .map(([branchName]) => branchName);
 
+    const pipelines = raw.pipelines ?? {
+      start: [
+        PipelineStage.VALIDATE,
+        PipelineStage.TRANSITION,
+        PipelineStage.POST_TRANSITION,
+        PipelineStage.FINALIZE,
+      ],
+      finish: [
+        PipelineStage.VALIDATE,
+        PipelineStage.TRANSITION,
+        PipelineStage.POST_TRANSITION,
+        PipelineStage.FINALIZE,
+      ],
+      update: [PipelineStage.VALIDATE, PipelineStage.TRANSITION, PipelineStage.FINALIZE],
+    };
+
     return Workflow.create({
       name,
       branchTypes,
@@ -135,6 +158,7 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
       commitPolicy: raw.commit?.conventional
         ? ConventionalCommitPolicy.create({ enabled: raw.commit.conventional.enabled })
         : undefined,
+      pipelines,
     });
   }
 

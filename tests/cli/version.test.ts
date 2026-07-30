@@ -1,9 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Command } from "commander";
 import { registerVersionCommand } from "#gitwe/cli/commands/version";
 import { registerVersionBumpCommand } from "#gitwe/cli/commands/version-bump";
 
-// Mock کردن Container و Kernel
 vi.mock("#gitwe/cli/container", () => ({
   Container: class {
     kernel = {
@@ -69,10 +68,9 @@ describe("Version CLI Commands", () => {
     });
 
     it("outputs JSON when --json flag is provided", async () => {
-      const jsonMock = vi.fn();
       const mockProgram = new Command();
-      registerVersionCommand(mockProgram, getContainer, () => true);
-
+      const getJsonMock = vi.fn().mockReturnValue(true);
+      registerVersionCommand(mockProgram, getContainer, getJsonMock);
       await mockProgram.parseAsync(["node", "script", "version", "--json"]);
 
       expect(container.kernel.run).toHaveBeenCalled();
@@ -162,7 +160,9 @@ describe("Version CLI Commands", () => {
     });
 
     it("exits with error when no bump type specified", async () => {
-      const exitMock = vi.spyOn(process, "exit").mockImplementation(() => {});
+      const exitMock = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
+
+      // اطمینان از اینکه mock Container به درستی کار کند
       registerVersionBumpCommand(program, getContainer, getJson);
       await program.parseAsync(["node", "script", "bump"]);
 
@@ -170,6 +170,8 @@ describe("Version CLI Commands", () => {
         "❌ Please specify --major, --minor, --patch, or --prerelease",
       );
       expect(exitMock).toHaveBeenCalledWith(1);
+
+      exitMock.mockRestore();
     });
   });
 });

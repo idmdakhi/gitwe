@@ -26,15 +26,20 @@ import { registerUpdateCommand } from "#gitwe/cli/commands/update";
 import { registerSyncCommand } from "#gitwe/cli/commands/sync";
 import { registerVersionCommand } from "#gitwe/cli/commands/version";
 import { registerVersionBumpCommand } from "#gitwe/cli/commands/version-bump";
+import { registerTagCommand } from "#gitwe/cli/commands/tag";
+import { registerProjectConfigCommand } from "#gitwe/cli/commands/projectConfig";
+
+import { UpdateChecker } from "#gitwe/infrastructure/update/UpdateChecker";
+
+const CURRENT_VERSION = "2.1.0";
 
 const program = new Command();
-
 program
   .name("gitwe")
   .description(
     "A pluggable, DDD-structured git workflow engine — git-flow is just one example workflow.",
   )
-  .version("2.1.0")
+  .version(CURRENT_VERSION)
   .option("-c, --config <path>", "path to a JSON/YAML workflow config file")
   .option(
     "-w, --workflow <name>",
@@ -61,7 +66,6 @@ function getContainer(): Container {
   // JSON mode implies quiet: informational logging would otherwise corrupt stdout for a parser.
   return new Container({
     configPath: opts.config,
-    builtIn: opts.workflow,
     cwd: opts.cwd,
     quiet: opts.quiet || opts.json,
   });
@@ -71,6 +75,9 @@ function getJson(): boolean {
   return Boolean(program.opts<GlobalOpts>().json);
 }
 
+// All commands must be registered BEFORE program.parseAsync() runs below —
+// commander resolves argv against whatever is registered at parse time.
+registerInitCommand(program);
 registerStartCommand(program, getContainer, getJson);
 registerFinishCommand(program, getContainer, getJson);
 registerStatusCommand(program, getContainer, getJson);
@@ -88,12 +95,32 @@ registerDeleteCommand(program, getContainer, getJson);
 registerLogCommand(program, getContainer, getJson);
 registerAbortCommand(program, getContainer, getJson);
 registerCleanCommand(program, getContainer, getJson);
-registerInitCommand(program);
 registerCommitLintCommand(program, getContainer, getJson);
 registerModulesCommand(program, getContainer, getJson);
 registerUpdateCommand(program, getContainer, getJson);
 registerSyncCommand(program, getContainer, getJson);
 registerVersionCommand(program, getContainer, getJson);
 registerVersionBumpCommand(program, getContainer, getJson);
+registerTagCommand(program, getContainer, getJson);
+registerProjectConfigCommand(program, getContainer, getJson);
 
-program.parse(process.argv);
+async function main(): Promise<void> {
+  // Kicked off alongside command execution (not before it) so the registry
+  // lookup's latency never delays the command itself.
+  const updateCheck = new UpdateChecker().check(CURRENT_VERSION).catch(() => null);
+
+  await program.parseAsync(process.argv);
+
+  const opts = program.opts<GlobalOpts>();
+  if (!opts.json && !opts.quiet) {
+    const result = await updateCheck;
+    if (result?.isOutdated) {
+      console.error(
+        `\n📦 نسخه‌ی جدیدی از gitwe موجوده: ${result.currentVersion} → ${result.latestVersion}\n` +
+          `   برای به‌روزرسانی: npm install -g gitwe@latest\n`,
+      );
+    }
+  }
+}
+
+main();
