@@ -16,9 +16,11 @@
  * from a shell.
  */
 
+export { VersionService } from "#gitwe/application/services/VersionService";
+export { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
+
 // ---------------------------------------------------------------- composition
-export { Container } from "#gitwe/cli/container";
-export type { ContainerOptions } from "#gitwe/cli/container";
+export { Container, type ContainerOptions } from "#gitwe/cli/container";
 
 // --------------------------------------------------------------------- kernel
 export { Kernel } from "#gitwe/kernel/Kernel";

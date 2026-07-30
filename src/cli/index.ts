@@ -66,7 +66,6 @@ function getContainer(): Container {
   // JSON mode implies quiet: informational logging would otherwise corrupt stdout for a parser.
   return new Container({
     configPath: opts.config,
-    builtIn: opts.workflow,
     cwd: opts.cwd,
     quiet: opts.quiet || opts.json,
   });

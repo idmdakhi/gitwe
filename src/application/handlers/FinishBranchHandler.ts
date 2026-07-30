@@ -21,12 +21,8 @@ import { FinishBranchResult } from "#gitwe/application/dto/FinishBranchResult";
 
 /**
  * Use case: finish a branch — merge it into every configured target, tag
- * it if configured, delete it, and push if configured. Same shape as
- * `StartBranchHandler`: pure sequencing, all real logic lives in services.
- *
- * Supports `dryRun`: runs every read-only check (branch exists, rule
- * lookup, protected-branch guard, working-tree-clean rule) but performs no
- * mutating git operations, returning the plan it *would* have executed.
+ * it if configured, delete it, and push if configured.
+ * Supports dryRun: validates and returns the plan without mutating git.
  */
 export class FinishBranchHandler {
   constructor(
@@ -54,6 +50,7 @@ export class FinishBranchHandler {
     if (!(await this.git.branchExists(branchName))) {
       throw new BranchNotFoundError(branchName);
     }
+
     const rule = this.workflow.findRuleForBranch(branchName);
     if (!rule) throw new UnrecognizedBranchError(branchName);
 
@@ -70,23 +67,20 @@ export class FinishBranchHandler {
 
     const willDelete = deleteAfterMerge && rule.deleteOnFinish;
     const tagName = AutoTagPolicy.tagNameFor(rule, branchName);
-    // Precedence: CLI --strategy (highest) > this branch type's own override
-    // > the workflow's default. Mirrors gitwe's existing config-precedence
-    // pattern (workflow default, overridable per-type, overridable per-call).
     const resolvedStrategy = strategy ?? rule.mergeStrategy ?? this.workflow.mergeStrategy;
 
+    // Optional version bump (only when explicitly configured on the branch type)
     if (rule.autoTag && rule.bumpVersion) {
       try {
         const bumpResult = await this.versionService.bump(rule.bumpVersion, undefined, dryRun);
         this.logger.info(
           `Version bumped: ${bumpResult.previous.toString()} → ${bumpResult.next.toString()}`,
         );
-        // می‌توانید از bumpResult برای ذخیره‌ی نسخه‌ی جدید استفاده کنید
       } catch (error) {
         this.logger.warn(
           `Version bump failed: ${error instanceof Error ? error.message : String(error)}`,
         );
-        // ادامه بدهید، خطا نباید finish را متوقف کند
+        // Continue — version bump failure must not block finish
       }
     }
 
@@ -114,10 +108,7 @@ export class FinishBranchHandler {
 
     let deleted = false;
     if (willDelete) {
-      // A squash merge intentionally leaves no shared history with its
-      // target, so `git branch -d` always refuses it as "not fully merged"
-      // even though the changes did land. Force-delete only in that case;
-      // a regular or rebase merge still gets the normal safety check.
+      // Squash leaves no shared history, so force-delete is required
       await this.git.deleteBranch(branchName, resolvedStrategy === "squash");
       deleted = true;
     }

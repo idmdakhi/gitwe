@@ -10,7 +10,6 @@ import { GitTagVersionStore } from "#gitwe/infrastructure/version/GitTagVersionS
 import { PackageJsonVersionStore } from "#gitwe/infrastructure/version/PackageJsonVersionStore";
 import { CompositeVersionStore } from "#gitwe/infrastructure/version/CompositeVersionStore";
 import { ConventionalChangelogWriter } from "#gitwe/infrastructure/version/ConventionalChangelogWriter";
-// import { Version } from "#gitwe/domain/valueObjects/Version";
 
 function sh(cwd: string, ...args: string[]): void {
   execFileSync("git", args, { cwd, stdio: "pipe", encoding: "utf-8" });

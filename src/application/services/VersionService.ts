@@ -71,7 +71,7 @@ export class VersionService {
     if (!dryRun) {
       try {
         const result = await this.options.git.runRaw(["rev-parse", tag]);
-        if (result.stdout.trim()) {
+        if (result.exitCode === 0) {
           throw new VersionTagExistsError(tag);
         }
       } catch (error) {

@@ -19,7 +19,7 @@
     "automation"
   ],
   "engines": {
-    "node": ">=22"
+    "node": ">=20"
   },
   "man": [
     "docs/README.md",

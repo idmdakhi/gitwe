@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
+import { load as yaml_load, dump as yaml_dump } from "js-yaml";
+
 import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 import { WorkflowConfigLoader } from "#gitwe/infrastructure/config/WorkflowConfigLoader";
 import { builtInWorkflows } from "#gitwe/infrastructure/config/BuiltInWorkflows";
@@ -232,7 +233,7 @@ export class GitweProjectConfigService {
     const ext = path.extname(targetPath).toLowerCase();
     const serialized =
       ext === ".yaml" || ext === ".yml"
-        ? yaml.dump(effective)
+        ? yaml_dump(effective)
         : JSON.stringify(effective, null, 2) + "\n";
 
     fs.mkdirSync(path.dirname(targetPath), { recursive: true });
@@ -255,7 +256,7 @@ export class GitweProjectConfigService {
     const content = fs.readFileSync(filePath, "utf-8");
     const ext = path.extname(filePath).toLowerCase();
     const parsed: unknown =
-      ext === ".yaml" || ext === ".yml" ? yaml.load(content) : JSON.parse(content);
+      ext === ".yaml" || ext === ".yml" ? yaml_load(content) : JSON.parse(content);
     if (typeof parsed !== "object" || parsed === null) {
       throw new InvalidWorkflowDefinitionError(`"${filePath}" must contain a JSON/YAML object`);
     }
@@ -275,7 +276,7 @@ export class GitweProjectConfigService {
   private readPolicyFile(filePath: string): ReviewPolicy[] {
     try {
       const content = fs.readFileSync(filePath, "utf-8");
-      const parsed = yaml.load(content) as { policies?: ReviewPolicy[] } | undefined;
+      const parsed = yaml_load(content) as { policies?: ReviewPolicy[] } | undefined;
       return parsed?.policies ?? [];
     } catch (err) {
       this.logger.warn("failed to parse policy file, skipping it", {

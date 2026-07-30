@@ -55,6 +55,7 @@
     "support": {
       "prefix": "support/",
       "base": "main",
+      "target": "main",
       "tag": true,
       "bumpVersion": "patch",
       "labels": ["lts"]

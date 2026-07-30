@@ -8,12 +8,7 @@ import { TagService } from "#gitwe/application/services/TagService";
 import { HookService } from "#gitwe/application/services/HookService";
 import { RemoteService } from "#gitwe/application/services/RemoteService";
 import { FinishBranchHandler } from "#gitwe/application/handlers/FinishBranchHandler";
-import {
-  BranchNotFoundError,
-  UnrecognizedBranchError,
-  WorkflowRuleViolationError,
-  ProtectedBranchError,
-} from "#gitwe/domain/errors";
+import { ProtectedBranchError } from "#gitwe/domain/errors";
 import { InMemoryGitRepository } from "#tests/support/InMemoryGitRepository";
 import { InMemoryHookRunner } from "#tests/support/InMemoryHookRunner";
 import { InMemoryEventBus } from "#gitwe/infrastructure/events/InMemoryEventBus";
@@ -23,7 +18,6 @@ import { VersionService } from "#gitwe/application/services/VersionService";
 describe("FinishBranchHandler", () => {
   let git: InMemoryGitRepository;
   let workflow: Workflow;
-  let handler: FinishBranchHandler;
 
   // Helper to create a mock VersionService
   function createMockVersionService(): VersionService {
@@ -37,6 +31,16 @@ describe("FinishBranchHandler", () => {
       tag: vi.fn().mockResolvedValue("v1.0.0"),
     } as unknown as VersionService;
   }
+
+  // const mockVersionService = {
+  //   bump: vi.fn().mockResolvedValue({
+  //     previous: { toString: () => "1.0.0" },
+  //     next: { toString: () => "1.0.1" },
+  //     tag: "v1.0.1",
+  //   }),
+  //   resolveCurrent: vi.fn(),
+  //   tag: vi.fn(),
+  // } as unknown as VersionService;
 
   beforeEach(() => {
     git = new InMemoryGitRepository();
@@ -63,28 +67,27 @@ describe("FinishBranchHandler", () => {
       ],
     });
 
-    const ruleEvaluator = new RuleEvaluator([new WorkingTreeCleanRule()]);
-    handler = new FinishBranchHandler(
-      workflow,
-      git,
-      ruleEvaluator,
-      new MergeService(git),
-      new TagService(git),
-      new HookService(new InMemoryHookRunner()),
-      new RemoteService(git),
-      new InMemoryEventBus(),
-      new NoopLogger(),
-      new VersionService({
-        stores: [],
-        git,
-        logger: new NoopLogger(),
-        requireCleanTree: false,
-        tagPrefix: "v",
-      }),
-    );
+    // const handlerCreate = new FinishBranchHandler(
+    //   workflow,
+    //   git,
+    //   new RuleEvaluator([new WorkingTreeCleanRule()]),
+    //   new MergeService(git),
+    //   new TagService(git),
+    //   new HookService(new InMemoryHookRunner()),
+    //   new RemoteService(git),
+    //   new InMemoryEventBus(),
+    //   new NoopLogger(),
+    //   new VersionService({
+    //     stores: [],
+    //     git,
+    //     logger: new NoopLogger(),
+    //     requireCleanTree: false,
+    //     tagPrefix: "v",
+    //   }),
+    // );
+    // await handlerCreate.handle({ branchName: "feature/login" });
+    // expect().toBe(true);
   });
-
-  // تمام تست‌های قبلی به همین شکل باقی می‌مانند...
 
   it("uses a branch type's own mergeStrategy override instead of the workflow default", async () => {
     const workflowWithOverride = Workflow.create({

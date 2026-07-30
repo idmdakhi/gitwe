@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
+import { load as yaml_load } from "js-yaml";
+
 import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 import { BranchTypeRule, AutoTagConfig } from "#gitwe/domain/valueObjects/BranchTypeRule";
 import { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
@@ -99,7 +100,7 @@ export class WorkflowConfigLoader implements WorkflowConfigReader {
     const content = fs.readFileSync(filePath, "utf-8");
     const ext = path.extname(filePath).toLowerCase();
     const parsed: unknown =
-      ext === ".yaml" || ext === ".yml" ? yaml.load(content) : JSON.parse(content);
+      ext === ".yaml" || ext === ".yml" ? yaml_load(content) : JSON.parse(content);
 
     if (typeof parsed !== "object" || parsed === null) {
       throw new InvalidWorkflowDefinitionError("config must be a JSON/YAML object");

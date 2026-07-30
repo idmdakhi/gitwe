@@ -1,5 +1,5 @@
 import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
+import { Container } from "#gitwe/cli/container";
 import { printResult } from "#gitwe/cli/output";
 
 /**

@@ -16,7 +16,7 @@ export function registerVersionBumpCommand(
     .option("--major", "Bump major version")
     .option("--minor", "Bump minor version")
     .option("--patch", "Bump patch version")
-    .option("--prerelease [id]", "Bump prerelease (e.g. beta, alpha)", "beta")
+    .option("--prerelease [id]", "Bump prerelease (e.g. beta, alpha)")
     .option("--dry-run", "Show what would happen without making changes")
     .option("--json", "Output as JSON (overrides global --json)")
     .action(

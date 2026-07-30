@@ -1,7 +1,7 @@
 import type { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import yaml from "js-yaml";
+import { dump as yaml_dump } from "js-yaml";
 
 type ConfigTemplate = Record<string, unknown>;
 
@@ -161,7 +161,7 @@ export function registerInitCommand(program: Command): void {
 
       // Main workflow config.
       const configContent = isYaml
-        ? yaml.dump(configTemplate)
+        ? yaml_dump(configTemplate)
         : JSON.stringify(configTemplate, null, 2) + "\n";
       writeScaffoldFile(configPath, configContent, Boolean(opts.force), result);
 
