@@ -1,407 +1,123 @@
 # gitwe
 
-[![npm version](https://badge.fury.io/js/gitwe.svg)](https://www.npmjs.com/package/@idmdakhi/gitwe)
+[![CI](https://github.com/idmdakhi/gitwe/actions/workflows/ci.yaml/badge.svg)](https://github.com/idmdakhi/gitwe/actions/workflows/ci.yaml)
+[![npm version](https://img.shields.io/npm/v/gitwe.svg)](https://www.npmjs.com/package/gitwe)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**gitwe** (Git Workflow Engine) is a configurable, rule-based git branching workflow engine. It goes beyond classic git-flow by letting you define your own branch types and rules via a simple JSON or YAML config.
+**gitwe** is a git **workflow engine**. You describe your branching model once — base
+branches, topic branch types, merge strategies, tagging — and gitwe executes every
+`start` / `finish` / `update` / `publish` operation according to that description.
 
-> The core is a minimal **kernel**: each capability (start, finish, cleanup, doctor, status, list, validate) is a self-contained module registered into it.
-
-## Features
-
-- 🚀 **Custom workflows** – Define any branching strategy (git-flow, GitHub Flow, trunk-based, multi-stage, etc.)
-- 🔧 **CLI & Library** – Use as a command-line tool or integrate into your Node.js projects
-- 🧪 **Testable** – Built with dependency injection; unit tests run without a real git repo
-- 📦 **Lightweight** – No external git library; uses the native `git` binary
-- ✅ **TypeScript** – Fully typed for great IDE support
-- 🔌 **Hooks** – Run custom scripts before/after operations (lint, test, build, deploy)
-- 🏷️ **Auto-tagging** – Automatically create version tags for releases
-- 🌐 **Remote support** – Auto-push and auto-pull with configurable remotes
-- 🔄 **gitwe sync** – Keep all topic branches up to date in one command
-- ✅ **Schema validation** – Validate your workflow config with Zod
-- 🧪 **dry-run & strategy** – More control in GitHub Actions
-
----
-
-## Installation
-
-### Global (CLI)
+git-flow is not built into the engine: it is just one of the workflow definitions that
+ship with it, alongside GitHub Flow and GitLab Flow. Anything you can express as
+"topic branches that integrate into base branches" is a first-class workflow.
 
 ```bash
 npm install -g gitwe
+
+gitwe init --preset classic     # or: github, gitlab
+gitwe feature start login
+gitwe feature finish login
 ```
 
-### Local (as a library)
+## Why an engine?
 
-```bash
-npm install gitwe
-```
+Classic git-flow tools hard-code five branch types and their rules. gitwe keeps the
+rules in data:
 
----
-
-## Usage
-
-### CLI Commands
-
-```bash
-# Show current branch
-gitwe current
-
-# List all local branches
-gitwe list
-
-# Show available branch types from current workflow
-gitwe types
-
-# Start a new branch
-gitwe start feature login-page
-
-# Finish a branch (merge to targets, auto-tag, delete)
-gitwe finish feature/login-page
-
-# Finish with a one-off merge strategy override (merge | squash | rebase),
-# without changing the workflow's configured default
-gitwe finish release/1.2.0 --strategy squash
-
-# Bring a topic branch up to date with its base branch (default: current branch)
-gitwe update
-gitwe update feature/login-page --rebase   # or --merge
-
-# Show visual branch tree
-gitwe status
-
-# Use a custom config (JSON or YAML)
-gitwe --config my-workflow.yaml start change fix-issue
-
-# Introspect what capabilities the kernel currently has loaded
-gitwe modules
-```
-
-### As a Library
-
-```typescript
-import { Container } from "gitwe";
-
-// Wires up the built-in git-flow workflow against the git repo at cwd.
-const container = new Container({ builtIn: "git-flow", cwd: process.cwd() });
-
-await container.startBranchHandler.handle({ branchType: "feature", shortName: "awesome-feature" });
-await container.finishBranchHandler.handle({ branchName: "feature/awesome-feature" });
-```
-
----
-
-## Custom Workflow Definitions
-
-Create a configuration file (JSON or YAML) to define your own branching strategy.
-
-### 1. Classic Git-Flow
-
-```json
+```jsonc
 {
-  "name": "git-flow",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feature/",
-      "baseBranch": "develop",
-      "mergeTargets": ["develop"],
-      "deleteOnFinish": true
-    },
-    {
-      "name": "release",
-      "prefix": "release/",
-      "baseBranch": "develop",
-      "mergeTargets": ["main", "develop"],
-      "deleteOnFinish": true,
-      "autoTag": {
-        "prefix": "v"
-      }
-    },
-    {
-      "name": "hotfix",
-      "prefix": "hotfix/",
-      "baseBranch": "main",
-      "mergeTargets": ["main", "develop"],
-      "deleteOnFinish": true
-    }
-  ]
-}
-```
-
-### 2. GitHub Flow (Simple)
-
-```json
-{
-  "name": "github-flow",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feature/",
-      "baseBranch": "main",
-      "mergeTargets": ["main"],
-      "deleteOnFinish": true
-    }
-  ]
-}
-```
-
-### 3. Trunk-Based Development
-
-```json
-{
-  "name": "trunk-based",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feat/",
-      "baseBranch": "main",
-      "mergeTargets": ["main"],
-      "deleteOnFinish": true
-    },
-    {
-      "name": "bugfix",
-      "prefix": "fix/",
-      "baseBranch": "main",
-      "mergeTargets": ["main"],
-      "deleteOnFinish": true
-    }
-  ]
-}
-```
-
-### 4. Two-Branch (develop + main)
-
-```json
-{
-  "name": "two-branch",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feature/",
-      "baseBranch": "develop",
-      "mergeTargets": ["develop"],
-      "deleteOnFinish": true
-    },
-    {
-      "name": "hotfix",
-      "prefix": "hotfix/",
-      "baseBranch": "main",
-      "mergeTargets": ["main", "develop"],
-      "deleteOnFinish": true
-    }
-  ]
-}
-```
-
-### 5. Multi-Stage (staging + main)
-
-```json
-{
-  "name": "multi-stage",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feature/",
-      "baseBranch": "develop",
-      "mergeTargets": ["staging", "main"],
-      "deleteOnFinish": true
-    }
-  ]
-}
-```
-
-### 6. With Hooks (Custom Scripts)
-
-```json
-{
-  "name": "git-flow-with-hooks",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feature/",
-      "baseBranch": "develop",
-      "mergeTargets": ["develop"],
-      "deleteOnFinish": true
-    }
+  "baseBranches": [
+    { "name": "main" },
+    { "name": "develop", "parent": "main", "autoUpdate": true }
   ],
-  "hooks": {
-    "preStart": ["npm run lint"],
-    "postStart": ["echo '🎉 Branch created!'"],
-    "preFinish": ["npm run test", "npm run build"],
-    "postFinish": ["echo '✅ Branch finished!'"]
-  }
+  "topicTypes": [
+    { "name": "feature", "parent": "develop" },
+    { "name": "release", "parent": "main", "startPoint": "develop", "tag": true }
+  ]
 }
 ```
 
-### 7. With Remote Configuration
+From that definition the engine derives everything: which branch `feature start` forks
+from, where `release finish` merges and tags, that `develop` must be brought back in
+sync with `main` afterwards, and which CLI commands even exist — `gitwe <type> …` is
+generated per topic type, so adding a `spike` type immediately gives you
+`gitwe spike start|finish|publish|…`.
 
-```json
-{
-  "name": "git-flow-remote",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feature/",
-      "baseBranch": "develop",
-      "mergeTargets": ["develop"],
-      "deleteOnFinish": true
-    }
-  ],
-  "remote": {
-    "remote": "origin",
-    "autoPush": true,
-    "autoPull": true
-  }
-}
-```
-
-### 8. Complete Example (All Features)
-
-```json
-{
-  "name": "git-flow-pro",
-  "branchTypes": [
-    {
-      "name": "feature",
-      "prefix": "feature/",
-      "baseBranch": "develop",
-      "mergeTargets": ["develop"],
-      "deleteOnFinish": true
-    },
-    {
-      "name": "release",
-      "prefix": "release/",
-      "baseBranch": "develop",
-      "mergeTargets": ["main", "develop"],
-      "deleteOnFinish": true,
-      "autoTag": {
-        "prefix": "v"
-      }
-    },
-    {
-      "name": "hotfix",
-      "prefix": "hotfix/",
-      "baseBranch": "main",
-      "mergeTargets": ["main", "develop"],
-      "deleteOnFinish": true
-    }
-  ],
-  "hooks": {
-    "preStart": ["npm run lint"],
-    "postStart": ["echo '🎉 Branch created!'"],
-    "preFinish": ["npm run test", "npm run build"],
-    "postFinish": ["echo '✅ Branch finished!'"]
-  },
-  "remote": {
-    "remote": "origin",
-    "autoPush": false,
-    "autoPull": false
-  }
-}
-```
-
-### Usage with Config
+## Installation
 
 ```bash
-# Using JSON config
-gitwe --config gitwe.json start feature login
-gitwe --config gitwe.json finish feature/login
-
-# Combined with other options
-gitwe --config my-workflow.yaml start feature login --push
-gitwe --config my-workflow.yaml finish feature/login --keep --tag
+npm install -g gitwe          # CLI
+npm install gitwe             # library (Node.js >= 20, ESM)
 ```
 
----
+## Commands
 
-## Configuration Reference
+| Command | Description |
+| --- | --- |
+| `gitwe init [--preset classic\|github\|gitlab] [--defaults]` | write a workflow definition and create missing base branches |
+| `gitwe config list \| add \| edit \| rename \| delete` | inspect and edit the definition |
+| `gitwe overview [--format text\|json\|yaml]` (alias `status`) | configuration, branch structure and health |
+| `gitwe <type> start <name> [base]` | create a topic branch |
+| `gitwe <type> finish [name]` | integrate a topic branch into its parent |
+| `gitwe <type> publish [name]` | push a topic branch and set its upstream |
+| `gitwe <type> track <name>` | check out a topic branch published by someone else |
+| `gitwe <type> update [name] [--rebase]` | bring a topic branch up to date with its parent |
+| `gitwe <type> list [pattern]` | list topic branches (`*`, `?`, `[abc]` globs) |
+| `gitwe <type> checkout <name\|prefix>` | switch to a topic branch, partial names allowed |
+| `gitwe <type> rename <old> [new]` | rename a topic branch |
+| `gitwe <type> delete [name] [-r]` | delete a topic branch, optionally its remote |
+| `gitwe start\|finish\|update\|rebase\|publish\|delete\|rename` | shorthands for the current branch |
+| `gitwe version` | print the gitwe version |
 
-### `WorkflowDefinition` (Root)
+Global options — `--config <path>`, `--cwd <path>`, `-v, --verbose`, `--no-color` — are
+accepted anywhere on the command line.
 
-| Field         | Type               | Required | Description                            |
-| ------------- | ------------------ | -------- | -------------------------------------- |
-| `name`        | `string`           | ✅       | Name of the workflow (for logging)     |
-| `branchTypes` | `BranchTypeRule[]` | ✅       | List of branch type rules              |
-| `hooks`       | `HookDefinition`   | ❌       | Custom scripts before/after operations |
-| `remote`      | `RemoteConfig`     | ❌       | Remote repository configuration        |
+See [docs/commands.md](docs/commands.md) for every flag and
+[docs/workflow-definition.md](docs/workflow-definition.md) for the definition format.
 
-### `BranchTypeRule`
+### Finishing a branch
 
-| Field                | Type             | Required | Description                                                                          |
-| -------------------- | ---------------- | -------- | ------------------------------------------------------------------------------------ |
-| `name`               | `string`         | ✅       | Unique type name (e.g., `"feature"`)                                                 |
-| `prefix`             | `string`         | ✅       | Branch name prefix (e.g., `"feature/"`)                                              |
-| `baseBranch`         | `string`         | ✅       | Branch to start from (e.g., `"develop"`)                                             |
-| `mergeTargets`       | `string[]`       | ✅       | Branches to merge into when finishing (order matters)                                |
-| `deleteOnFinish`     | `boolean`        | ❌       | Auto‑delete after finish (default `true`)                                            |
-| `autoTag`            | `AutoTagConfig`  | ❌       | Automatic version tagging (useful for releases)                                      |
-| `mergeStrategy`      | `MergeStrategy`  | ❌       | Overrides the workflow's `finish` merge strategy for this type only                  |
-| `downstreamStrategy` | `UpdateStrategy` | ❌       | How `update` catches this type up with its base (`merge`\|`rebase`, default `merge`) |
-
-### `AutoTagConfig`
-
-| Field     | Type     | Description                                                          |
-| --------- | -------- | -------------------------------------------------------------------- |
-| `prefix`  | `string` | Prefix for the tag, e.g., `"v"` → `v1.2.0` (default: `"v"`)          |
-| `pattern` | `string` | Pattern to extract version from branch name (default: remove prefix) |
-
-### `HookDefinition`
-
-| Field        | Type       | Description                                        |
-| ------------ | ---------- | -------------------------------------------------- |
-| `preStart`   | `string[]` | Commands before `start` (e.g., `["npm run lint"]`) |
-| `postStart`  | `string[]` | Commands after `start`                             |
-| `preFinish`  | `string[]` | Commands before `finish`                           |
-| `postFinish` | `string[]` | Commands after `finish`                            |
-
-### `RemoteConfig`
-
-| Field      | Type      | Description                                          |
-| ---------- | --------- | ---------------------------------------------------- |
-| `remote`   | `string`  | Remote name (default: `"origin"`)                    |
-| `autoPush` | `boolean` | Auto-push after `start`/`finish` (default: `false`)  |
-| `autoPull` | `boolean` | Auto-pull before `start`/`finish` (default: `false`) |
-
----
-
-## Built-in Workflows
-
-The engine comes with a built-in **git-flow** definition if no config is provided:
-
-| Type      | Prefix     | Base Branch | Merge Targets     | Deleted on Finish | Auto-Tag |
-| --------- | ---------- | ----------- | ----------------- | ----------------- | -------- |
-| `feature` | `feature/` | `develop`   | `develop`         | ✅                | ❌       |
-| `release` | `release/` | `develop`   | `main`, `develop` | ✅                | ✅ (v)   |
-| `hotfix`  | `hotfix/`  | `main`      | `main`, `develop` | ✅                | ❌       |
-
----
-
-## Development
+`finish` is a state machine: merge (or squash/rebase) into the parent, tag it if the
+topic type asks for it, update every auto-updating child branch, push if requested,
+then delete the topic branch. If git stops on a conflict, gitwe saves its progress:
 
 ```bash
-git clone https://github.com/your-username/gitwe
-cd gitwe
-npm install
-npm run build
-npm test
+gitwe feature finish login
+# conflict: git merge stopped on conflicts in: src/app.ts
+
+# ... resolve, then git add the files ...
+gitwe feature finish --continue     # resume exactly where it stopped
+gitwe feature finish --abort        # or roll every touched branch and tag back
 ```
 
-### Available Scripts
+## Library use
 
-| Script                  | Description                               |
-| ----------------------- | ----------------------------------------- |
-| `npm run build`         | Compile TypeScript to `dist/`             |
-| `npm run dev`           | Run CLI with `ts-node` (development mode) |
-| `npm run test`          | Run tests with Vitest                     |
-| `npm run test:watch`    | Run tests in watch mode                   |
-| `npm run test:coverage` | Generate coverage report                  |
-| `npm run lint`          | Run ESLint                                |
-| `npm run format`        | Format code with Prettier                 |
-| `npm run typecheck`     | Run TypeScript compiler with no emit      |
+```ts
+import { Engine, createPreset } from "gitwe";
 
----
+const engine = await Engine.create({ root: process.cwd(), config: createPreset("classic") });
+
+await engine.start("feature", "login");
+await engine.finish(engine.resolve("feature", "login"), { squash: true });
+```
+
+Every operation is typed, returns a structured result, and never prints anything —
+the CLI is a thin layer on top of it.
+
+## Hooks
+
+Executable scripts in `.gitwe/hooks/` run around operations: `pre-start`, `post-start`,
+`pre-finish`, `post-finish`, `pre-update`, `post-update`, `pre-publish`, `post-publish`,
+`pre-delete`, `post-delete`. Context is passed as `GITWE_BRANCH`, `GITWE_TOPIC_TYPE`
+and `GITWE_PARENT`; a non-zero exit aborts the operation.
+
+## Compatibility
+
+gitwe drives the `git` binary directly, so it works with any git >= 2.30 and needs no
+native modules. Definitions are plain JSON or YAML (`gitwe.json`, `.gitwe.yaml`, …),
+which makes them reviewable and shareable across a team.
 
 ## License
 
-MIT
+[MIT](LICENSE) © Mohammad Amanalikhani

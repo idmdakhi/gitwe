@@ -1,217 +1,146 @@
-import type { Command } from "commander";
-import fs from "node:fs";
-import path from "node:path";
-import { dump as yaml_dump } from "js-yaml";
+import { existsSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
+import { join } from "node:path";
+import { Command } from "commander";
 
-type ConfigTemplate = Record<string, unknown>;
-
-const CONFIG_TEMPLATES: Record<string, ConfigTemplate> = {
-  "git-flow": {
-    version: 1,
-    workflow: "git-flow",
-    branches: { main: { protected: true }, develop: { protected: true } },
-    types: {
-      feature: { prefix: "feature/", base: "develop", target: "develop", deleteAfterFinish: true },
-      release: { prefix: "release/", base: "develop", target: ["main", "develop"], tag: true },
-      hotfix: { prefix: "hotfix/", base: "main", target: ["main", "develop"] },
-    },
-    merge: { strategy: "merge", deleteSource: true },
-    tag: { enabled: true, prefix: "v" },
-    commit: { conventional: { enabled: false } },
-    branchNaming: { case: "kebab-case", maxLength: 80 },
-  },
-  "github-flow": {
-    version: 1,
-    workflow: "github-flow",
-    branches: { main: { protected: true } },
-    types: {
-      feature: { prefix: "feature/", base: "main", target: "main", deleteAfterFinish: true },
-    },
-    merge: { strategy: "merge", deleteSource: true },
-    tag: { enabled: false },
-    branchNaming: { case: "kebab-case", maxLength: 80 },
-  },
-  "trunk-based": {
-    version: 1,
-    workflow: "trunk-based",
-    branches: { main: { protected: true } },
-    types: {
-      feat: { prefix: "feat/", base: "main", target: "main", deleteAfterFinish: true },
-      fix: { prefix: "fix/", base: "main", target: "main", deleteAfterFinish: true },
-    },
-    merge: { strategy: "squash", deleteSource: true },
-    tag: { enabled: false },
-    branchNaming: { case: "kebab-case", maxLength: 60 },
-  },
-};
-
-const DEFAULT_COMMIT_TEMPLATE = `# <type>(<scope>): <subject>
-#
-# <body>
-#
-# <footer>
-#
-# Allowed types: feat, fix, docs, style, refactor, test, chore
-# Example: feat(auth): add password reset
-`;
-
-const DEFAULT_BRANCH_DESCRIPTION_TEMPLATE = `# Branch: {{branchName}}
-
-## Type: {{branchType}}
-
-## Base: {{baseBranch}}
-
-## Created: {{createdAt}}
-
-## Description:
-
-{{description}}
-`;
-
-const DEFAULT_REVIEW_POLICY = `# Review policies for protected branches.
-# Add one entry per branch that needs required reviews or status checks.
-policies:
-  - branch: main
-    requiredReviews: 2
-    requireStatusChecks: true
-    statusCheckContexts:
-      - ci/build
-      - ci/test
-  - branch: develop
-    requiredReviews: 1
-    requireStatusChecks: true
-`;
-
-const DEFAULT_STATE = { branches: {} };
+import { ConfigError } from "../../core/errors.js";
+import { DEFAULT_CONFIG_FILE, findConfigFile, writeConfigFile } from "../../core/config/loader.js";
+import {
+  createPreset,
+  isPresetName,
+  PRESET_NAMES,
+  type PresetOverrides,
+} from "../../core/config/presets.js";
+import { createConsoleLogger } from "../../core/logger.js";
+import { Engine } from "../../engine/Engine.js";
+import { ShellGitRepository } from "../../git/ShellGitRepository.js";
+import { print, style, success } from "../output.js";
+import { repositoryRoot, type GlobalOptions } from "../context.js";
 
 interface InitOptions {
-  template: string;
-  format: string;
-  dir: string;
-  output?: string;
   force?: boolean;
-  minimal?: boolean;
+  preset?: string;
+  defaults?: boolean;
+  file?: string;
+  createBranches?: boolean;
+  main?: string;
+  develop?: string;
+  production?: string;
+  staging?: string;
+  feature?: string;
+  bugfix?: string;
+  release?: string;
+  hotfix?: string;
+  support?: string;
+  tag?: string;
+  remote?: string;
 }
 
-interface ScaffoldResult {
-  created: string[];
-  skipped: string[];
-}
-
-/** Writes `content` to `filePath` unless it already exists and `force` is false. Tracks the outcome in `result`. */
-function writeScaffoldFile(
-  filePath: string,
-  content: string,
-  force: boolean,
-  result: ScaffoldResult,
-): void {
-  if (fs.existsSync(filePath) && !force) {
-    result.skipped.push(filePath);
-    return;
+async function prompt(question: string, fallback: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${question} [${fallback}] `);
+    return answer.trim() === "" ? fallback : answer.trim();
+  } finally {
+    rl.close();
   }
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content, "utf-8");
-  result.created.push(filePath);
 }
 
-/** Ensures an (otherwise-empty) directory exists and is kept by git via a `.gitkeep` file. */
-function ensureScaffoldDir(dirPath: string, force: boolean, result: ScaffoldResult): void {
-  fs.mkdirSync(dirPath, { recursive: true });
-  writeScaffoldFile(path.join(dirPath, ".gitkeep"), "", force, result);
-}
-
-export function registerInitCommand(program: Command): void {
+export function registerInit(program: Command, globals: () => GlobalOptions): void {
   program
     .command("init")
-    .description(
-      "Scaffold a full .gitwe/ project directory: config, workflows, templates, and policies",
-    )
-    .option(
-      "-t, --template <name>",
-      "workflow template to start from: git-flow | github-flow | trunk-based",
-      "git-flow",
-    )
-    .option("-f, --format <format>", "main config file format: json | yaml", "json")
-    .option("-d, --dir <path>", "directory to scaffold", ".gitwe")
-    .option(
-      "-o, --output <path>",
-      "override the main config file's path (default: <dir>/gitwe.json)",
-    )
-    .option("--force", "overwrite files that already exist")
-    .option("--minimal", "only write the main config file — skip templates/policies/example dirs")
-    .action((opts: InitOptions) => {
-      const configTemplate = CONFIG_TEMPLATES[opts.template];
-      if (!configTemplate) {
-        console.error(
-          `❌ Unknown template "${opts.template}". Choices: ${Object.keys(CONFIG_TEMPLATES).join(", ")}`,
-        );
-        process.exitCode = 1;
-        return;
+    .description("create a gitwe workflow definition in the current repository")
+    .option("-f, --force", "overwrite an existing workflow definition")
+    .option("-p, --preset <preset>", `workflow preset (${PRESET_NAMES.join(", ")})`, "classic")
+    .option("-d, --defaults", "accept the preset defaults without prompting")
+    .option("--file <path>", `definition file to write (default: ${DEFAULT_CONFIG_FILE})`)
+    .option("--no-create-branches", "do not create missing base branches")
+    .option("-m, --main <name>", "main branch name")
+    .option("--develop <name>", "develop branch name")
+    .option("--production <name>", "production branch name (gitlab preset)")
+    .option("--staging <name>", "staging branch name (gitlab preset)")
+    .option("--feature <prefix>", "feature branch prefix")
+    .option("-b, --bugfix <prefix>", "bugfix branch prefix")
+    .option("-r, --release <prefix>", "release branch prefix")
+    .option("-x, --hotfix <prefix>", "hotfix branch prefix")
+    .option("-s, --support <prefix>", "support branch prefix")
+    .option("-t, --tag <prefix>", "version tag prefix")
+    .option("--remote <name>", "remote name")
+    .action(async (options: InitOptions) => {
+      const globalOptions = globals();
+      const cwd = globalOptions.cwd ?? process.cwd();
+      const root = await repositoryRoot(cwd);
+
+      const existing = findConfigFile(root, root);
+      if (existing !== undefined && options.force !== true) {
+        throw new ConfigError(`${existing} already exists`, "pass --force to overwrite it");
       }
 
-      const isYaml = opts.format === "yaml" || opts.format === "yml";
-      // const gitweDir = path.resolve(opts.dir);
-      const rootDir = process.cwd();
-      const gitweDir = path.resolve(rootDir, opts.dir);
-      const configPath = path.resolve(
-        opts.output ?? path.join(gitweDir, isYaml ? "gitwe.yaml" : "gitwe.json"),
-      );
-
-      const result: ScaffoldResult = { created: [], skipped: [] };
-
-      // Main workflow config.
-      const configContent = isYaml
-        ? yaml_dump(configTemplate)
-        : JSON.stringify(configTemplate, null, 2) + "\n";
-      writeScaffoldFile(configPath, configContent, Boolean(opts.force), result);
-
-      if (!opts.minimal) {
-        // Example subdirectories a project can drop custom files into.
-        ensureScaffoldDir(path.join(gitweDir, "workflows"), Boolean(opts.force), result);
-        ensureScaffoldDir(path.join(gitweDir, "hooks"), Boolean(opts.force), result);
-
-        // Ready-to-use templates and policy, so `renderTemplate`/`getPolicies` work out of the box.
-        writeScaffoldFile(
-          path.join(gitweDir, "templates", "commit-template.txt"),
-          DEFAULT_COMMIT_TEMPLATE,
-          Boolean(opts.force),
-          result,
-        );
-        writeScaffoldFile(
-          path.join(gitweDir, "templates", "branch-description.md"),
-          DEFAULT_BRANCH_DESCRIPTION_TEMPLATE,
-          Boolean(opts.force),
-          result,
-        );
-        writeScaffoldFile(
-          path.join(gitweDir, "policies", "review-policy.yaml"),
-          DEFAULT_REVIEW_POLICY,
-          Boolean(opts.force),
-          result,
-        );
-
-        // Empty state file so tools that read it don't need to special-case "not found".
-        writeScaffoldFile(
-          path.join(gitweDir, "state", "branches-state.json"),
-          JSON.stringify(DEFAULT_STATE, null, 2) + "\n",
-          Boolean(opts.force),
-          result,
+      const presetName = options.preset ?? "classic";
+      if (!isPresetName(presetName)) {
+        throw new ConfigError(
+          `unknown preset "${presetName}"`,
+          `available presets: ${PRESET_NAMES.join(", ")}`,
         );
       }
 
-      if (result.created.length) {
-        console.log(`✅ Scaffolded ${gitweDir}:`);
-        for (const file of result.created)
-          console.log(`   + ${path.relative(process.cwd(), file)}`);
+      const overrides: PresetOverrides = {
+        main: options.main,
+        develop: options.develop,
+        production: options.production,
+        staging: options.staging,
+        tagPrefix: options.tag,
+        remote: options.remote,
+        prefixes: {
+          ...(options.feature !== undefined ? { feature: options.feature } : {}),
+          ...(options.bugfix !== undefined ? { bugfix: options.bugfix } : {}),
+          ...(options.release !== undefined ? { release: options.release } : {}),
+          ...(options.hotfix !== undefined ? { hotfix: options.hotfix } : {}),
+          ...(options.support !== undefined ? { support: options.support } : {}),
+        },
+      };
+
+      const interactive =
+        options.defaults !== true && process.stdin.isTTY === true && process.stdout.isTTY === true;
+      if (interactive) {
+        const draft = createPreset(presetName, overrides);
+        print(style.bold(`Configuring the "${presetName}" workflow`));
+        for (const base of draft.baseBranches) {
+          const answer = await prompt(`Base branch name for "${base.name}"?`, base.name);
+          if (base.name === draft.baseBranches[0].name) overrides.main = answer;
+          else if (base.name === "develop") overrides.develop = answer;
+          else if (base.name === "staging") overrides.staging = answer;
+          else if (base.name === "production") overrides.production = answer;
+        }
+        for (const topic of draft.topicTypes) {
+          const answer = await prompt(`Prefix for ${topic.name} branches?`, topic.prefix);
+          overrides.prefixes = { ...overrides.prefixes, [topic.name]: answer };
+        }
+        overrides.tagPrefix = await prompt("Version tag prefix?", draft.tagPrefix);
       }
-      if (result.skipped.length) {
-        console.log(`⚠️  Skipped (already exist — rerun with --force to overwrite):`);
-        for (const file of result.skipped)
-          console.log(`   - ${path.relative(process.cwd(), file)}`);
+
+      const config = createPreset(presetName, overrides);
+      const target = options.file ?? join(root, DEFAULT_CONFIG_FILE);
+      const path = existsSync(target) || target.includes("/") ? target : join(root, target);
+      writeConfigFile(path, config);
+      success(`wrote ${path}`);
+
+      if (options.createBranches !== false) {
+        const engine = await Engine.create({
+          root,
+          config,
+          configPath: path,
+          logger: createConsoleLogger(globalOptions.verbose === true),
+          git: new ShellGitRepository({ cwd: root }),
+        });
+        const created = await engine.createMissingBaseBranches();
+        for (const branch of created) success(`created branch ${branch}`);
       }
-      console.log(
-        `\nRun "gitwe validate ${path.relative(process.cwd(), configPath)}" to check it, ` +
-          `or "gitwe status" to use it (gitwe auto-discovers .gitwe/ in the current directory).`,
-      );
+
+      print();
+      print(`Workflow ${style.cyan(config.name)} is ready. Try:`);
+      const firstTopic = config.topicTypes[0]?.name ?? "feature";
+      print(`  gitwe ${firstTopic} start my-first-${firstTopic}`);
+      print(`  gitwe overview`);
     });
 }

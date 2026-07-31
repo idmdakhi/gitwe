@@ -6,14 +6,18 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
-    if: false
-    name: Quality Checks
+    name: Lint, typecheck, test (node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [24, 22]
+        node-version: [20, 22, 24]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -24,18 +28,23 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-fund --no-audit
 
+      - name: Configure git for the engine tests
+        run: |
+          git config --global user.email "ci@example.com"
+          git config --global user.name "gitwe ci"
+          git config --global init.defaultBranch main
+
+      - name: Format check
+        run: npm run format:check
+
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Unit tests
+      - name: Test
         run: npm test
 
-      - name: Upload coverage (optional)
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage/lcov.info
-          fail_ci_if_error: false
+      - name: Build
+        run: npm run build

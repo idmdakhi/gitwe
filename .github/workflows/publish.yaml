@@ -1,8 +1,7 @@
-name: Publish Package
+name: Publish
 
 on:
   push:
-    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -11,104 +10,54 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: 24
+  NODE_VERSION: 22
 
 jobs:
-  build:
-    name: Build & Test
+  verify:
+    name: Build & test
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install
-        run: npm ci --no-fund --no-audit
+      - run: npm ci --no-fund --no-audit
 
-      - name: Lint & Typecheck
+      - name: Configure git for the engine tests
         run: |
-          npm run lint --if-present
-          npm run typecheck --if-present
+          git config --global user.email "ci@example.com"
+          git config --global user.name "gitwe ci"
+          git config --global init.defaultBranch main
 
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        run: npm test
-
-      - name: Pack dry-run
-        run: npm pack --dry-run
-
-      - name: Upload package sources
-        uses: actions/upload-artifact@v4
-        with:
-          name: package
-          retention-days: 1
-          path: |
-            dist
-            package.json
-            README.md
-            LICENSE
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm pack --dry-run
 
   publish:
-    needs: build
-    # if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/publish'
+    name: Publish to npm
+    needs: verify
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - registry: https://registry.npmjs.org
-            package_name: "gitwe"
-            token_secret: NPM_TOKEN
-            provenance: true
-
-          - registry: https://registry.npmjs.org
-            package_name: "@idmdakhi/gitwe"
-            token_secret: NPM_TOKEN
-            provenance: true
-
-          - registry: https://npm.pkg.github.com
-            package_name: "@idmdakhi/gitwe"
-            token_secret: GITHUB_TOKEN
-            provenance: false
-
     permissions:
       contents: read
-      packages: write
       id-token: write
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          registry-url: ${{ matrix.registry }}
-          # always-auth: true
+          registry-url: https://registry.npmjs.org
           cache: npm
 
-      - name: Install
-        run: npm ci --no-fund --no-audit
-
-      - name: Download build
-        uses: actions/download-artifact@v4
-        with:
-          name: package
-          path: .
+      - run: npm ci --no-fund --no-audit
+      - run: npm run build
 
       - name: Publish
-        run: |
-          npm pkg set name="${{ matrix.package_name }}"
-          if [ "${{ matrix.provenance }}" = "true" ]; then
-            npm publish --provenance --access public
-          else
-            npm publish --access public
-          fi
+        run: npm publish --provenance --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets[matrix.token_secret] }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
