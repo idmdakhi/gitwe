@@ -10,7 +10,7 @@ import { CommitInfo } from "#gitwe/domain/valueObjects/CommitInfo";
 import { BranchAlreadyExistsError, BranchNotFoundError } from "#gitwe/domain/errors";
 import { GitCommandError } from "#gitwe/infrastructure/git/GitCommandError";
 import { ProcessRunner } from "#gitwe/infrastructure/git/ProcessRunner";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 /**

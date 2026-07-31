@@ -7,7 +7,7 @@ import { BaseBranchExistsRule } from "#gitwe/domain/rules/BaseBranchExistsRule";
 import { WorkingTreeCleanRule } from "#gitwe/domain/rules/WorkingTreeCleanRule";
 import { BranchNamingRule } from "#gitwe/domain/rules/BranchNamingRule";
 import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 
 import { ShellGitRepository } from "#gitwe/infrastructure/git/ShellGitRepository";
 import { ShellHookRunner } from "#gitwe/infrastructure/hooks/ShellHookRunner";

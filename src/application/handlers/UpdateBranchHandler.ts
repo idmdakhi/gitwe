@@ -5,7 +5,7 @@ import {
   BranchNotFoundError,
   WorkflowRuleViolationError,
 } from "#gitwe/domain/errors";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 import { UpdateBranchCommand } from "#gitwe/application/commands/UpdateBranchCommand";
 import { UpdateBranchResult } from "#gitwe/application/dto/UpdateBranchResult";
 

@@ -3,7 +3,7 @@ import { promisify } from "node:util";
 import type { HookRunner } from "#gitwe/domain/ports/HookRunner";
 import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 import { HookExecutionError } from "#gitwe/domain/errors";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
 
 const execAsync = promisify(exec);

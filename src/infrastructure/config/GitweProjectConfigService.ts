@@ -7,7 +7,7 @@ import { WorkflowConfigLoader } from "#gitwe/infrastructure/config/WorkflowConfi
 import { builtInWorkflows } from "#gitwe/infrastructure/config/BuiltInWorkflows";
 import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
 import { NoopLogger } from "#gitwe/infrastructure/logging/NoopLogger";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 
 /** One entry from a `.gitwe/policies/*.yaml` file. */
 export interface ReviewPolicy {

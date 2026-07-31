@@ -9,7 +9,7 @@ import {
   ProtectedBranchError,
 } from "#gitwe/domain/errors";
 import { AutoTagPolicy } from "#gitwe/domain/policies/AutoTagPolicy";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 import { RuleEvaluator } from "#gitwe/domain/services/RuleEvaluator";
 import { MergeService } from "#gitwe/application/services/MergeService";
 import { TagService } from "#gitwe/application/services/TagService";

@@ -3,7 +3,7 @@ import path from "node:path";
 import type { ChangelogWriter } from "#gitwe/domain/ports/ChangelogWriter";
 import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
 import { Version } from "#gitwe/domain/valueObjects/Version";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 
 export class ConventionalChangelogWriter implements ChangelogWriter {
   constructor(

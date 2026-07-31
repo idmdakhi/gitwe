@@ -2,7 +2,7 @@ import type { EventBus } from "#gitwe/domain/ports/EventBus";
 import { Workflow } from "#gitwe/domain/aggregates/Workflow";
 import { HookPhase } from "#gitwe/domain/hooks/HookPhase";
 import { BranchStartedEvent } from "#gitwe/domain/events/BranchStartedEvent";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 import { BranchService } from "#gitwe/application/services/BranchService";
 import { HookService } from "#gitwe/application/services/HookService";
 import { StartBranchCommand } from "#gitwe/application/commands/StartBranchCommand";

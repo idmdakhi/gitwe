@@ -3,7 +3,7 @@ import type { ChangelogWriter } from "#gitwe/domain/ports/ChangelogWriter";
 import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
 import { Version } from "#gitwe/domain/valueObjects/Version";
 import { type VersionBump } from "#gitwe/domain/valueObjects/VersionBump";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 import { DomainError } from "#gitwe/domain/errors";
 
 export interface VersionServiceOptions {

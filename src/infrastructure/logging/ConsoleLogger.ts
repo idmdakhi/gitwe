@@ -1,4 +1,4 @@
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 
 /** Plain, readable console output — the default logger for CLI usage. */
 export class ConsoleLogger implements Logger {
