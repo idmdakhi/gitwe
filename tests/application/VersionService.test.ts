@@ -8,7 +8,7 @@ import {
 import type { VersionStore } from "#gitwe/domain/ports/VersionStore";
 import type { GitRepository } from "#gitwe/domain/ports/GitRepository";
 import type { ChangelogWriter } from "#gitwe/domain/ports/ChangelogWriter";
-import type { Logger } from "#gitwe/shared/logging/Logger";
+import type { Logger } from "#gitwe/shared/logging/logger";
 import { Version } from "#gitwe/domain/valueObjects/Version";
 
 describe("VersionService", () => {
