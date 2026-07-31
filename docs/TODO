@@ -2,6 +2,404 @@
 
 ---
 
+با توجه به توضیح شما و همچنین ساختار فعلی پروژه که در فایل بارگذاری‌شده دیده می‌شود، نسخه فعلی بیش از حد بلندپروازانه است. در آن از همان ابتدا Plugin، GitHub Action، Enterprise، IDE، API، Event Bus، Policy Engine و ... دیده می‌شود، در حالی که برای **Version 1.0** باید تنها یک هدف وجود داشته باشد:
+
+> **ساخت یک Git Workflow Engine که بتواند انواع Workflowهای Git را اجرا کند.**
+
+این دقیقاً همان فلسفه‌ای است که ابزارهایی مانند **git-flow**، **git-flow-avh** و **git-flow-next** دارند، با این تفاوت که هسته پروژه به جای hardcode شدن، یک Engine عمومی است. ایده نیز با نمونه‌هایی که معرفی کردید هم‌راستا است، اما یک لایه انتزاعی بالاتر قرار می‌گیرد.
+
+---
+
+# GitWe v1
+
+## Git Workflow Engine
+
+### Vision
+
+GitWe یک موتور (Engine) برای اجرای Workflowهای Git است.
+
+برخلاف ابزارهایی که فقط Git Flow را پیاده‌سازی می‌کنند، GitWe یک هسته عمومی فراهم می‌کند که قوانین Workflow را اجرا می‌کند و Git Flow تنها یکی از Workflowهای قابل استفاده در آن است.
+
+در نسخه 1 هیچ هدفی جز مدیریت Workflowهای Git وجود ندارد.
+
+---
+
+# اهداف نسخه 1
+
+Version 1 فقط باید بتواند:
+
+- Workflow را بارگذاری کند.
+- Repository را تحلیل کند.
+- عملیات Git را اعتبارسنجی کند.
+- عملیات را اجرا کند.
+- وضعیت Repository را نگهداری کند.
+- از CLI قابل استفاده باشد.
+
+همین.
+
+نه Plugin
+
+نه IDE
+
+نه Dashboard
+
+نه Enterprise
+
+نه API Server
+
+---
+
+# Scope
+
+GitWe مسئول مدیریت چرخه عمر Branchها است.
+
+از لحظه ایجاد
+
+تا بروزرسانی
+
+تا Merge
+
+تا پایان Branch
+
+بر اساس قوانین Workflow.
+
+---
+
+# Architecture
+
+```
+             CLI
+
+              │
+
+       Workflow Engine
+
+              │
+
+    ┌─────────┴──────────┐
+
+ Workflow Runtime     Git Adapter
+
+              │
+
+        Local Repository
+```
+
+تمام منطق پروژه داخل Engine قرار دارد.
+
+Git فقط یک Adapter است.
+
+CLI فقط ورودی کاربر را به Engine منتقل می‌کند.
+
+---
+
+# Responsibilities
+
+Engine مسئول:
+
+- تشخیص Workflow
+- بررسی قوانین
+- اجرای عملیات
+- مدیریت State
+- تولید نتیجه
+
+است.
+
+Git مسئول اجرای دستورات واقعی است.
+
+---
+
+# Core Components
+
+## Workflow Definition
+
+تعریف قوانین Workflow.
+
+نمونه:
+
+- git-flow
+- github-flow
+- trunk-based
+- custom workflow
+
+---
+
+## Workflow Engine
+
+هسته پروژه.
+
+وظایف:
+
+- اجرای Workflow
+- مدیریت عملیات
+- اعتبارسنجی
+- مدیریت State
+
+---
+
+## Git Adapter
+
+تمام ارتباط با Git.
+
+عملیات:
+
+- branch
+- checkout
+- merge
+- fetch
+- pull
+- push
+- tag
+
+Engine هرگز مستقیماً Git را صدا نمی‌زند.
+
+---
+
+## State
+
+نمایش وضعیت Repository.
+
+اطلاعات:
+
+- current branch
+- branch types
+- merge targets
+- repository status
+
+---
+
+## Rule Engine
+
+قبل از هر عملیات اجرا می‌شود.
+
+نمونه Rule:
+
+- Working Tree Clean
+- Branch Exists
+- Branch Naming
+- Base Branch Exists
+
+اگر Rule رد شود عملیات اجرا نمی‌شود.
+
+---
+
+## Commands
+
+Version 1 فقط همین Commandها را دارد.
+
+```
+gitwe init
+
+gitwe start
+
+gitwe finish
+
+gitwe update
+
+gitwe status
+
+gitwe current
+
+gitwe list
+
+gitwe validate
+
+gitwe doctor
+```
+
+---
+
+# Built-in Workflows
+
+نسخه 1 فقط سه Workflow آماده دارد.
+
+```
+git-flow
+
+github-flow
+
+trunk-based
+```
+
+کاربر می‌تواند Workflow اختصاصی نیز تعریف کند.
+
+---
+
+# Workflow Configuration
+
+Engine Workflow را از:
+
+```
+JSON
+
+YAML
+```
+
+بارگذاری می‌کند.
+
+Workflow فقط شامل قوانین است.
+
+Engine رفتار را اجرا می‌کند.
+
+---
+
+# Execution Flow
+
+```
+CLI
+
+↓
+
+Load Workflow
+
+↓
+
+Load Repository State
+
+↓
+
+Validate Rules
+
+↓
+
+Execute Git Operation
+
+↓
+
+Update State
+
+↓
+
+Return Result
+```
+
+---
+
+# Version 1 Features
+
+## Workflow
+
+- Built-in Workflows
+- Custom Workflow
+- Validation
+
+---
+
+## Branch Lifecycle
+
+- Start
+- Update
+- Finish
+
+---
+
+## Merge
+
+- merge
+- squash
+- rebase
+
+---
+
+## Repository
+
+- Status
+- Current Branch
+- Branch List
+
+---
+
+## Validation
+
+- Branch Rules
+- Naming Rules
+- Repository State
+- Working Tree
+
+---
+
+## Output
+
+- Human Output
+- JSON Output
+
+---
+
+# Project Structure
+
+```
+src/
+
+    cli/
+
+    application/
+
+    domain/
+
+    infrastructure/
+
+    config/
+
+tests/
+```
+
+هیچ پوشه‌ای برای موارد زیر در نسخه ۱ وجود ندارد:
+
+- plugins
+- github
+- enterprise
+- dashboard
+- vscode
+- api
+- web
+- telemetry
+
+---
+
+# Roadmap
+
+## Version 1.0
+
+هدف:
+
+ساخت یک Git Workflow Engine پایدار.
+
+Deliverables:
+
+- Workflow Engine
+- Git Adapter
+- Rule Engine
+- Workflow Loader
+- CLI
+- Tests
+- Documentation
+
+---
+
+## خارج از Scope نسخه 1
+
+این قابلیت‌ها عمداً به نسخه‌های بعدی منتقل می‌شوند:
+
+- Plugin System
+- Hook Marketplace
+- GitHub Action پیشرفته
+- REST API
+- Web UI
+- IDE Extensions
+- Enterprise Policies
+- Jira Integration
+- Slack Integration
+- Dashboard
+- Metrics
+- Audit
+- Distributed Workflow
+
+---
+
+به نظر من این نسخه، هویت پروژه را بسیار شفاف‌تر می‌کند: **GitWe دیگر «یک ابزار همه‌کاره DevOps» نیست، بلکه یک **Git Workflow Engine** است که **git-flow** تنها یکی از پیاده‌سازی‌های آن محسوب می‌شود. این تعریف با نمونه‌های مرجعی که معرفی کرده‌اید نیز سازگار است و مسیر توسعه نسخه‌های بعدی را بدون پیچیدگی غیرضروری باز می‌گذارد.
+
+---
+
 ### **فاز ۱: Core Engine (اولویت بالا — در حال انجام)**
 
 **هدف:** هسته پایدار، testable و extensible
