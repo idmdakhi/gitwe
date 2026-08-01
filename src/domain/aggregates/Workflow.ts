@@ -1,163 +1,178 @@
-import { BranchTypeRule } from "#gitwe/domain/valueObjects/BranchTypeRule";
-import { HookDefinition } from "#gitwe/domain/hooks/HookDefinition";
-import { RemoteConfig } from "#gitwe/domain/valueObjects/RemoteConfig";
-import { BranchNamingPolicy } from "#gitwe/domain/valueObjects/BranchNamingPolicy";
-import { ConventionalCommitPolicy } from "#gitwe/domain/policies/ConventionalCommitPolicy";
-import type { MergeStrategy } from "#gitwe/domain/valueObjects/MergeStrategy";
-import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors";
-import { PipelineStage } from "#gitwe/kernel/pipeline/Stage";
+import { BranchTypeRule } from "#gitwe/domain/valueObjects/branch-type-rule";
+import { BaseBranchRule } from "#gitwe/domain/valueObjects/base-branch-rule";
+import { RemoteConfig } from "#gitwe/domain/valueObjects/remote-config";
+import { BranchNamingPolicy } from "#gitwe/domain/valueObjects/branch-naming-policy";
+import { InvalidWorkflowDefinitionError } from "#gitwe/domain/errors/index";
 
 /**
- * The `Workflow` aggregate root. It owns and enforces every invariant a
- * branching strategy must satisfy — unique names, unique prefixes, at
- * least one merge target, etc — so nothing downstream (application
- * services, CLI) has to re-check them.
+ * The `Workflow` aggregate root: a complete, named branching strategy made
+ * of two kinds of branches —
  *
- * `gitwe` treats "git-flow" as just one possible `Workflow` instance, not
- * something baked into the engine — see `infrastructure/config/BuiltInWorkflows.ts`
- * for git-flow, GitHub Flow, and trunk-based examples, or load a custom one
- * from JSON/YAML via `WorkflowConfigLoader`.
+ * - **base branches** ({@link BaseBranchRule}): long-lived branches like
+ *   `main` or `develop`, optionally forming a parent/child hierarchy for
+ *   automatic downstream syncing;
+ * - **topic branches** ({@link BranchTypeRule}): short-lived branches like
+ *   `feature`, `release`, or `hotfix`, each merging into one base branch
+ *   when finished.
+ *
+ * `gitwe` does not hardcode "Gitflow" or any other strategy — it is just
+ * one possible `Workflow` instance. See
+ * `infrastructure/config/built-in-workflows.ts` for ready-made presets
+ * (classic Gitflow, GitHub Flow, GitLab Flow), or define a fully custom
+ * one and load it via `WorkflowConfigStore`.
+ *
+ * As an aggregate root, `Workflow` owns and enforces every structural
+ * invariant a branching strategy must satisfy (unique names/prefixes,
+ * every topic type pointing at a real base branch, etc.) so nothing
+ * downstream has to re-check them. Construct instances via
+ * {@link Workflow.create} — there is no public constructor.
+ *
+ * @public
  */
 export class Workflow {
   private constructor(
     public readonly name: string,
+    public readonly baseBranches: readonly BaseBranchRule[],
     public readonly branchTypes: readonly BranchTypeRule[],
-    public readonly hooks: HookDefinition,
     public readonly remote: RemoteConfig,
     public readonly protectedBranches: ReadonlySet<string>,
     public readonly branchNaming: BranchNamingPolicy,
-    public readonly mergeStrategy: MergeStrategy,
-    public readonly commitPolicy: ConventionalCommitPolicy,
-    public readonly pipelines: {
-      start: PipelineStage[];
-      finish: PipelineStage[];
-      update: PipelineStage[];
-    },
-    public readonly versioning: {
-      enabled: boolean;
-      defaultBump: string;
-      tagPrefix: string;
-      changelog: { enabled: boolean; path: string };
-    },
   ) {}
 
+  /**
+   * Builds and validates a `Workflow`.
+   *
+   * @throws {InvalidWorkflowDefinitionError} If the definition violates a structural invariant — see {@link Workflow.assertValid}.
+   */
   static create(props: {
     name: string;
+    baseBranches: BaseBranchRule[];
     branchTypes: BranchTypeRule[];
-    hooks?: HookDefinition;
     remote?: RemoteConfig;
     protectedBranches?: string[];
     branchNaming?: BranchNamingPolicy;
-    mergeStrategy?: MergeStrategy;
-    commitPolicy?: ConventionalCommitPolicy;
-    pipelines?: {
-      start?: PipelineStage[];
-      finish?: PipelineStage[];
-      update?: PipelineStage[];
-    };
-    versioning?: {
-      enabled?: boolean;
-      defaultBump?: string;
-      tagPrefix?: string;
-      changelog?: { enabled?: boolean; path?: string };
-    };
   }): Workflow {
-    Workflow.assertValid(props.name, props.branchTypes);
-    const defaultPipelines = {
-      start: [PipelineStage.VALIDATE, PipelineStage.TRANSITION, PipelineStage.FINALIZE],
-      finish: [
-        PipelineStage.VALIDATE,
-        PipelineStage.TRANSITION,
-        PipelineStage.POST_TRANSITION,
-        PipelineStage.FINALIZE,
-      ],
-      update: [PipelineStage.VALIDATE, PipelineStage.TRANSITION, PipelineStage.FINALIZE],
-    };
-    const pipelines = {
-      ...defaultPipelines,
-      ...(props.pipelines || {}),
-    } as { start: PipelineStage[]; finish: PipelineStage[]; update: PipelineStage[] };
-    const versioning = {
-      enabled: true,
-      defaultBump: "patch",
-      tagPrefix: "v",
-      changelog: { enabled: true, path: "CHANGELOG.md" },
-      ...(props.versioning || {}),
-    } as {
-      enabled: boolean;
-      defaultBump: string;
-      tagPrefix: string;
-      changelog: { enabled: boolean; path: string };
-    };
+    Workflow.assertValid(props.name, props.baseBranches, props.branchTypes);
+
+    const protectedSet = new Set([
+      ...props.baseBranches.map((b) => b.name),
+      ...(props.protectedBranches ?? []),
+    ]);
+
     return new Workflow(
       props.name,
+      props.baseBranches,
       props.branchTypes,
-      props.hooks ?? HookDefinition.empty(),
       props.remote ?? RemoteConfig.create(),
-      new Set(props.protectedBranches ?? []),
+      protectedSet,
       props.branchNaming ?? BranchNamingPolicy.create(),
-      props.mergeStrategy ?? "merge",
-      props.commitPolicy ?? ConventionalCommitPolicy.create(),
-      pipelines,
-      versioning,
     );
   }
 
-  private static assertValid(name: string, branchTypes: readonly BranchTypeRule[]): void {
+  /**
+   * Enforces this aggregate's structural invariants:
+   * - a non-empty name;
+   * - at least one base branch, with unique, non-empty names;
+   * - every base branch's `parent` (if set) refers to another declared base branch;
+   * - at least one topic branch type, with unique, non-empty names and prefixes;
+   * - every topic type's `parent` and `startingPoint` refer to declared base branches.
+   *
+   * All base branches are implicitly protected — see {@link Workflow.create}.
+   *
+   * @throws {InvalidWorkflowDefinitionError} On the first invariant violation found.
+   */
+  private static assertValid(
+    name: string,
+    baseBranches: readonly BaseBranchRule[],
+    branchTypes: readonly BranchTypeRule[],
+  ): void {
     if (!name.trim()) {
       throw new InvalidWorkflowDefinitionError("workflow name cannot be empty");
     }
+    if (baseBranches.length === 0) {
+      throw new InvalidWorkflowDefinitionError("must define at least one base branch");
+    }
+
+    const baseNames = new Set<string>();
+    for (const base of baseBranches) {
+      if (!base.name.trim()) {
+        throw new InvalidWorkflowDefinitionError("base branch name cannot be empty");
+      }
+      if (baseNames.has(base.name)) {
+        throw new InvalidWorkflowDefinitionError(`duplicate base branch name "${base.name}"`);
+      }
+      baseNames.add(base.name);
+    }
+    for (const base of baseBranches) {
+      if (base.parent !== undefined && !baseNames.has(base.parent)) {
+        throw new InvalidWorkflowDefinitionError(
+          `base branch "${base.name}" has unknown parent "${base.parent}"`,
+        );
+      }
+    }
+
     if (branchTypes.length === 0) {
       throw new InvalidWorkflowDefinitionError("must define at least one branch type");
     }
 
-    const seenNames = new Set<string>();
-    const seenPrefixes = new Set<string>();
-
-    for (const rule of branchTypes) {
-      if (!rule.name.trim()) {
+    const typeNames = new Set<string>();
+    const prefixes = new Set<string>();
+    for (const type of branchTypes) {
+      if (!type.name.trim()) {
         throw new InvalidWorkflowDefinitionError("branch type name cannot be empty");
       }
-      if (seenNames.has(rule.name)) {
-        throw new InvalidWorkflowDefinitionError(`duplicate branch type name "${rule.name}"`);
+      if (typeNames.has(type.name)) {
+        throw new InvalidWorkflowDefinitionError(`duplicate branch type name "${type.name}"`);
       }
-      seenNames.add(rule.name);
+      typeNames.add(type.name);
 
-      if (!rule.prefix.trim()) {
-        throw new InvalidWorkflowDefinitionError(`branch type "${rule.name}" has an empty prefix`);
+      if (!type.prefix.trim()) {
+        throw new InvalidWorkflowDefinitionError(`branch type "${type.name}" has an empty prefix`);
       }
-      if (seenPrefixes.has(rule.prefix)) {
-        throw new InvalidWorkflowDefinitionError(`duplicate branch prefix "${rule.prefix}"`);
+      if (prefixes.has(type.prefix)) {
+        throw new InvalidWorkflowDefinitionError(`duplicate branch prefix "${type.prefix}"`);
       }
-      seenPrefixes.add(rule.prefix);
+      prefixes.add(type.prefix);
 
-      if (!rule.baseBranch.trim()) {
+      if (!baseNames.has(type.parent)) {
         throw new InvalidWorkflowDefinitionError(
-          `branch type "${rule.name}" has an empty baseBranch`,
+          `branch type "${type.name}" has unknown parent base branch "${type.parent}"`,
         );
       }
-      if (rule.mergeTargets.length === 0) {
+      if (!baseNames.has(type.startingPoint)) {
         throw new InvalidWorkflowDefinitionError(
-          `branch type "${rule.name}" must declare at least one merge target`,
+          `branch type "${type.name}" has unknown startingPoint base branch "${type.startingPoint}"`,
         );
       }
     }
   }
 
-  /** Finds the branch-type rule registered under this exact type name (e.g. "feature"). */
+  /** Finds the topic-branch-type rule registered under this exact type name (e.g. `"feature"`). */
   findBranchType(typeName: string): BranchTypeRule | undefined {
-    return this.branchTypes.find((rule) => rule.name === typeName);
+    return this.branchTypes.find((t) => t.name === typeName);
   }
 
-  /** Finds the branch-type rule whose prefix matches a full branch name (e.g. "feature/login"). */
+  /** Finds the topic-branch-type rule whose prefix matches a full branch name (e.g. `"feature/login"`). */
   findRuleForBranch(fullBranchName: string): BranchTypeRule | undefined {
-    return this.branchTypes.find((rule) => rule.matches(fullBranchName));
+    return this.branchTypes.find((t) => t.matches(fullBranchName));
   }
 
+  /** Finds a base branch by name. */
+  findBaseBranch(name: string): BaseBranchRule | undefined {
+    return this.baseBranches.find((b) => b.name === name);
+  }
+
+  /** Lists every base branch that declares `parentName` as its parent and has `autoUpdate` enabled. */
+  autoUpdateChildrenOf(parentName: string): BaseBranchRule[] {
+    return this.baseBranches.filter((b) => b.parent === parentName && b.autoUpdate);
+  }
+
+  /** Lists every registered branch type name, in declaration order. */
   listBranchTypeNames(): string[] {
     return this.branchTypes.map((t) => t.name);
   }
 
+  /** Whether `branchName` is protected (every base branch is implicitly protected). */
   isProtected(branchName: string): boolean {
     return this.protectedBranches.has(branchName);
   }

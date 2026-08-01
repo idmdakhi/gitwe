@@ -1,32 +1,37 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import type { GetStatusQuery } from "#gitwe/application/queries/GetStatusQuery";
-import type { StatusReport } from "#gitwe/application/dto/StatusReport";
-import { reportError } from "#gitwe/cli/reportError";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import type { WorkflowHandlers } from "#gitwe/cli/container";
+import { info, style } from "#gitwe/cli/format";
 
-export function registerStatusCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
-  program
-    .command("status")
-    .description("Show the current branch and a summary of the repository")
-    .option("--root <branch>", "root branch to summarize from", "main")
-    .action(async (opts: { root: string }) => {
-      const container = getContainer();
-      try {
-        const report = await container.kernel.run<GetStatusQuery, StatusReport>("status", {
-          rootBranch: opts.root,
-        });
-        printResult(getJson(), report, (r) => {
-          console.log(`On branch: ${r.currentBranch}`);
-          console.log(`Total branches: ${r.totalBranches}`);
-          console.log(`Workflow branch types: ${r.branchTypes.join(", ")}`);
-        });
-      } catch (error) {
-        process.exitCode = reportError(error, getJson());
+/**
+ * Registers `gitwe status` (aliased `overview`): a repository-wide
+ * summary of the active workflow and its topic branches.
+ *
+ * @internal
+ */
+export function registerStatusCommand(program: Command, handlers: WorkflowHandlers): void {
+  const action = async () => {
+    const report = await handlers.status.handle();
+
+    info(style.bold(`Workflow: ${report.workflowName}`));
+    info(`Current branch: ${style.cyan(report.currentBranch)}`);
+    info(`Base branches: ${report.baseBranches.join(", ")}`);
+    info("");
+
+    if (report.topicBranches.length === 0) {
+      info(style.dim("No topic branches."));
+      return;
+    }
+
+    for (const type of report.branchTypes) {
+      const branchesOfType = report.topicBranches.filter((b) => b.type === type);
+      if (branchesOfType.length === 0) continue;
+      info(style.bold(type));
+      for (const b of branchesOfType) {
+        const marker = b.isCurrent ? style.green("*") : " ";
+        info(`  ${marker} ${b.name}${b.hasUpstream ? "" : style.dim("  (not published)")}`);
       }
-    });
+    }
+  };
+
+  program.command("status").alias("overview").description("Show workflow status").action(action);
 }
