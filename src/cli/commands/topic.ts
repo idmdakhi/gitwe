@@ -1,8 +1,8 @@
 import { Command, Option } from "commander";
 
-import type { TopicType, WorkflowConfig } from "../../domain/types.js";
+import type { TopicType, WorkflowConfig } from "../../domain/entities.js";
 import type { Engine } from "../../application/Engine.js";
-import type { FinishOptions, FinishResult } from "../../application/operations/finish.js";
+import type { FinishOptions, FinishResult } from "../../application/use-case/finish.js";
 import { createEngine, type GlobalOptions } from "../context.js";
 import { print, style, success } from "../output.js";
 

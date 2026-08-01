@@ -1,17 +1,21 @@
+// src/domain/branchName.ts
+// تمام قوانین مربوط به نام شاخه‌ها در یک مکان متمرکز شده است.
 import { ValidationError } from "./errors.js";
 
 const INVALID_SEQUENCES = ["..", "@{", "//", "\\"];
+// کنترل کاراکترهای ممنوعه در Git
 // eslint-disable-next-line no-control-regex
 const INVALID_CHARS = /[\x00-\x20~^:?*[\]\x7f]/;
 
 /**
- * Reject names git would refuse (see `git check-ref-format`) before any
- * command touches the repository.
+ * اعتبارسنجی نام شاخه بر اساس قوانین Git (git check-ref-format).
+ * در صورت نامعتبر بودن، خطای ValidationError پرتاب می‌کند.
  */
 export function assertValidBranchName(branch: string): void {
   const fail = (reason: string): never => {
     throw new ValidationError(`invalid branch name "${branch}": ${reason}`);
   };
+
   if (branch === "") fail("it is empty");
   if (INVALID_CHARS.test(branch)) fail("it contains a character git forbids");
   for (const sequence of INVALID_SEQUENCES) {
@@ -25,7 +29,10 @@ export function assertValidBranchName(branch: string): void {
   }
 }
 
-/** Translate a shell-style glob (`*`, `?`, `[abc]`) into a matcher. */
+/**
+ * تبدیل یک الگوی شِل-استایل (glob) به عبارت باقاعده (RegExp).
+ * پشتیبانی از: *, ?, [abc]
+ */
 export function globToRegExp(pattern: string): RegExp {
   let source = "^";
   for (let i = 0; i < pattern.length; i += 1) {
@@ -40,7 +47,10 @@ export function globToRegExp(pattern: string): RegExp {
         source += `[${pattern.slice(i + 1, end)}]`;
         i = end;
       }
-    } else source += char.replace(/[.+^${}()|\\]/g, "\\$&");
+    } else {
+      // Escape characters that are special in regex
+      source += char.replace(/[.+^${}()|\\]/g, "\\$&");
+    }
   }
   return new RegExp(`${source}$`);
 }

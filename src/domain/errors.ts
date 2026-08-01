@@ -1,4 +1,10 @@
-/** Base class for every error gitwe reports to the user. */
+// src/domain/errors.ts
+// لایهٔ دامنه: خطاها بخشی از زبان کسب‌وکار هستند.
+
+/**
+ * کلاس پایه برای تمام خطاهای گزارش‌شده به کاربر.
+ * کد خطا (code) به ما امکان می‌دهد در لایه‌های بالاتر (مثل CLI) تصمیمات خاص بگیریم.
+ */
 export class GitweError extends Error {
   readonly code: string;
   readonly hint?: string;
@@ -33,6 +39,10 @@ export class ValidationError extends GitweError {
   }
 }
 
+/**
+ * خطای مرتبط با اجرای مستقیم دستورات Git.
+ * حاوی جزئیات خام برای دیباگ است.
+ */
 export class GitError extends GitweError {
   readonly args: string[];
   readonly exitCode: number;
@@ -46,6 +56,10 @@ export class GitError extends GitweError {
   }
 }
 
+/**
+ * خطای تعارض (Conflict) که نیاز به دخالت کاربر دارد.
+ * این خطا کد خروج ۲ را در CLI ایجاد می‌کند.
+ */
 export class ConflictError extends GitweError {
   readonly files: string[];
 

@@ -7,7 +7,7 @@ import {
   deleteTopicType,
   editTopicType,
   renameBaseBranch,
-} from "../../src/domain/config/edit.js";
+} from "../../src/domain/config/editor.js";
 import { createPreset } from "../../src/domain/config/presets.js";
 
 describe("workflow definition editing", () => {

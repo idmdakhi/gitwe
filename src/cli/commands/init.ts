@@ -4,7 +4,11 @@ import { join } from "node:path";
 import { Command } from "commander";
 
 import { ConfigError } from "../../domain/errors.js";
-import { DEFAULT_CONFIG_FILE, findConfigFile, writeConfigFile } from "../../infrastructure/config/loader.js";
+import {
+  DEFAULT_CONFIG_FILE,
+  findConfigFile,
+  writeConfigFile,
+} from "../../infrastructure/config/loader.js";
 import {
   createPreset,
   isPresetName,
@@ -12,7 +16,7 @@ import {
   type PresetOverrides,
 } from "../../domain/config/presets.js";
 import { createConsoleLogger } from "../../infrastructure/logger/consoleLogger.js";
-import { createEngine as wireEngine } from "../../infrastructure/createEngine.js";
+import { createEngine as wireEngine } from "../../di/createEngine.js";
 import { print, style, success } from "../output.js";
 import { repositoryRoot, type GlobalOptions } from "../context.js";
 

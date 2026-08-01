@@ -2,7 +2,7 @@ import { GitweError } from "../domain/errors.js";
 import { loadConfig, type LoadedConfig } from "../infrastructure/config/loader.js";
 import { createConsoleLogger } from "../infrastructure/logger/consoleLogger.js";
 import { Engine } from "../application/Engine.js";
-import { createEngine as wireEngine } from "../infrastructure/createEngine.js";
+import { createEngine as wireEngine } from "../di/createEngine.js";
 import { ShellGitRepository } from "../infrastructure/git/ShellGitRepository.js";
 
 export interface GlobalOptions {

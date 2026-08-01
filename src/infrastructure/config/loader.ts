@@ -3,7 +3,7 @@ import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import yaml from "js-yaml";
 
 import { ConfigError, NotInitializedError } from "../../domain/errors.js";
-import type { WorkflowConfig } from "../../domain/types.js";
+import type { WorkflowConfig } from "../../domain/entities.js";
 import { parseWorkflowConfig } from "../../domain/config/parse.js";
 
 /** File names gitwe looks for, in order, when walking up from the cwd. */

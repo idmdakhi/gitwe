@@ -11,10 +11,10 @@ import {
   renameTopicType,
   type BaseBranchInput,
   type TopicTypeInput,
-} from "../../domain/config/edit.js";
+} from "../../domain/config/editor.js";
 import { writeConfigFile } from "../../infrastructure/config/loader.js";
 import { ValidationError } from "../../domain/errors.js";
-import type { MergeStrategy, UpdateStrategy, WorkflowConfig } from "../../domain/types.js";
+import type { MergeStrategy, UpdateStrategy, WorkflowConfig } from "../../domain/entities.js";
 import { loadWorkflow, repositoryRoot, type GlobalOptions } from "../context.js";
 import { print, renderTree, style, success } from "../output.js";
 

@@ -1,4 +1,6 @@
-import type { WorkflowConfig } from "../types.js";
+// src/domain/presets.ts
+// کارخانه‌های ساخت WorkflowConfig برای گردش‌های کاری رایج
+import type { WorkflowConfig } from "../entities.js";
 
 export type PresetName = "classic" | "github" | "gitlab";
 
@@ -14,18 +16,15 @@ export interface PresetOverrides {
   remote?: string;
 }
 
-/**
- * Classic git-flow: `main` is the trunk, `develop` auto-updates from it, and
- * release/hotfix branches are finished into `main` with a tag.
- */
-function classic(o: PresetOverrides): WorkflowConfig {
-  const main = o.main ?? "main";
-  const develop = o.develop ?? "develop";
+// ---- پیاده‌سازی پریست‌ها ----
+function classic(overrides: PresetOverrides): WorkflowConfig {
+  const main = overrides.main ?? "main";
+  const develop = overrides.develop ?? "develop";
   return {
     version: 1,
     name: "classic",
-    remote: o.remote ?? "origin",
-    tagPrefix: o.tagPrefix ?? "v",
+    remote: overrides.remote ?? "origin",
+    tagPrefix: overrides.tagPrefix ?? "v",
     hooks: { enabled: true, path: ".gitwe/hooks" },
     baseBranches: [
       {
@@ -46,7 +45,7 @@ function classic(o: PresetOverrides): WorkflowConfig {
       {
         name: "feature",
         parent: develop,
-        prefix: o.prefixes?.feature ?? "feature/",
+        prefix: overrides.prefixes?.feature ?? "feature/",
         upstreamStrategy: "merge",
         downstreamStrategy: "merge",
         tag: false,
@@ -55,7 +54,7 @@ function classic(o: PresetOverrides): WorkflowConfig {
       {
         name: "bugfix",
         parent: develop,
-        prefix: o.prefixes?.bugfix ?? "bugfix/",
+        prefix: overrides.prefixes?.bugfix ?? "bugfix/",
         upstreamStrategy: "merge",
         downstreamStrategy: "merge",
         tag: false,
@@ -65,7 +64,7 @@ function classic(o: PresetOverrides): WorkflowConfig {
         name: "release",
         parent: main,
         startPoint: develop,
-        prefix: o.prefixes?.release ?? "release/",
+        prefix: overrides.prefixes?.release ?? "release/",
         upstreamStrategy: "merge",
         downstreamStrategy: "merge",
         tag: true,
@@ -74,7 +73,7 @@ function classic(o: PresetOverrides): WorkflowConfig {
       {
         name: "hotfix",
         parent: main,
-        prefix: o.prefixes?.hotfix ?? "hotfix/",
+        prefix: overrides.prefixes?.hotfix ?? "hotfix/",
         upstreamStrategy: "merge",
         downstreamStrategy: "merge",
         tag: true,
@@ -83,7 +82,7 @@ function classic(o: PresetOverrides): WorkflowConfig {
       {
         name: "support",
         parent: main,
-        prefix: o.prefixes?.support ?? "support/",
+        prefix: overrides.prefixes?.support ?? "support/",
         upstreamStrategy: "merge",
         downstreamStrategy: "merge",
         tag: false,
@@ -93,14 +92,13 @@ function classic(o: PresetOverrides): WorkflowConfig {
   };
 }
 
-/** GitHub flow: a single trunk plus short-lived feature branches. */
-function github(o: PresetOverrides): WorkflowConfig {
-  const main = o.main ?? "main";
+function github(overrides: PresetOverrides): WorkflowConfig {
+  const main = overrides.main ?? "main";
   return {
     version: 1,
     name: "github",
-    remote: o.remote ?? "origin",
-    tagPrefix: o.tagPrefix ?? "v",
+    remote: overrides.remote ?? "origin",
+    tagPrefix: overrides.tagPrefix ?? "v",
     hooks: { enabled: true, path: ".gitwe/hooks" },
     baseBranches: [
       {
@@ -114,7 +112,7 @@ function github(o: PresetOverrides): WorkflowConfig {
       {
         name: "feature",
         parent: main,
-        prefix: o.prefixes?.feature ?? "feature/",
+        prefix: overrides.prefixes?.feature ?? "feature/",
         upstreamStrategy: "merge",
         downstreamStrategy: "rebase",
         tag: false,
@@ -123,7 +121,7 @@ function github(o: PresetOverrides): WorkflowConfig {
       {
         name: "bugfix",
         parent: main,
-        prefix: o.prefixes?.bugfix ?? "bugfix/",
+        prefix: overrides.prefixes?.bugfix ?? "bugfix/",
         upstreamStrategy: "merge",
         downstreamStrategy: "rebase",
         tag: false,
@@ -133,16 +131,15 @@ function github(o: PresetOverrides): WorkflowConfig {
   };
 }
 
-/** GitLab flow: trunk plus environment branches that track it downstream. */
-function gitlab(o: PresetOverrides): WorkflowConfig {
-  const main = o.main ?? "main";
-  const staging = o.staging ?? "staging";
-  const production = o.production ?? "production";
+function gitlab(overrides: PresetOverrides): WorkflowConfig {
+  const main = overrides.main ?? "main";
+  const staging = overrides.staging ?? "staging";
+  const production = overrides.production ?? "production";
   return {
     version: 1,
     name: "gitlab",
-    remote: o.remote ?? "origin",
-    tagPrefix: o.tagPrefix ?? "v",
+    remote: overrides.remote ?? "origin",
+    tagPrefix: overrides.tagPrefix ?? "v",
     hooks: { enabled: true, path: ".gitwe/hooks" },
     baseBranches: [
       {
@@ -170,7 +167,7 @@ function gitlab(o: PresetOverrides): WorkflowConfig {
       {
         name: "feature",
         parent: main,
-        prefix: o.prefixes?.feature ?? "feature/",
+        prefix: overrides.prefixes?.feature ?? "feature/",
         upstreamStrategy: "merge",
         downstreamStrategy: "merge",
         tag: false,
@@ -179,7 +176,7 @@ function gitlab(o: PresetOverrides): WorkflowConfig {
       {
         name: "hotfix",
         parent: production,
-        prefix: o.prefixes?.hotfix ?? "hotfix/",
+        prefix: overrides.prefixes?.hotfix ?? "hotfix/",
         upstreamStrategy: "merge",
         downstreamStrategy: "merge",
         tag: true,

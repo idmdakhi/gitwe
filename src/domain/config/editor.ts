@@ -1,7 +1,10 @@
+// src/domain/WorkflowEditor.ts
+// عملیات ویرایش روی WorkflowConfig (بدون دخالت در سیستم فایل)
 import { ConfigError } from "../errors.js";
-import type { MergeStrategy, UpdateStrategy, WorkflowConfig } from "../types.js";
+import type { MergeStrategy, UpdateStrategy, WorkflowConfig } from "../entities.js";
 import { parseWorkflowConfig } from "./parse.js";
 
+// --- Typeهای ورودی برای ویرایش ---
 export interface BaseBranchInput {
   parent?: string;
   upstreamStrategy?: MergeStrategy;
@@ -20,15 +23,20 @@ export interface TopicTypeInput {
   deleteOnFinish?: boolean;
 }
 
+// --- Helpers ---
 function clone(config: WorkflowConfig): WorkflowConfig {
   return JSON.parse(JSON.stringify(config)) as WorkflowConfig;
 }
 
-/** Re-run full validation so an edit can never persist an unusable workflow. */
+/**
+ * پس از هر تغییر، دوباره parse کامل انجام می‌شود تا اعتبارسنجی نهایی اعمال شود.
+ * این تضمین می‌کند که هیچ‌گاه یک Workflow ناقص ذخیره نمی‌شود.
+ */
 function revalidate(config: WorkflowConfig): WorkflowConfig {
   return parseWorkflowConfig(config);
 }
 
+// --- عملیات Base Branches ---
 export function addBaseBranch(
   config: WorkflowConfig,
   name: string,
@@ -70,9 +78,12 @@ export function renameBaseBranch(config: WorkflowConfig, from: string, to: strin
   const base = next.baseBranches.find((b) => b.name === from);
   if (base === undefined) throw new ConfigError(`unknown base branch "${from}"`);
   base.name = to;
+
+  // به‌روزرسانی ارجاعات در سایر Base Branches
   for (const other of next.baseBranches) {
     if (other.parent === from) other.parent = to;
   }
+  // به‌روزرسانی ارجاعات در Topic Types
   for (const topic of next.topicTypes) {
     if (topic.parent === from) topic.parent = to;
     if (topic.startPoint === from) topic.startPoint = to;
@@ -85,6 +96,7 @@ export function deleteBaseBranch(config: WorkflowConfig, name: string): Workflow
   if (!next.baseBranches.some((b) => b.name === name)) {
     throw new ConfigError(`unknown base branch "${name}"`);
   }
+
   const dependents = [
     ...next.baseBranches.filter((b) => b.parent === name).map((b) => b.name),
     ...next.topicTypes.filter((t) => t.parent === name).map((t) => t.name),
@@ -92,10 +104,12 @@ export function deleteBaseBranch(config: WorkflowConfig, name: string): Workflow
   if (dependents.length > 0) {
     throw new ConfigError(`base branch "${name}" is still referenced by: ${dependents.join(", ")}`);
   }
+
   next.baseBranches = next.baseBranches.filter((b) => b.name !== name);
   return revalidate(next);
 }
 
+// --- عملیات Topic Types ---
 export function addTopicType(
   config: WorkflowConfig,
   name: string,

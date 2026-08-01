@@ -1,7 +1,7 @@
 import { ConflictError, ValidationError } from "../../domain/errors.js";
-import type { ResolvedTopic } from "../../domain/types.js";
+import type { ResolvedTopic } from "../../domain/entities.js";
 import { expandMessage, type EngineContext } from "../context.js";
-import type { OperationState } from "../ports/OperationState.js";
+import type { OperationState } from "../interfaces/OperationState.js";
 
 export interface FinishOptions {
   /** Fetch the remote before finishing (default: true when a remote exists). */

@@ -8,7 +8,7 @@ import type {
   MergeOptions,
   PushOptions,
   TagOptions,
-} from "../../application/ports/GitRepository.js";
+} from "../../application/interfaces/GitRepository.js";
 import { runProcess } from "./ProcessRunner.js";
 
 export interface ShellGitOptions {

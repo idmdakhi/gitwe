@@ -1,4 +1,4 @@
-import type { Logger } from "../../application/ports/Logger.js";
+import type { Logger } from "../../application/interfaces/Logger.js";
 
 export function createConsoleLogger(verbose = false): Logger {
   return {

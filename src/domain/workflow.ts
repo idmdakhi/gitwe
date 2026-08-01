@@ -1,7 +1,8 @@
+// src/domain/Workflow.ts
+// ویو (View) فقط خواندنی روی WorkflowConfig برای موتور و CLI
 import { ValidationError } from "./errors.js";
-import type { BaseBranch, ResolvedTopic, TopicType, WorkflowConfig } from "./types.js";
+import type { BaseBranch, ResolvedTopic, TopicType, WorkflowConfig } from "./entities.js";
 
-/** Read-only view over a workflow definition with the lookups the engine needs. */
 export class Workflow {
   readonly config: WorkflowConfig;
 
@@ -21,7 +22,7 @@ export class Workflow {
     return this.config.topicTypes;
   }
 
-  /** The branch every other base branch descends from. */
+  /** شاخهٔ ریشه (ریشه درخت) را برمی‌گرداند. */
   get rootBranch(): BaseBranch {
     const root = this.config.baseBranches.find((b) => b.parent === undefined);
     return root ?? this.config.baseBranches[0];
@@ -57,39 +58,48 @@ export class Workflow {
     return type;
   }
 
-  /** Base branches that are updated when `name` receives new commits. */
+  /** شاخه‌های Base که از `name` ارث‌بری می‌کنند (فرزندان). */
   childrenOf(name: string): BaseBranch[] {
     return this.config.baseBranches.filter((b) => b.parent === name);
   }
 
-  /** Where a new topic branch of `type` is created from. */
+  /** نقطهٔ شروع پیش‌فرض برای ساخت یک Topic از نوع داده شده. */
   startPointOf(type: TopicType): string {
     return type.startPoint ?? type.parent;
   }
 
+  /** پیشوند تگ برای یک Topic خاص. */
   tagPrefixOf(type: TopicType): string {
     return type.tagPrefix ?? this.config.tagPrefix;
   }
 
+  /** نام کامل شاخه را از نوع و نام کوتاه می‌سازد. */
   branchName(type: TopicType, shortName: string): string {
     return `${type.prefix}${shortName}`;
   }
 
-  /** Match a full branch name against the configured topic prefixes. */
+  /**
+   * تلاش برای تطبیق یک نام شاخه با یکی از پیشوندهای Topic.
+   * در صورت تطابق، شیء ResolvedTopic را برمی‌گرداند.
+   */
   resolveBranch(branch: string): ResolvedTopic | undefined {
+    // مرتب‌سازی بر اساس طول پیشوند (طولانی‌ترین اولویت دارد)
     const matches = this.config.topicTypes
       .filter((type) => branch.startsWith(type.prefix))
       .sort((a, b) => b.prefix.length - a.prefix.length);
+
     const type = matches[0];
     if (type === undefined) return undefined;
+
     const shortName = branch.slice(type.prefix.length);
     if (shortName === "") return undefined;
+
     return { branch, shortName, type };
   }
 
   /**
-   * Resolve a user-supplied topic reference. `name` may be a short name
-   * (`login`) or a full branch name (`feature/login`).
+   * تبدیل ورودی کاربر (نام کوتاه یا کامل) به ResolvedTopic.
+   * اگر نام با پیشوند شروع شود، آن را حذف می‌کند.
    */
   resolveTopic(type: TopicType, name: string): ResolvedTopic {
     const shortName = name.startsWith(type.prefix) ? name.slice(type.prefix.length) : name;
@@ -99,6 +109,7 @@ export class Workflow {
     return { branch: this.branchName(type, shortName), shortName, type };
   }
 
+  /** بررسی می‌کند که آیا یک نام شاخه، جزو Base Branches است؟ */
   isBaseBranch(branch: string): boolean {
     return this.findBase(branch) !== undefined;
   }

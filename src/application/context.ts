@@ -1,8 +1,8 @@
-import type { Logger } from "./ports/Logger.js";
+import type { Logger } from "./interfaces/Logger.js";
 import type { Workflow } from "../domain/workflow.js";
-import type { GitRepository } from "./ports/GitRepository.js";
-import type { HookRunner } from "./ports/HookRunner.js";
-import type { OperationStateStore } from "./ports/OperationState.js";
+import type { GitRepository } from "./interfaces/GitRepository.js";
+import type { HookRunner } from "./interfaces/HookRunner.js";
+import type { OperationStateStore } from "./interfaces/OperationState.js";
 
 export interface EngineContext {
   git: GitRepository;
