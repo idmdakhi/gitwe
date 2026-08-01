@@ -37,6 +37,7 @@
     "#gitwe/*": "./dist/*.js"
   },
   "scripts": {
+    "start": "node ./dist/cli/main.js",
     "build": "tsc -p tsconfig.json",
     "dev": "tsc -p tsconfig.json --watch",
     "test": "vitest run",
@@ -50,7 +51,7 @@
     "yaml": "^2.5.1"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
+    "@types/node": "^20.19.43",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   },
