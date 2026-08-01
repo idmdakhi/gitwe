@@ -1,55 +1,144 @@
+import { existsSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
+import { join } from "node:path";
 import { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import { BUILT_IN_WORKFLOWS, BUILT_IN_WORKFLOW_NAMES, type BuiltInWorkflowName } from "#gitwe/infrastructure/config/built-in-workflows";
-import { InitWorkflowHandler } from "#gitwe/application/handlers/init-workflow";
-import { success, info, style } from "#gitwe/cli/format";
 
-function isBuiltInName(value: string): value is BuiltInWorkflowName {
-  return (BUILT_IN_WORKFLOW_NAMES as readonly string[]).includes(value);
+import { ConfigError } from "../../domain/errors.js";
+import { DEFAULT_CONFIG_FILE, findConfigFile, writeConfigFile } from "../../infrastructure/config/loader.js";
+import {
+  createPreset,
+  isPresetName,
+  PRESET_NAMES,
+  type PresetOverrides,
+} from "../../domain/config/presets.js";
+import { createConsoleLogger } from "../../infrastructure/logger/consoleLogger.js";
+import { createEngine as wireEngine } from "../../infrastructure/createEngine.js";
+import { print, style, success } from "../output.js";
+import { repositoryRoot, type GlobalOptions } from "../context.js";
+
+interface InitOptions {
+  force?: boolean;
+  preset?: string;
+  defaults?: boolean;
+  file?: string;
+  createBranches?: boolean;
+  main?: string;
+  develop?: string;
+  production?: string;
+  staging?: string;
+  feature?: string;
+  bugfix?: string;
+  release?: string;
+  hotfix?: string;
+  support?: string;
+  tag?: string;
+  remote?: string;
 }
 
-/**
- * Registers `gitwe init [--preset <name>]`, which writes a
- * `gitwe.json` config from a built-in preset and creates any base
- * branches that don't exist yet locally.
- *
- * A fully custom workflow can be built afterward with
- * `gitwe config add-base` / `gitwe config add-topic`, or by hand-editing
- * the generated `gitwe.json`.
- *
- * @internal
- */
-export function registerInitCommand(program: Command, container: Container): void {
+async function prompt(question: string, fallback: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${question} [${fallback}] `);
+    return answer.trim() === "" ? fallback : answer.trim();
+  } finally {
+    rl.close();
+  }
+}
+
+export function registerInit(program: Command, globals: () => GlobalOptions): void {
   program
     .command("init")
-    .description("Set up the workflow configuration for this repository")
-    .option(
-      "-p, --preset <name>",
-      `built-in workflow to start from (${BUILT_IN_WORKFLOW_NAMES.join(", ")})`,
-      "gitflow",
-    )
-    .option("--no-create-branches", "don't create missing base branches locally")
-    .action(async (options: { preset: string; createBranches: boolean }) => {
-      if (!isBuiltInName(options.preset)) {
-        throw new Error(
-          `Unknown preset "${options.preset}". Available: ${BUILT_IN_WORKFLOW_NAMES.join(", ")}`,
+    .description("create a gitwe workflow definition in the current repository")
+    .option("-f, --force", "overwrite an existing workflow definition")
+    .option("-p, --preset <preset>", `workflow preset (${PRESET_NAMES.join(", ")})`, "classic")
+    .option("-d, --defaults", "accept the preset defaults without prompting")
+    .option("--file <path>", `definition file to write (default: ${DEFAULT_CONFIG_FILE})`)
+    .option("--no-create-branches", "do not create missing base branches")
+    .option("-m, --main <name>", "main branch name")
+    .option("--develop <name>", "develop branch name")
+    .option("--production <name>", "production branch name (gitlab preset)")
+    .option("--staging <name>", "staging branch name (gitlab preset)")
+    .option("--feature <prefix>", "feature branch prefix")
+    .option("-b, --bugfix <prefix>", "bugfix branch prefix")
+    .option("-r, --release <prefix>", "release branch prefix")
+    .option("-x, --hotfix <prefix>", "hotfix branch prefix")
+    .option("-s, --support <prefix>", "support branch prefix")
+    .option("-t, --tag <prefix>", "version tag prefix")
+    .option("--remote <name>", "remote name")
+    .action(async (options: InitOptions) => {
+      const globalOptions = globals();
+      const cwd = globalOptions.cwd ?? process.cwd();
+      const root = await repositoryRoot(cwd);
+
+      const existing = findConfigFile(root, root);
+      if (existing !== undefined && options.force !== true) {
+        throw new ConfigError(`${existing} already exists`, "pass --force to overwrite it");
+      }
+
+      const presetName = options.preset ?? "classic";
+      if (!isPresetName(presetName)) {
+        throw new ConfigError(
+          `unknown preset "${presetName}"`,
+          `available presets: ${PRESET_NAMES.join(", ")}`,
         );
       }
 
-      const preset = BUILT_IN_WORKFLOWS[options.preset]();
-      const handler: InitWorkflowHandler = container.initHandler();
-      const result = await handler.handle({
-        name: preset.name,
-        baseBranches: [...preset.baseBranches],
-        branchTypes: [...preset.branchTypes],
-        remote: preset.remote.remote,
-        createMissingBaseBranches: options.createBranches,
-      });
+      const overrides: PresetOverrides = {
+        main: options.main,
+        develop: options.develop,
+        production: options.production,
+        staging: options.staging,
+        tagPrefix: options.tag,
+        remote: options.remote,
+        prefixes: {
+          ...(options.feature !== undefined ? { feature: options.feature } : {}),
+          ...(options.bugfix !== undefined ? { bugfix: options.bugfix } : {}),
+          ...(options.release !== undefined ? { release: options.release } : {}),
+          ...(options.hotfix !== undefined ? { hotfix: options.hotfix } : {}),
+          ...(options.support !== undefined ? { support: options.support } : {}),
+        },
+      };
 
-      success(`Initialized "${result.workflowName}" workflow (gitwe.json).`);
-      if (result.createdBaseBranches.length > 0) {
-        info(`Created base branches: ${style.cyan(result.createdBaseBranches.join(", "))}`);
+      const interactive =
+        options.defaults !== true && process.stdin.isTTY === true && process.stdout.isTTY === true;
+      if (interactive) {
+        const draft = createPreset(presetName, overrides);
+        print(style.bold(`Configuring the "${presetName}" workflow`));
+        for (const base of draft.baseBranches) {
+          const answer = await prompt(`Base branch name for "${base.name}"?`, base.name);
+          if (base.name === draft.baseBranches[0].name) overrides.main = answer;
+          else if (base.name === "develop") overrides.develop = answer;
+          else if (base.name === "staging") overrides.staging = answer;
+          else if (base.name === "production") overrides.production = answer;
+        }
+        for (const topic of draft.topicTypes) {
+          const answer = await prompt(`Prefix for ${topic.name} branches?`, topic.prefix);
+          overrides.prefixes = { ...overrides.prefixes, [topic.name]: answer };
+        }
+        overrides.tagPrefix = await prompt("Version tag prefix?", draft.tagPrefix);
       }
-      info(`Branch types: ${style.cyan(preset.listBranchTypeNames().join(", "))}`);
+
+      const config = createPreset(presetName, overrides);
+      const target = options.file ?? join(root, DEFAULT_CONFIG_FILE);
+      const path = existsSync(target) || target.includes("/") ? target : join(root, target);
+      writeConfigFile(path, config);
+      success(`wrote ${path}`);
+
+      if (options.createBranches !== false) {
+        const engine = await wireEngine({
+          root,
+          config,
+          configPath: path,
+          logger: createConsoleLogger(globalOptions.verbose === true),
+        });
+        const created = await engine.createMissingBaseBranches();
+        for (const branch of created) success(`created branch ${branch}`);
+      }
+
+      print();
+      print(`Workflow ${style.cyan(config.name)} is ready. Try:`);
+      const firstTopic = config.topicTypes[0]?.name ?? "feature";
+      print(`  gitwe ${firstTopic} start my-first-${firstTopic}`);
+      print(`  gitwe overview`);
     });
 }

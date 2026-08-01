@@ -1,0 +1,73 @@
+{
+  "version": 1,
+  "name": "classic",
+  "remote": "origin",
+  "tagPrefix": "v",
+  "hooks": {
+    "enabled": true,
+    "path": ".gitwe/hooks"
+  },
+  "baseBranches": [
+    {
+      "name": "main",
+      "upstreamStrategy": "merge",
+      "downstreamStrategy": "merge",
+      "autoUpdate": false
+    },
+    {
+      "name": "develop",
+      "parent": "main",
+      "upstreamStrategy": "merge",
+      "downstreamStrategy": "merge",
+      "autoUpdate": true
+    }
+  ],
+  "topicTypes": [
+    {
+      "name": "feature",
+      "parent": "develop",
+      "prefix": "feature/",
+      "upstreamStrategy": "merge",
+      "downstreamStrategy": "merge",
+      "tag": false,
+      "deleteOnFinish": true
+    },
+    {
+      "name": "bugfix",
+      "parent": "develop",
+      "prefix": "bugfix/",
+      "upstreamStrategy": "merge",
+      "downstreamStrategy": "merge",
+      "tag": false,
+      "deleteOnFinish": true
+    },
+    {
+      "name": "release",
+      "parent": "main",
+      "startPoint": "develop",
+      "prefix": "release/",
+      "upstreamStrategy": "merge",
+      "downstreamStrategy": "merge",
+      "tag": true,
+      "deleteOnFinish": true
+    },
+    {
+      "name": "hotfix",
+      "parent": "main",
+      "prefix": "hotfix/",
+      "upstreamStrategy": "merge",
+      "downstreamStrategy": "merge",
+      "tag": true,
+      "deleteOnFinish": true
+    },
+    {
+      "name": "support",
+      "parent": "main",
+      "prefix": "support/",
+      "upstreamStrategy": "merge",
+      "downstreamStrategy": "merge",
+      "tag": false,
+      "deleteOnFinish": false
+    }
+  ]
+}

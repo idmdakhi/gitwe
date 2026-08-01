@@ -1,65 +1,80 @@
 {
   "name": "gitwe",
   "version": "1.0.0",
-  "description": "A configurable git branching-workflow engine (Gitflow, GitHub Flow, GitLab Flow, or fully custom) — usable as a TypeScript library or as the `gitwe` CLI.",
+  "description": "gitwe — a configurable git workflow engine; git-flow is just one of its workflows.",
+  "license": "MIT",
+  "author": "Mohammad Amanalikhani <idmdakhi@gmail.com>",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "gitwe": "dist/cli/index.js"
+  },
   "keywords": [
     "git",
-    "gitflow",
-    "git-flow",
-    "branching",
     "workflow",
-    "cli",
-    "release"
+    "workflow-engine",
+    "branching",
+    "git-flow",
+    "gitflow",
+    "github-flow",
+    "gitlab-flow",
+    "cli"
   ],
-  "license": "MIT",
-  "type": "module",
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20"
   },
-  "bin": {
-    "gitwe": "./dist/cli/main.js"
+  "scripts": {
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\"",
+    "lint": "eslint . --ext .ts",
+    "lint:fix": "eslint . --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
   },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
-  "imports": {
-    "#gitwe/*": "./dist/*.js"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/idmdakhi/gitwe.git"
   },
-  "scripts": {
-    "start": "node ./dist/cli/main.js",
-    "build": "tsc -p tsconfig.json",
-    "dev": "tsc -p tsconfig.json --watch",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "lint": "eslint src --ext .ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepublishOnly": "npm run build && npm test"
+  "bugs": {
+    "url": "https://github.com/idmdakhi/gitwe/issues"
+  },
+  "homepage": "https://github.com/idmdakhi/gitwe#readme",
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.14.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.2",
+    "prettier": "^3.3.2",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "commander": "^12.1.0",
-    "yaml": "^2.5.1"
-  },
-  "devDependencies": {
-    "@types/node": "^20.19.43",
-    "typescript": "^5.5.0",
-    "vitest": "^2.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/your-org/gitwe.git"
-  },
-  "publishConfig": {
-    "access": "public"
+    "js-yaml": "^4.3.0"
   }
 }
