@@ -5,11 +5,8 @@ import { Engine } from "../application/Engine.js";
 import { createEngine as wireEngine } from "../di/createEngine.js";
 import { ShellGitRepository } from "../infrastructure/git/ShellGitRepository.js";
 
-export interface GlobalOptions {
-  config?: string;
-  cwd?: string;
-  verbose?: boolean;
-}
+export type { GlobalOptions } from "./options.js";
+import type { GlobalOptions } from "./options.js";
 
 export async function repositoryRoot(cwd: string): Promise<string> {
   const git = new ShellGitRepository({ cwd });

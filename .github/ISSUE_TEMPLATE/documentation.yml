@@ -1,0 +1,47 @@
+name: Documentation
+description: Report a docs problem or request an improvement
+title: "[Docs] "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for missing, unclear or incorrect documentation.
+        Code bugs belong in a Bug report; new features belong in a Feature request.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type of change
+      options:
+        - Missing documentation
+        - Unclear / incomplete documentation
+        - Incorrect documentation
+        - Typo / wording
+        - New tutorial or guide
+        - Translation
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Location
+      description: File path, section title, or URL of the page that needs work.
+      placeholder: docs/commands.md – Finish section
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What should be improved?
+      description: Describe the problem or the content you would like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested text or outline (optional)
+      description: If you already have wording or a structure in mind, paste it here.

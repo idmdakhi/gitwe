@@ -1,0 +1,75 @@
+name: Feature request
+description: Suggest a new capability, command, or workflow type
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a feature request, please check:
+        - [ROADMAP.md](https://github.com/idmdakhi/gitwe/blob/main/ROADMAP.md)
+        - [TODO.md](https://github.com/idmdakhi/gitwe/blob/main/TODO.md)
+        - [docs/rfcs/](https://github.com/idmdakhi/gitwe/tree/main/docs/rfcs)
+
+        If the idea is large (new strategy, multi-remote behaviour, plugin-like extension…), consider writing an RFC instead.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: A clear description of the problem or limitation you're running into.
+      placeholder: I need to … because currently gitwe forces me to …
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: |
+        What you'd like to happen. If this is a new CLI command, a new built-in workflow
+        (alongside git-flow / GitHub Flow / trunk-based), or a change to an existing
+        domain rule, please say which.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layer
+    attributes:
+      label: Which layer does this touch?
+      description: Helps reviewers route the work correctly (see docs/ARCHITECTURE.md).
+      multiple: true
+      options:
+        - domain (a new rule, policy, or workflow concept)
+        - application (a new use case / handler)
+        - infrastructure (a new adapter, e.g. a different GitRepository implementation)
+        - cli (a new or changed command)
+        - docs / config only
+        - not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority-hint
+    attributes:
+      label: Suggested priority (from ROADMAP)
+      options:
+        - P0 – blocker / must-have soon
+        - P1 – high value for next minor
+        - P2 – important but can wait
+        - P3 – nice-to-have / later
+        - not sure
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or workarounds you've thought about.
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Links, examples from other tools, screenshots, etc.

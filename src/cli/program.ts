@@ -1,31 +1,15 @@
 import { Command } from "commander";
 
-import { ConflictError, GitweError } from "../domain/errors.js";
 import { VERSION } from "../version.js";
+import { preScanGlobals } from "./args.js";
 import { registerConfig } from "./commands/config.js";
 import { registerInit } from "./commands/init.js";
 import { registerOverview } from "./commands/overview.js";
 import { registerTopicCommands } from "./commands/topic.js";
 import { repositoryRoot, tryLoadWorkflow, type GlobalOptions } from "./context.js";
-import { print, setColorEnabled, style } from "./output.js";
-
-/**
- * Topic commands are generated from the workflow definition, so the global
- * options have to be read before commander parses the rest of the arguments.
- */
-function preScanGlobals(argv: string[]): GlobalOptions {
-  const options: GlobalOptions = {};
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === "--config" || arg === "-C") options.config = argv[i + 1];
-    else if (arg.startsWith("--config=")) options.config = arg.slice("--config=".length);
-    else if (arg === "--cwd") options.cwd = argv[i + 1];
-    else if (arg.startsWith("--cwd=")) options.cwd = arg.slice("--cwd=".length);
-    else if (arg === "--verbose" || arg === "-v") options.verbose = true;
-    else if (arg === "--no-color") setColorEnabled(false);
-  }
-  return options;
-}
+import { exitCodeFor, reportError } from "./error-reporter.js";
+import { GLOBAL_OPTION_FLAGS } from "./options.js";
+import { print } from "./output.js";
 
 export async function buildProgram(argv: string[]): Promise<Command> {
   const globals = preScanGlobals(argv);
@@ -35,12 +19,12 @@ export async function buildProgram(argv: string[]): Promise<Command> {
     .name("gitwe")
     .description("gitwe — a configurable git workflow engine")
     .version(VERSION, "--version", "show the gitwe version")
-    .option("-C, --config <path>", "path to the workflow definition")
-    .option("--cwd <path>", "run as if gitwe was started in <path>")
-    .option("-v, --verbose", "show every git command gitwe runs")
-    .option("--no-color", "disable coloured output")
     .showHelpAfterError()
     .enablePositionalOptions();
+
+  for (const opt of GLOBAL_OPTION_FLAGS) {
+    program.option(opt.flags, opt.description);
+  }
 
   const globalOptions = (): GlobalOptions => ({ ...globals, ...program.opts<GlobalOptions>() });
 
@@ -65,7 +49,7 @@ export async function buildProgram(argv: string[]): Promise<Command> {
 }
 
 /**
- * The global options are read by {@link preScanGlobals} from the raw argv, so
+ * Global options are read by {@link preScanGlobals} from the raw argv, so
  * every leaf command accepts (and ignores) them wherever the user types them.
  */
 function acceptGlobalOptionsEverywhere(command: Command): void {
@@ -74,27 +58,10 @@ function acceptGlobalOptionsEverywhere(command: Command): void {
       acceptGlobalOptionsEverywhere(child);
       continue;
     }
-    child
-      .option("-C, --config <path>", "path to the workflow definition")
-      .option("--cwd <path>", "run as if gitwe was started in <path>")
-      .option("-v, --verbose", "show every git command gitwe runs")
-      .option("--no-color", "disable coloured output");
+    for (const opt of GLOBAL_OPTION_FLAGS) {
+      child.option(opt.flags, opt.description);
+    }
   }
-}
-
-function reportError(error: unknown): void {
-  if (error instanceof ConflictError) {
-    process.stderr.write(`${style.red("conflict:")} ${error.message}\n`);
-    for (const file of error.files) process.stderr.write(`  ${file}\n`);
-    if (error.hint !== undefined) process.stderr.write(`${style.dim(error.hint)}\n`);
-    return;
-  }
-  if (error instanceof GitweError) {
-    process.stderr.write(`${style.red("error:")} ${error.message}\n`);
-    if (error.hint !== undefined) process.stderr.write(`${style.dim(error.hint)}\n`);
-    return;
-  }
-  process.stderr.write(`${style.red("error:")} ${(error as Error).message}\n`);
 }
 
 export async function run(argv: string[] = process.argv): Promise<number> {
@@ -104,6 +71,6 @@ export async function run(argv: string[] = process.argv): Promise<number> {
     return 0;
   } catch (error) {
     reportError(error);
-    return error instanceof ConflictError ? 2 : 1;
+    return exitCodeFor(error);
   }
 }
