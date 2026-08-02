@@ -3,10 +3,6 @@
   "name": "classic",
   "remote": "origin",
   "tagPrefix": "v",
-  "hooks": {
-    "enabled": true,
-    "path": ".gitwe/hooks"
-  },
   "baseBranches": [
     {
       "name": "main",
@@ -44,8 +40,8 @@
     {
       "name": "release",
       "parent": "main",
-      "startPoint": "develop",
       "prefix": "release/",
+      "startPoint": "develop",
       "upstreamStrategy": "merge",
       "downstreamStrategy": "merge",
       "tag": true,
@@ -69,5 +65,9 @@
       "tag": false,
       "deleteOnFinish": false
     }
-  ]
+  ],
+  "hooks": {
+    "enabled": true,
+    "path": ".gitwe/hooks"
+  }
 }

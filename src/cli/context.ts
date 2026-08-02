@@ -4,8 +4,6 @@ import { createConsoleLogger } from "../infrastructure/logger/consoleLogger.js";
 import { Engine } from "../application/Engine.js";
 import { createEngine as wireEngine } from "../di/createEngine.js";
 import { ShellGitRepository } from "../infrastructure/git/ShellGitRepository.js";
-
-export type { GlobalOptions } from "./options.js";
 import type { GlobalOptions } from "./options.js";
 
 export async function repositoryRoot(cwd: string): Promise<string> {
@@ -21,7 +19,6 @@ export function loadWorkflow(root: string, options: GlobalOptions): LoadedConfig
   return loadConfig({ cwd: options.cwd ?? root, configPath: options.config, root });
 }
 
-/** Read the workflow without failing when the repository is not initialised yet. */
 export function tryLoadWorkflow(root: string, options: GlobalOptions): LoadedConfig | undefined {
   try {
     return loadWorkflow(root, options);

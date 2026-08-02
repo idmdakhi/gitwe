@@ -1,3 +1,5 @@
+import yaml from "js-yaml";
+
 let colorEnabled = process.env.NO_COLOR === undefined && process.stdout.isTTY === true;
 
 export function setColorEnabled(enabled: boolean): void {
@@ -48,4 +50,13 @@ export function renderTree(
   };
   roots.forEach((root, index) => walk(root, "", index === roots.length - 1, 0));
   return lines;
+}
+
+/** Print structured output in JSON or YAML format. */
+export function printStructured(data: unknown, format: "json" | "yaml"): void {
+  if (format === "json") {
+    print(JSON.stringify(data, null, 2));
+  } else if (format === "yaml") {
+    print(yaml.dump(data, { lineWidth: 100, noRefs: true }).trimEnd());
+  }
 }

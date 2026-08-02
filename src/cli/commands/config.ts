@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import type { GlobalOptions } from "../options.js";
 
 import {
   addBaseBranch,
@@ -15,7 +16,7 @@ import {
 import { writeConfigFile } from "../../infrastructure/config/loader.js";
 import { ValidationError } from "../../domain/errors.js";
 import type { MergeStrategy, UpdateStrategy, WorkflowConfig } from "../../domain/entities.js";
-import { loadWorkflow, repositoryRoot, type GlobalOptions } from "../context.js";
+import { loadWorkflow, repositoryRoot } from "../context.js";
 import { print, renderTree, style, success } from "../output.js";
 
 interface CliOptions {

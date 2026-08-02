@@ -17,8 +17,9 @@ import {
 } from "../../domain/config/presets.js";
 import { createConsoleLogger } from "../../infrastructure/logger/consoleLogger.js";
 import { createEngine as wireEngine } from "../../di/createEngine.js";
-import { print, style, success } from "../output.js";
-import { repositoryRoot, type GlobalOptions } from "../context.js";
+import { print, style, success, printStructured } from "../output.js";
+import { repositoryRoot } from "../context.js";
+import type { GlobalOptions } from "../options.js";
 
 interface InitOptions {
   force?: boolean;
@@ -73,12 +74,16 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
       const globalOptions = globals();
       const cwd = globalOptions.cwd ?? process.cwd();
       const root = await repositoryRoot(cwd);
+      const dryRun = globalOptions.dryRun === true;
+      const format = globalOptions.format;
 
+      // --- برسی وجود فایل تنظیمات ---
       const existing = findConfigFile(root, root);
       if (existing !== undefined && options.force !== true) {
         throw new ConfigError(`${existing} already exists`, "pass --force to overwrite it");
       }
 
+      // --- تعیین preset ---
       const presetName = options.preset ?? "classic";
       if (!isPresetName(presetName)) {
         throw new ConfigError(
@@ -87,6 +92,7 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         );
       }
 
+      // --- جمع‌آوری overrideها ---
       const overrides: PresetOverrides = {
         main: options.main,
         develop: options.develop,
@@ -103,6 +109,7 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         },
       };
 
+      // --- حالت تعاملی ---
       const interactive =
         options.defaults !== true && process.stdin.isTTY === true && process.stdout.isTTY === true;
       if (interactive) {
@@ -122,27 +129,54 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         overrides.tagPrefix = await prompt("Version tag prefix?", draft.tagPrefix);
       }
 
+      // --- ساخت config نهایی ---
       const config = createPreset(presetName, overrides);
       const target = options.file ?? join(root, DEFAULT_CONFIG_FILE);
       const path = existsSync(target) || target.includes("/") ? target : join(root, target);
-      writeConfigFile(path, config);
-      success(`wrote ${path}`);
 
-      if (options.createBranches !== false) {
+      // --- خروجی JSON/YAML اگر درخواست شده باشد ---
+      if (format === "json" || format === "yaml") {
+        printStructured(
+          {
+            action: dryRun ? "dry-run" : "write",
+            path,
+            config,
+            branchesCreated: options.createBranches !== false ? [] : undefined,
+          },
+          format,
+        );
+        if (dryRun) return;
+      }
+
+      // --- نوشتن فایل (اگر dry-run نباشد) ---
+      if (!dryRun) {
+        writeConfigFile(path, config);
+        success(`wrote ${path}`);
+      } else {
+        print(style.dim(`[dry-run] would write to ${path}`));
+      }
+
+      // --- ایجاد شاخه‌های پایه ---
+      if (options.createBranches !== false && !dryRun) {
+        const logger = createConsoleLogger(globalOptions.verbose === true);
         const engine = await wireEngine({
           root,
           config,
           configPath: path,
-          logger: createConsoleLogger(globalOptions.verbose === true),
+          logger,
         });
         const created = await engine.createMissingBaseBranches();
         for (const branch of created) success(`created branch ${branch}`);
+      } else if (options.createBranches !== false && dryRun) {
+        print(style.dim("[dry-run] would create missing base branches"));
       }
 
-      print();
-      print(`Workflow ${style.cyan(config.name)} is ready. Try:`);
-      const firstTopic = config.topicTypes[0]?.name ?? "feature";
-      print(`  gitwe ${firstTopic} start my-first-${firstTopic}`);
-      print(`  gitwe overview`);
+      if (!dryRun) {
+        print();
+        print(`Workflow ${style.cyan(config.name)} is ready. Try:`);
+        const firstTopic = config.topicTypes[0]?.name ?? "feature";
+        print(`  gitwe start ${firstTopic} my-first-${firstTopic}`);
+        print(`  gitwe overview`);
+      }
     });
 }

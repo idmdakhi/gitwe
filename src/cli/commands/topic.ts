@@ -1,9 +1,10 @@
-import { Command, Option } from "commander";
+import { Command } from "commander";
 
 import type { TopicType, WorkflowConfig } from "../../domain/entities.js";
 import type { Engine } from "../../application/Engine.js";
 import type { FinishOptions, FinishResult } from "../../application/use-case/finish.js";
-import { createEngine, type GlobalOptions } from "../context.js";
+import { createEngine } from "../context.js";
+import type { GlobalOptions } from "../options.js";
 import { print, style, success } from "../output.js";
 
 interface FinishCliOptions {
@@ -234,103 +235,6 @@ function collect(value: string, previous: string[]): string[] {
   return [...previous, value];
 }
 
-/** Shorthands that operate on the current branch or an explicit branch name. */
-function registerShorthands(program: Command, globals: () => GlobalOptions): void {
-  program
-    .command("start")
-    .description("create a new topic branch")
-    .argument("<type>", "topic type")
-    .argument("<name>")
-    .argument("[base]", "start point (branch, tag or commit)")
-    .option("--fetch", "fetch the remote before creating the branch")
-    .action(
-      async (
-        typeName: string,
-        name: string,
-        base: string | undefined,
-        options: { fetch?: boolean },
-      ) => {
-        const engine = await createEngine(globals());
-        const result = await engine.start(typeName, name, { base, fetch: options.fetch });
-        success(`created ${result.branch} from ${result.startPoint}`);
-      },
-    );
-
-  addFinishOptions(
-    program
-      .command("finish")
-      .description("finish the current (or named) topic branch")
-      .argument("[name]"),
-  ).action(async (name: string | undefined, options: FinishCliOptions) => {
-    const engine = await createEngine(globals());
-    await runFinish(engine, undefined, name, options);
-  });
-
-  program
-    .command("update")
-    .description("update the current (or named) topic branch from its parent")
-    .argument("[name]")
-    .option("--rebase", "rebase instead of the configured downstream strategy")
-    .option("--fetch", "fetch the remote first")
-    .action(async (name: string | undefined, options: { rebase?: boolean; fetch?: boolean }) => {
-      const engine = await createEngine(globals());
-      const topic = await engine.resolveTarget(undefined, name);
-      const result = await engine.update(topic, options);
-      if (result.alreadyUpToDate) print(style.dim(`${result.branch} is already up to date`));
-      else success(`updated ${result.branch} from ${result.parent} (${result.strategy})`);
-    });
-
-  program
-    .command("rebase")
-    .description("update the current (or named) topic branch by rebasing")
-    .argument("[name]")
-    .action(async (name: string | undefined) => {
-      const engine = await createEngine(globals());
-      const topic = await engine.resolveTarget(undefined, name);
-      const result = await engine.update(topic, { rebase: true });
-      if (result.alreadyUpToDate) print(style.dim(`${result.branch} is already up to date`));
-      else success(`rebased ${result.branch} onto ${result.parent}`);
-    });
-
-  program
-    .command("publish")
-    .description("push the current (or named) topic branch")
-    .argument("[name]")
-    .addOption(
-      new Option("-o, --push-option <option>", "push option (repeatable)")
-        .argParser(collect)
-        .default([]),
-    )
-    .action(async (name: string | undefined, options: { pushOption?: string[] }) => {
-      const engine = await createEngine(globals());
-      const topic = await engine.resolveTarget(undefined, name);
-      success(`published ${await engine.publish(topic, { pushOptions: options.pushOption })}`);
-    });
-
-  program
-    .command("delete")
-    .description("delete the current (or named) topic branch")
-    .argument("[name]")
-    .option("-f, --force", "delete even if the branch is not fully merged")
-    .option("-r, --remote", "delete the remote branch as well")
-    .action(async (name: string | undefined, options: { force?: boolean; remote?: boolean }) => {
-      const engine = await createEngine(globals());
-      const topic = await engine.resolveTarget(undefined, name);
-      const result = await engine.deleteTopic(topic, options);
-      success(`deleted ${result.branch}${result.deletedRemote ? " (local and remote)" : ""}`);
-    });
-
-  program
-    .command("rename")
-    .description("rename the current topic branch")
-    .argument("<new-name>")
-    .action(async (newName: string) => {
-      const engine = await createEngine(globals());
-      const topic = await engine.currentTopic();
-      success(`renamed ${topic.branch} → ${await engine.rename(topic, newName)}`);
-    });
-}
-
 /** Register the per-type command groups declared by the workflow definition. */
 export function registerTopicCommands(
   program: Command,
@@ -338,5 +242,14 @@ export function registerTopicCommands(
   globals: () => GlobalOptions,
 ): void {
   for (const type of config.topicTypes) registerTopicType(program, type, globals);
-  registerShorthands(program, globals);
 }
+
+// import { registerTopicCommands } from "./commands/topic.js";
+// import { repositoryRoot, tryLoadWorkflow} from "./context.js";
+// try {
+//     const root = await repositoryRoot(globals.cwd ?? process.cwd());
+//     const loaded = tryLoadWorkflow(root, globals);
+//     if (loaded !== undefined) registerType(program, loaded.config, globalOptions);
+//   } catch {
+//     // Outside a repository only init/config/version are available.
+//   }

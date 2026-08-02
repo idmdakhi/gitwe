@@ -1,19 +1,23 @@
 import { Command } from "commander";
-
 import { VERSION } from "../version.js";
 import { preScanGlobals } from "./args.js";
-import { registerConfig } from "./commands/config.js";
 import { registerInit } from "./commands/init.js";
+import { registerConfig } from "./commands/config.js";
 import { registerOverview } from "./commands/overview.js";
-import { registerTopicCommands } from "./commands/topic.js";
-import { repositoryRoot, tryLoadWorkflow, type GlobalOptions } from "./context.js";
+import { registerWorkflowCommands } from "./commands/workflow.js";
+import { registerCheckout } from "./commands/checkout.js";
+import { registerTrack } from "./commands/track.js";
+import { registerCurrent } from "./commands/current.js";
+import { registerList } from "./commands/list.js";
+import { registerGraph } from "./commands/graph.js";
+import { registerDoctor } from "./commands/doctor.js";
+import { registerValidate } from "./commands/validate.js";
 import { exitCodeFor, reportError } from "./error-reporter.js";
-import { GLOBAL_OPTION_FLAGS } from "./options.js";
-import { print } from "./output.js";
+import { GLOBAL_OPTION_FLAGS, GlobalOptions } from "./options.js";
+import { print, printStructured } from "./output.js";
 
 export async function buildProgram(argv: string[]): Promise<Command> {
   const globals = preScanGlobals(argv);
-
   const program = new Command();
   program
     .name("gitwe")
@@ -27,31 +31,37 @@ export async function buildProgram(argv: string[]): Promise<Command> {
   }
 
   const globalOptions = (): GlobalOptions => ({ ...globals, ...program.opts<GlobalOptions>() });
+  const format = globalOptions().format;
 
+  // ثبت دستورات
   registerInit(program, globalOptions);
   registerConfig(program, globalOptions);
   registerOverview(program, globalOptions);
+  registerWorkflowCommands(program, globalOptions);
+  registerCheckout(program, globalOptions);
+  registerTrack(program, globalOptions);
+  registerCurrent(program, globalOptions);
+  registerList(program, globalOptions);
+  registerGraph(program, globalOptions);
+  registerDoctor(program, globalOptions);
+  registerValidate(program, globalOptions);
+
   program
     .command("version")
     .description("show the gitwe version")
-    .action(() => print(VERSION));
-
-  try {
-    const root = await repositoryRoot(globals.cwd ?? process.cwd());
-    const loaded = tryLoadWorkflow(root, globals);
-    if (loaded !== undefined) registerTopicCommands(program, loaded.config, globalOptions);
-  } catch {
-    // Outside a repository only init/config/version are available.
-  }
+    .action(() => {
+      const data = { version: VERSION, schemaVersion: 1 };
+      if (format === "json" || format === "yaml") {
+        printStructured(data, format!);
+      } else {
+        print(VERSION);
+      }
+    });
 
   acceptGlobalOptionsEverywhere(program);
   return program;
 }
 
-/**
- * Global options are read by {@link preScanGlobals} from the raw argv, so
- * every leaf command accepts (and ignores) them wherever the user types them.
- */
 function acceptGlobalOptionsEverywhere(command: Command): void {
   for (const child of command.commands) {
     if (child.commands.length > 0) {

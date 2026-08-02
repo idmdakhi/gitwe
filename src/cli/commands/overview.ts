@@ -2,23 +2,20 @@ import { Command } from "commander";
 import yaml from "js-yaml";
 
 import { ValidationError } from "../../domain/errors.js";
-import { createEngine, type GlobalOptions } from "../context.js";
+import { createEngine } from "../context.js";
+import type { GlobalOptions } from "../options.js";
 import { print, renderTree, style } from "../output.js";
-
-interface OverviewOptions {
-  format?: string;
-}
 
 export function registerOverview(program: Command, globals: () => GlobalOptions): void {
   program
     .command("overview")
     .alias("status")
     .description("show the workflow configuration, branch structure and health")
-    .option("--format <format>", "output format: text, json or yaml", "text")
-    .action(async (options: OverviewOptions) => {
+    // .option("--format <format>", "output format: text, json or yaml", "text")
+    .action(async () => {
       const engine = await createEngine(globals());
       const report = await engine.overview();
-      const format = options.format ?? "text";
+      const format = globals().format ?? "text";
 
       if (format === "json") {
         print(JSON.stringify(report, null, 2));
