@@ -1,7 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ShellGitRepository } from "../../src/infrastructure/git/shell-git-repository.js";
 import { TestRepo } from "../support/repo.js";
-import { ConflictError, GitError } from "../../src/domain/errors.js";
+import {
+  ConflictError,
+  // GitError
+} from "../../src/domain/errors.js";
 import { join } from "node:path";
 
 describe("ShellGitRepository", () => {
