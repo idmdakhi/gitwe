@@ -238,10 +238,12 @@ export class ShellGitRepository implements GitRepository {
 
   async createTag(name: string, options: TagOptions = {}): Promise<void> {
     const args = ["tag"];
-    if (options.sign === true) args.push("-s");
-    if (options.signingKey !== undefined) args.push("-u", options.signingKey);
+    if (options.sign) {
+      args.push("-s");
+      if (options.signingKey) args.push("-u", options.signingKey);
+    } else args.push("-a");
     args.push("-m", options.message ?? name, name);
-    // if (options.ref !== undefined) args.push(options.ref);
+    if (options.ref) args.push(options.ref);
     await this.run(args);
   }
 
