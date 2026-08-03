@@ -52,7 +52,11 @@ function toFinishOptions(options: FinishCliOptions): FinishOptions {
   };
 }
 
-function reportFinish(result: FinishResult): void {
+function reportFinish(result: FinishResult, format?: "text" | "json" | "yaml" | "table"): void {
+  if (format === "json" || format === "yaml") {
+    printStructured(result, format);
+    return;
+  }
   success(`${result.branch} → ${result.parent} (${result.strategy})`);
   if (result.tag !== undefined) success(`tagged ${result.tag}`);
   for (const branch of result.updatedBranches) success(`updated ${branch}`);
@@ -92,6 +96,7 @@ async function runFinish(
   typeName: string | undefined,
   name: string | undefined,
   options: FinishCliOptions,
+  format?: "text" | "json" | "yaml" | "table",
 ): Promise<void> {
   if (options.abort === true) {
     await engine.abortOperation();
@@ -99,12 +104,12 @@ async function runFinish(
     return;
   }
   if (options.continue === true) {
-    reportFinish(await engine.continueOperation());
+    reportFinish(await engine.continueOperation(), format);
     return;
   }
   const type = typeName === undefined ? undefined : engine.workflow.requireTopicType(typeName);
   const topic = await engine.resolveTarget(type, name);
-  reportFinish(await engine.finish(topic, toFinishOptions(options)));
+  reportFinish(await engine.finish(topic, toFinishOptions(options)), format);
 }
 
 function collect(value: string, previous: string[]): string[] {
@@ -113,7 +118,7 @@ function collect(value: string, previous: string[]): string[] {
 
 // ---------- ثبت دستورات ----------
 export function registerWorkflowCommands(program: Command, globals: () => GlobalOptions): void {
-  const format = globals().format;
+  const getFormat = () => globals().format;
   // start
   program
     .command("start")
@@ -132,8 +137,8 @@ export function registerWorkflowCommands(program: Command, globals: () => Global
         const engine = await createEngine(globals());
         const result = await engine.start(typeName, name, { base, fetch: opts.fetch });
         const data = { branch: result.branch, startPoint: result.startPoint };
-        if (format === "json" || format === "yaml") {
-          printStructured(data, format!);
+        if (getFormat() === "json" || getFormat() === "yaml") {
+          printStructured(data, getFormat()!);
         } else {
           success(`created ${result.branch} from ${result.startPoint}`);
         }
@@ -148,7 +153,7 @@ export function registerWorkflowCommands(program: Command, globals: () => Global
       .argument("[name]", "branch name, defaults to the current branch"),
   ).action(async (name: string | undefined, opts: FinishCliOptions) => {
     const engine = await createEngine(globals());
-    await runFinish(engine, undefined, name, opts);
+    await runFinish(engine, undefined, name, opts, getFormat());
   });
 
   // update
@@ -162,8 +167,8 @@ export function registerWorkflowCommands(program: Command, globals: () => Global
       const engine = await createEngine(globals());
       const topic = await engine.resolveTarget(undefined, name);
       const result = await engine.update(topic, opts);
-      if (format === "json" || format === "yaml") {
-        printStructured(result, format!);
+      if (getFormat() === "json" || getFormat() === "yaml") {
+        printStructured(result, getFormat()!);
       } else if (result.alreadyUpToDate) {
         print(style.dim(`${result.branch} is already up to date`));
       } else {
@@ -180,8 +185,8 @@ export function registerWorkflowCommands(program: Command, globals: () => Global
       const engine = await createEngine(globals());
       const topic = await engine.resolveTarget(undefined, name);
       const result = await engine.update(topic, { rebase: true });
-      if (format === "json" || format === "yaml") {
-        printStructured(result, format!);
+      if (getFormat() === "json" || getFormat() === "yaml") {
+        printStructured(result, getFormat()!);
       } else if (result.alreadyUpToDate) {
         print(style.dim(`${result.branch} is already up to date`));
       } else {
@@ -204,8 +209,8 @@ export function registerWorkflowCommands(program: Command, globals: () => Global
       const topic = await engine.resolveTarget(undefined, name);
       const published = await engine.publish(topic, { pushOptions: opts.pushOption });
       const data = { remote: published };
-      if (format === "json" || format === "yaml") {
-        printStructured(data, format!);
+      if (getFormat() === "json" || getFormat() === "yaml") {
+        printStructured(data, getFormat()!);
       } else {
         success(`published ${published}`);
       }
@@ -223,8 +228,8 @@ export function registerWorkflowCommands(program: Command, globals: () => Global
       const topic = await engine.resolveTarget(undefined, name);
       const result = await engine.deleteTopic(topic, opts);
       const data = { branch: result.branch, deletedRemote: result.deletedRemote };
-      if (format === "json" || format === "yaml") {
-        printStructured(data, format!);
+      if (getFormat() === "json" || getFormat() === "yaml") {
+        printStructured(data, getFormat()!);
       } else {
         success(`deleted ${result.branch}${result.deletedRemote ? " (local and remote)" : ""}`);
       }
@@ -240,8 +245,8 @@ export function registerWorkflowCommands(program: Command, globals: () => Global
       const topic = await engine.currentTopic();
       const renamed = await engine.rename(topic, newName);
       const data = { old: topic.branch, new: renamed };
-      if (format === "json" || format === "yaml") {
-        printStructured(data, format!);
+      if (getFormat() === "json" || getFormat() === "yaml") {
+        printStructured(data, getFormat()!);
       } else {
         success(`renamed ${topic.branch} → ${renamed}`);
       }

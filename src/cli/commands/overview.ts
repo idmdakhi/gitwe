@@ -25,8 +25,16 @@ export function registerOverview(program: Command, globals: () => GlobalOptions)
         print(yaml.dump(report, { lineWidth: 100, noRefs: true }).trimEnd());
         return;
       }
+      if (format === "table") {
+        print(`${style.bold("Name").padEnd(20)} ${style.bold("Status").padEnd(12)} ${style.bold("Ahead").padEnd(8)} ${style.bold("Behind").padEnd(8)} ${style.bold("Upstream")}`);
+        for (const b of report.baseBranches) {
+          const status = !b.exists ? "missing" : b.current ? "current" : "ok";
+          print(`${b.name.padEnd(20)} ${status.padEnd(12)} ${String(b.ahead).padEnd(8)} ${String(b.behind).padEnd(8)} ${b.upstream ?? "-"}`);
+        }
+        return;
+      }
       if (format !== "text") {
-        throw new ValidationError(`unknown format "${format}"`, "use text, json or yaml");
+        throw new ValidationError(`unknown format "${format}"`, "use text, json, yaml or table");
       }
 
       print(`${style.bold("Workflow")}  ${report.workflow}`);

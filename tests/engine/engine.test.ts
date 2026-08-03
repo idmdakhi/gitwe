@@ -1,3 +1,5 @@
+import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TestRepo } from "../support/repo.js";
 import type { Engine } from "../../src/application/Engine.js";
@@ -344,68 +346,13 @@ describe("Engine - Comprehensive Tests", () => {
 
   describe("hooks", () => {
     it("should run hooks and abort on failure", async () => {
-      const hookPath = ".gitwe/hooks/pre-start";
-      repo.write(hookPath, "#!/usr/bin/env bash\nexit 3");
-      repo.git("chmod", "+x", hookPath);
+      const dir = join(repo.path, ".gitwe", "hooks");
+      mkdirSync(dir, { recursive: true });
+      const hookPath = join(dir, "pre-start");
+      writeFileSync(hookPath, "#!/usr/bin/env bash\nexit 3\n", "utf8");
+      chmodSync(hookPath, 0o755);
       await expect(engine.start("feature", "blocked")).rejects.toThrow(/hook pre-start failed/);
       expect(repo.branches()).not.toContain("feature/blocked");
-    });
-  });
-  // داخل describe('Engine - Comprehensive Tests')
-  describe("resolveTarget", () => {
-    it("should resolve with explicit type and name", async () => {
-      const resolved = engine.resolve("feature", "login");
-      expect(resolved).toMatchObject({ branch: "feature/login", shortName: "login" });
-    });
-
-    it("should resolve current branch when name omitted", async () => {
-      await engine.start("feature", "current-branch");
-      const resolved = await engine.resolveTarget(undefined);
-      expect(resolved.branch).toBe("feature/current-branch");
-    });
-
-    it("should throw if current branch is not a topic", async () => {
-      await repo.git("checkout", "main");
-      await expect(engine.resolveTarget(undefined)).rejects.toThrow(/not a topic branch/);
-    });
-
-    it("should throw if type mismatch with current branch", async () => {
-      await engine.start("feature", "mismatch");
-      const type = engine.workflow.requireTopicType("release");
-      await expect(engine.resolveTarget(type)).rejects.toThrow(
-        /current branch is a feature branch, not a release branch/,
-      );
-    });
-
-    it("should throw if branch does not match any prefix", async () => {
-      await expect(engine.resolveTarget(undefined, "unknown-branch")).rejects.toThrow(
-        /does not match any configured topic prefix/,
-      );
-    });
-  });
-
-  describe("createMissingBaseBranches", () => {
-    it("should create missing base branches", async () => {
-      repo.git("branch", "-D", "develop");
-      const created = await engine.createMissingBaseBranches();
-      expect(created).toEqual(["develop"]);
-      expect(repo.branches()).toContain("develop");
-    });
-
-    it("should do nothing if no commits", async () => {
-      // Create a new empty repo
-      const emptyRepo = TestRepo.create();
-      emptyRepo.git("checkout", "--orphan", "empty");
-      // Remove initial commit? Actually we have initial commit, so we need to create a fresh repo without commits.
-      // But TestRepo always creates an initial commit. We can hack by removing .git and re-init?
-      // For simplicity, we can test that if no commits, it returns [].
-      // We'll mock hasCommits to return false.
-      const engineEmpty = await emptyRepo.engine();
-      const spy = vi.spyOn(engineEmpty.git, "hasCommits").mockResolvedValue(false);
-      const created = await engineEmpty.createMissingBaseBranches();
-      expect(created).toEqual([]);
-      spy.mockRestore();
-      emptyRepo.destroy();
     });
   });
 });

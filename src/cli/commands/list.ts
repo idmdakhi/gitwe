@@ -4,13 +4,13 @@ import type { GlobalOptions } from "../options.js";
 import { print, style, printStructured } from "../output.js";
 
 export function registerList(program: Command, globals: () => GlobalOptions): void {
-  const format = globals().format;
   program
     .command("list")
     .description("list topic branches of a given type")
     .argument("<type>", "topic type")
     .argument("[pattern]", "shell-style glob applied to the short name")
     .action(async (type: string, pattern: string | undefined) => {
+      const format = globals().format;
       const engine = await createEngine(globals());
       const topicType = engine.workflow.requireTopicType(type);
       const branches = await engine.listTopics(topicType, pattern);

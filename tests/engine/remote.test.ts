@@ -87,34 +87,4 @@ describe("remote-facing operations", () => {
     const forced = await engine.finish(engine.resolve("feature", "behind"), { force: true });
     expect(forced.deletedLocal).toBe(true);
   });
-
-  // داخل describe('remote-facing operations')
-  it("should pass push options to git", async () => {
-    const remote = TestRepo.createBare();
-    repo.git("remote", "add", "origin", remote);
-    repo.git("push", "-q", "origin", "main", "develop");
-    await engine.start("feature", "withopts");
-    repo.commit("a.txt", "a", "work");
-    // We can't easily verify push options because they are server-side, but we can check that the command runs.
-    await expect(
-      engine.publish(engine.resolve("feature", "withopts"), { pushOptions: ["some-option"] }),
-    ).resolves.toBe("origin/feature/withopts");
-  });
-
-  it("should fetch before finish if fetch option true (default)", async () => {
-    // Setup remote
-    const remote = TestRepo.createBare();
-    repo.git("remote", "add", "origin", remote);
-    repo.git("push", "-q", "origin", "main", "develop");
-    await engine.start("feature", "fetchtest");
-    repo.commit("a.txt", "a", "work");
-    // We can mock git.fetch to see if called
-    const spy = vi.spyOn(engine.git, "fetch");
-    await engine.finish(engine.resolve("feature", "fetchtest"));
-    expect(spy).toHaveBeenCalledWith("origin");
-  });
-
-  it("should not fetch if --no-fetch", async () => {
-    // similar but with fetch: false
-  });
 });

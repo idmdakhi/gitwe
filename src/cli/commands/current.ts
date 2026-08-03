@@ -4,11 +4,11 @@ import type { GlobalOptions } from "../options.js";
 import { print, style, printStructured } from "../output.js";
 
 export function registerCurrent(program: Command, globals: () => GlobalOptions): void {
-  const format = globals().format;
   program
     .command("current")
     .description("show information about the current topic branch")
     .action(async () => {
+      const format = globals().format;
       const engine = await createEngine(globals());
       try {
         const topic = await engine.currentTopic();

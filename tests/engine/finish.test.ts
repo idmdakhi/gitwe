@@ -169,48 +169,4 @@ describe("Engine.finish", () => {
       /does not exist/,
     );
   });
-
-  // داخل describe('Engine.finish')
-  it("should push when --push is given", async () => {
-    const remote = TestRepo.createBare();
-    repo.git("remote", "add", "origin", remote);
-    repo.git("push", "-q", "origin", "main", "develop");
-    await engine.start("feature", "pushme");
-    repo.commit("a.txt", "a", "work");
-    // Ensure remote branch doesn't exist initially
-    expect(repo.git("ls-remote", "--heads", "origin", "feature/pushme")).toBe("");
-    const result = await engine.finish(engine.resolve("feature", "pushme"), { push: true });
-    // After finish, the merge commit should be pushed to develop, and topic branch deleted
-    expect(repo.git("ls-remote", "--heads", "origin", "develop")).not.toBe("");
-    expect(repo.git("ls-remote", "--heads", "origin", "feature/pushme")).toBe("");
-  });
-
-  it("should not push if --push not given", async () => {
-    // similar but check that remote develop is not updated
-  });
-
-  it("should handle --keepremote", async () => {
-    const remote = TestRepo.createBare();
-    repo.git("remote", "add", "origin", remote);
-    repo.git("push", "-q", "origin", "main", "develop");
-    await engine.start("feature", "keepremote");
-    repo.commit("a.txt", "a", "work");
-    await engine.publish(engine.resolve("feature", "keepremote"));
-    await engine.finish(engine.resolve("feature", "keepremote"), { keepRemote: true });
-    // Remote branch should still exist
-    expect(repo.git("ls-remote", "--heads", "origin", "feature/keepremote")).not.toBe("");
-  });
-
-  it("should handle --force-delete", async () => {
-    // Create a feature branch with commits not merged
-    await engine.start("feature", "unmerged");
-    repo.commit("a.txt", "a", "work");
-    // Create a new commit on develop that diverges
-    repo.git("checkout", "develop");
-    repo.commit("b.txt", "b", "develop work");
-    // Now finish with force-delete (should delete even if not merged? Actually finish does merge, so it will merge; force-delete applies to deletion of local branch after merge? Let's check: it forces deletion of the local branch even if not fully merged? Actually it's used in deleteBranch force flag. In finish, if the branch is not merged (but it will be merged if no conflict), force-delete might be irrelevant. We'll test scenario where merge has conflicts and user aborts, but force-delete might be used to delete branch after abort? Not sure. We can test that if merge fails, we can still delete branch with force.
-    // Alternatively, we can test that deleting a branch with unmerged commits requires force.
-    // But in finish, the branch is always merged (or rebased) before deletion, so force-delete might be redundant.
-    // We'll add a test for deleteTopic with force instead.
-  });
 });

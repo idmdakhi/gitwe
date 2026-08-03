@@ -12,6 +12,8 @@ import { registerList } from "./commands/list.js";
 import { registerGraph } from "./commands/graph.js";
 import { registerDoctor } from "./commands/doctor.js";
 import { registerValidate } from "./commands/validate.js";
+// import { registerTopicCommands } from "./commands/topic.js";
+// import { repositoryRoot, tryLoadWorkflow } from "./context.js";
 import { exitCodeFor, reportError } from "./error-reporter.js";
 import { GLOBAL_OPTION_FLAGS, GlobalOptions } from "./options.js";
 import { print, printStructured } from "./output.js";
@@ -31,8 +33,6 @@ export async function buildProgram(argv: string[]): Promise<Command> {
   }
 
   const globalOptions = (): GlobalOptions => ({ ...globals, ...program.opts<GlobalOptions>() });
-  const format = globalOptions().format;
-
   // ثبت دستورات
   registerInit(program, globalOptions);
   registerConfig(program, globalOptions);
@@ -50,6 +50,7 @@ export async function buildProgram(argv: string[]): Promise<Command> {
     .command("version")
     .description("show the gitwe version")
     .action(() => {
+      const format = globalOptions().format;
       const data = { version: VERSION, schemaVersion: 1 };
       if (format === "json" || format === "yaml") {
         printStructured(data, format!);
@@ -57,6 +58,17 @@ export async function buildProgram(argv: string[]): Promise<Command> {
         print(VERSION);
       }
     });
+
+  // Register per-topic command groups when a workflow config is available
+  // try {
+  //   const root = await repositoryRoot(globals.cwd ?? process.cwd());
+  //   const loaded = tryLoadWorkflow(root, globals);
+  //   if (loaded !== undefined) {
+  //     registerTopicCommands(program, loaded.config, globalOptions);
+  //   }
+  // } catch {
+  //   // Outside a repository only init / version / help are available.
+  // }
 
   acceptGlobalOptionsEverywhere(program);
   return program;
