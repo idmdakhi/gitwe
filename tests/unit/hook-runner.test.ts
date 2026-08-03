@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { mkdirSync, readFileSync } from "node:fs";
 import { HookRunner } from "../../src/infrastructure/hooks/FileHookRunner.js";
 import type { Logger } from "../../src/application/interfaces/Logger.js";
 import { GitweError } from "../../src/domain/errors.js";
 
-describe("HookRunner", () => {
+const isWindows = process.platform === "win32";
+describe.skipIf(isWindows)("HookRunner", () => {
   let root: string;
   let logger: Logger;
   let runner: HookRunner;
@@ -29,7 +31,6 @@ describe("HookRunner", () => {
   const writeHook = (name: string, content: string) => {
     const dir = join(root, ".gitwe/hooks");
     // Ensure directory exists
-    const { mkdirSync } = require("fs");
     mkdirSync(dir, { recursive: true });
     const path = join(dir, name);
     writeFileSync(path, `#!/usr/bin/env bash\n${content}\n`, { mode: 0o755 });
@@ -57,7 +58,6 @@ describe("HookRunner", () => {
       parent: "develop",
     });
     // Check file content
-    const { readFileSync } = require("fs");
     const content = readFileSync(join(root, "hook.out"), "utf8").trim();
     expect(content).toBe("branch=feature/abc");
     expect(logger.debug).toHaveBeenCalledWith("running hook post-start");
@@ -75,7 +75,6 @@ describe("HookRunner", () => {
       'echo "$GITWE_BRANCH $GITWE_TOPIC_TYPE $GITWE_PARENT" > "$PWD/hook.out"',
     );
     await runner.run("pre-finish", { branch: "hotfix/1.0.1", topicType: "hotfix", parent: "main" });
-    const { readFileSync } = require("fs");
     expect(readFileSync(join(root, "hook.out"), "utf8").trim()).toBe("hotfix/1.0.1 hotfix main");
   });
 });

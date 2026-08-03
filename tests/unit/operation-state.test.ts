@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -86,7 +86,6 @@ describe("FileOperationStateStore", () => {
     // Write invalid JSON
     const file = join(gitDir, "gitwe/operation.json");
     // Create directory
-    const { mkdirSync, writeFileSync } = require("fs");
     mkdirSync(join(gitDir, "gitwe"), { recursive: true });
     writeFileSync(file, "{ invalid }", "utf8");
     expect(() => store.read()).toThrow(OperationStateError);

@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { isAbsolute, join } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 
 import { ConflictError, GitError } from "../../domain/errors.js";
 import type {
@@ -59,12 +59,13 @@ export class ShellGitRepository implements GitRepository {
   }
 
   async root(): Promise<string> {
-    return this.run(["rev-parse", "--show-toplevel"]);
+    const out = await this.run(["rev-parse", "--show-toplevel"]);
+    return resolve(out);
   }
 
   async gitDir(): Promise<string> {
     const dir = await this.run(["rev-parse", "--absolute-git-dir"]);
-    return isAbsolute(dir) ? dir : join(this.cwd, dir);
+    return isAbsolute(dir) ? resolve(dir) : resolve(this.cwd, dir);
   }
 
   async currentBranch(): Promise<string | undefined> {

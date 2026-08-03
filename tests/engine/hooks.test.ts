@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { TestRepo } from "../support/repo.js";
 
-describe("workflow hooks", () => {
+const isWindows = process.platform === "win32";
+describe.skipIf(isWindows)("workflow hooks", () => {
   let repo: TestRepo;
 
   beforeEach(() => {

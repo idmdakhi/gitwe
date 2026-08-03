@@ -26,6 +26,8 @@ export class TestRepo {
     repo.git("config", "user.email", "test@example.com");
     repo.git("config", "user.name", "gitwe test");
     repo.git("config", "commit.gpgsign", "false");
+    repo.git("config", "tag.gpgsign", "false");
+    repo.git("config", "user.signingkey", "");
     repo.write("README.md", "# test\n");
     repo.commitAll("initial commit");
     return repo;

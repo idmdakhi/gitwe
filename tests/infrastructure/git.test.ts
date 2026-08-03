@@ -208,7 +208,7 @@ describe("ShellGitRepository", () => {
   });
 
   it("should create tag", async () => {
-    await git.createTag("v1.0.0", { message: "release" });
+    await git.createTag("v1.0.0", { message: "release", ref: "HEAD" });
     expect(await git.tags()).toContain("v1.0.0");
   });
 

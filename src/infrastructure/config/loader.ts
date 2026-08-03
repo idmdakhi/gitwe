@@ -77,14 +77,16 @@ export interface LoadOptions {
 }
 
 export function loadConfig({ cwd, configPath, root }: LoadOptions): LoadedConfig {
+  const normalizedCwd = resolve(cwd);
+  const normalizedRoot = root ? resolve(root) : undefined;
   if (configPath !== undefined) {
-    const path = isAbsolute(configPath) ? configPath : resolve(cwd, configPath);
+    const path = isAbsolute(configPath) ? configPath : resolve(normalizedCwd, configPath);
     if (!existsSync(path)) {
       throw new ConfigError(`workflow definition not found: ${path}`);
     }
     return { config: readConfigFile(path), path };
   }
-  const found = findConfigFile(cwd, root);
+  const found = findConfigFile(normalizedCwd, normalizedRoot);
   if (found === undefined) throw new NotInitializedError(cwd);
   return { config: readConfigFile(found), path: found };
 }
