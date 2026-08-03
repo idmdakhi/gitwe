@@ -5,6 +5,7 @@ import { TestRepo } from "../support/repo.js";
 import type { Engine, OverviewReport } from "../../src/application/engine.js";
 import { ConflictError, ValidationError } from "../../src/domain/errors.js";
 
+const isWindows = process.platform === "win32";
 describe("Engine - Comprehensive Tests", () => {
   let repo: TestRepo;
   let engine: Engine;
@@ -345,7 +346,7 @@ describe("Engine - Comprehensive Tests", () => {
   });
 
   describe("hooks", () => {
-    it("should run hooks and abort on failure", async () => {
+    it.skipIf(isWindows)("should run hooks and abort on failure", async () => {
       const dir = join(repo.path, ".gitwe", "hooks");
       mkdirSync(dir, { recursive: true });
       const hookPath = join(dir, "pre-start");

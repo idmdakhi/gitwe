@@ -328,11 +328,11 @@ Examples
 Start
 
 ```
-feature start
+start feature
 
-release start
+start release
 
-hotfix start
+start hotfix
 ```
 
 ---

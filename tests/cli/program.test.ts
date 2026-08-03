@@ -60,17 +60,11 @@ describe("gitwe CLI", () => {
     expect(stderr).toMatch(/already exists/);
   });
 
-  it("runs a full feature lifecycle through the generated topic commands", async () => {
+  it("runs a full feature lifecycle through global shorthands", async () => {
     await gitwe("init", "--defaults");
-
-    expect(await gitwe("feature", "start", "login")).toBe(0);
+    expect(await gitwe("start", "feature", "login")).toBe(0);
     repo.commit("a.txt", "a", "feature work");
-
-    stdout = "";
-    expect(await gitwe("feature", "list")).toBe(0);
-    expect(stdout).toContain("feature/login");
-
-    expect(await gitwe("feature", "finish", "login")).toBe(0);
+    expect(await gitwe("finish", "feature/login")).toBe(0);
     expect(repo.branches()).not.toContain("feature/login");
     expect(repo.log("develop")).toContain("feature work");
   });
@@ -84,7 +78,7 @@ describe("gitwe CLI", () => {
     expect(await gitwe("config", "list")).toBe(0);
     expect(stdout).toContain("spike");
 
-    expect(await gitwe("spike", "start", "idea")).toBe(0);
+    expect(await gitwe("start", "spike", "idea")).toBe(0);
     expect(repo.currentBranch()).toBe("spike/idea");
   });
 

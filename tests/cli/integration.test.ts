@@ -65,20 +65,20 @@ describe("CLI Integration Tests", () => {
     expect(repo.branches()).not.toContain("feature/login");
   });
 
-  it("feature lifecycle via topic commands", async () => {
+  it("feature lifecycle via global shorthands", async () => {
     await gitwe("init", "--defaults");
-    expect(await gitwe("feature", "start", "login")).toBe(0);
+    expect(await gitwe("start", "feature", "login")).toBe(0);
     repo.commit("a.txt", "a", "work");
-    expect(await gitwe("feature", "list")).toBe(0);
+    expect(await gitwe("list", "feature")).toBe(0);
     expect(stdout).toContain("feature/login");
-    expect(await gitwe("feature", "finish", "login")).toBe(0);
+    expect(await gitwe("finish", "feature/login")).toBe(0);
     expect(repo.branches()).not.toContain("feature/login");
   });
 
   it("config add topic and use it", async () => {
     await gitwe("init", "--defaults");
     expect(await gitwe("config", "add", "topic", "spike", "develop", "--prefix", "spike/")).toBe(0);
-    expect(await gitwe("spike", "start", "idea")).toBe(0);
+    expect(await gitwe("start", "spike", "idea")).toBe(0);
     expect(repo.currentBranch()).toBe("spike/idea");
   });
 

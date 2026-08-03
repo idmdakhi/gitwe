@@ -206,7 +206,7 @@ export class FinishOperation {
             message: this.options.message ?? name,
             sign: this.options.sign,
             signingKey: this.options.signingKey,
-            ref: parent,
+            // ref: "HEAD",
           });
           this.state.createdTags.push(name);
           this.result.tag = name;

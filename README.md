@@ -35,8 +35,8 @@ rules in data:
 }
 ```
 
-From that definition the engine derives everything: which branch `feature start` forks
-from, where `release finish` merges and tags, and that `develop` must be brought back in
+From that definition the engine derives everything: which branch `start feature` forks
+from, where `finish release ` merges and tags, and that `develop` must be brought back in
 sync with `main` afterwards. Adding a new topic type (e.g. `spike`) automatically makes
 it available to all commands — you just use `gitwe start spike ...` and the engine
 follows the rules you defined.

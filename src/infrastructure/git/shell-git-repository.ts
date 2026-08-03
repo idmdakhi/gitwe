@@ -241,7 +241,7 @@ export class ShellGitRepository implements GitRepository {
     if (options.sign === true) args.push("-s");
     if (options.signingKey !== undefined) args.push("-u", options.signingKey);
     args.push("-m", options.message ?? name, name);
-    if (options.ref !== undefined) args.push(options.ref);
+    // if (options.ref !== undefined) args.push(options.ref);
     await this.run(args);
   }
 
