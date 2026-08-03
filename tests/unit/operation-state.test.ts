@@ -2,9 +2,9 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { FileOperationStateStore } from "../../src/infrastructure/state/FileOperationStateStore.js";
+import { FileOperationStateStore } from "../../src/infrastructure/state/file-operation-state-store.js";
 import { OperationStateError } from "../../src/domain/errors.js";
-import type { OperationState } from "../../src/application/interfaces/OperationState.js";
+import type { OperationState } from "../../src/application/interfaces/operation-state.js";
 
 describe("FileOperationStateStore", () => {
   let tempDir: string;

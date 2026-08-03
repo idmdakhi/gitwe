@@ -2,14 +2,14 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { GitweError } from "../../domain/errors.js";
-import type { Logger } from "../../application/interfaces/Logger.js";
+import type { Logger } from "../../application/interfaces/logger.js";
 import type { HookConfig } from "../../domain/entities.js";
 import type {
   HookContext,
   HookName,
   HookRunner as HookRunnerPort,
-} from "../../application/interfaces/HookRunner.js";
-import { runProcess } from "../git/ProcessRunner.js";
+} from "../../application/interfaces/hook-runner.js";
+import { runProcess } from "../git/process-runner.js";
 
 /** Runs executable scripts from the workflow's hook directory. */
 export class HookRunner implements HookRunnerPort {

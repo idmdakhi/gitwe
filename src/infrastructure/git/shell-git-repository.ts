@@ -8,8 +8,8 @@ import type {
   MergeOptions,
   PushOptions,
   TagOptions,
-} from "../../application/interfaces/GitRepository.js";
-import { runProcess } from "./ProcessRunner.js";
+} from "../../application/interfaces/git-repository.js";
+import { runProcess } from "./process-runner.js";
 
 export interface ShellGitOptions {
   cwd: string;

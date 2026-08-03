@@ -1,7 +1,7 @@
 import { rmSync } from "node:fs";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { Engine } from "../../src/application/Engine.js";
+import type { Engine } from "../../src/application/engine.js";
 import { TestRepo } from "../support/repo.js";
 
 describe("remote-facing operations", () => {

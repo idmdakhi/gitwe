@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { TestRepo } from "../support/repo.js";
-import type { Engine } from "../../src/application/Engine.js";
+import type { Engine, OverviewReport } from "../../src/application/engine.js";
 import { ConflictError, ValidationError } from "../../src/domain/errors.js";
 
 describe("Engine - Comprehensive Tests", () => {
@@ -315,7 +315,7 @@ describe("Engine - Comprehensive Tests", () => {
 
     it("should generate overview report", async () => {
       await engine.start("feature", "reported");
-      const report = await engine.overview();
+      const report: OverviewReport = await engine.overview();
       expect(report.workflow).toBe("classic");
       expect(report.baseBranches.map((b) => b.name)).toEqual(["main", "develop"]);
       expect(report.topicTypes.find((t) => t.name === "feature")?.branches).toEqual([
@@ -327,7 +327,7 @@ describe("Engine - Comprehensive Tests", () => {
     it("should flag missing base branches", async () => {
       repo.git("checkout", "-q", "main");
       repo.git("branch", "-D", "develop");
-      const report = await engine.overview();
+      const report: OverviewReport = await engine.overview();
       expect(report.health).toContainEqual({
         level: "error",
         message: 'base branch "develop" is missing',

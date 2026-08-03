@@ -6,7 +6,7 @@ import {
   STATE_FILE,
   type OperationState,
   type OperationStateStore,
-} from "../../application/interfaces/OperationState.js";
+} from "../../application/interfaces/operation-state.js";
 
 /** File-based store under `.git/gitwe/operation.json`. */
 export class FileOperationStateStore implements OperationStateStore {

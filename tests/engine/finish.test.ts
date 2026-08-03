@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ConflictError } from "../../src/domain/errors.js";
-import type { Engine } from "../../src/application/Engine.js";
+import type { Engine } from "../../src/application/engine.js";
 import { TestRepo } from "../support/repo.js";
 
 describe("Engine.finish", () => {

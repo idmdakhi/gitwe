@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assertValidBranchName, globToRegExp } from "../../src/domain/branchName.js";
+import { assertValidBranchName, globToRegExp } from "../../src/domain/branch-name.js";
 
 describe("assertValidBranchName", () => {
   it("accepts ordinary names", () => {

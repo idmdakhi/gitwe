@@ -1,14 +1,14 @@
-import { assertValidBranchName, globToRegExp } from "../domain/branchName.js";
+import { assertValidBranchName, globToRegExp } from "../domain/branch-name.js";
 import { OperationStateError, ValidationError } from "../domain/errors.js";
-import type { Logger } from "./interfaces/Logger.js";
-import { silentLogger } from "./interfaces/Logger.js";
+import type { Logger } from "./interfaces/logger.js";
+import { silentLogger } from "./interfaces/logger.js";
 import type { BranchStatus, ResolvedTopic, TopicType, WorkflowConfig } from "../domain/entities.js";
 import { Workflow } from "../domain/workflow.js";
-import type { GitRepository } from "./interfaces/GitRepository.js";
+import type { GitRepository } from "./interfaces/git-repository.js";
 import type { EngineContext } from "./context.js";
-import type { HookRunner } from "./interfaces/HookRunner.js";
+import type { HookRunner } from "./interfaces/hook-runner.js";
 import { FinishOperation, type FinishOptions, type FinishResult } from "./use-case/finish.js";
-import type { OperationStateStore } from "./interfaces/OperationState.js";
+import type { OperationStateStore } from "./interfaces/operation-state.js";
 
 export interface StartOptions {
   /** Explicit start point, overriding the topic type's configured one. */

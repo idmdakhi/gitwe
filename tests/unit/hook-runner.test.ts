@@ -3,8 +3,8 @@ import { mkdtempSync, rmSync, writeFileSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdirSync, readFileSync } from "node:fs";
-import { HookRunner } from "../../src/infrastructure/hooks/FileHookRunner.js";
-import type { Logger } from "../../src/application/interfaces/Logger.js";
+import { HookRunner } from "../../src/infrastructure/hooks/file-hook-runner.js";
+import type { Logger } from "../../src/application/interfaces/logger.js";
 import { GitweError } from "../../src/domain/errors.js";
 
 const isWindows = process.platform === "win32";

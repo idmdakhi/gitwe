@@ -5,6 +5,7 @@ import { ValidationError } from "../../domain/errors.js";
 import { createEngine } from "../context.js";
 import type { GlobalOptions } from "../options.js";
 import { print, renderTree, style } from "../output.js";
+import type { OverviewReport } from "../../application/engine.js";
 
 export function registerOverview(program: Command, globals: () => GlobalOptions): void {
   program
@@ -14,7 +15,7 @@ export function registerOverview(program: Command, globals: () => GlobalOptions)
     // .option("--format <format>", "output format: text, json or yaml", "text")
     .action(async () => {
       const engine = await createEngine(globals());
-      const report = await engine.overview();
+      const report: OverviewReport = await engine.overview();
       const format = globals().format ?? "text";
 
       if (format === "json") {
@@ -26,10 +27,14 @@ export function registerOverview(program: Command, globals: () => GlobalOptions)
         return;
       }
       if (format === "table") {
-        print(`${style.bold("Name").padEnd(20)} ${style.bold("Status").padEnd(12)} ${style.bold("Ahead").padEnd(8)} ${style.bold("Behind").padEnd(8)} ${style.bold("Upstream")}`);
+        print(
+          `${style.bold("Name").padEnd(20)} ${style.bold("Status").padEnd(12)} ${style.bold("Ahead").padEnd(8)} ${style.bold("Behind").padEnd(8)} ${style.bold("Upstream")}`,
+        );
         for (const b of report.baseBranches) {
           const status = !b.exists ? "missing" : b.current ? "current" : "ok";
-          print(`${b.name.padEnd(20)} ${status.padEnd(12)} ${String(b.ahead).padEnd(8)} ${String(b.behind).padEnd(8)} ${b.upstream ?? "-"}`);
+          print(
+            `${b.name.padEnd(20)} ${status.padEnd(12)} ${String(b.ahead).padEnd(8)} ${String(b.behind).padEnd(8)} ${b.upstream ?? "-"}`,
+          );
         }
         return;
       }

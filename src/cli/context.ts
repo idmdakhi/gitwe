@@ -1,9 +1,9 @@
 import { GitweError } from "../domain/errors.js";
 import { loadConfig, type LoadedConfig } from "../infrastructure/config/loader.js";
-// import { createConsoleLogger } from "../infrastructure/logger/consoleLogger.js";
-// import { Engine } from "../application/Engine.js";
-// import { createEngine as wireEngine } from "../di/createEngine.js";
-import { ShellGitRepository } from "../infrastructure/git/ShellGitRepository.js";
+import { createConsoleLogger } from "../infrastructure/logger/console-logger.js";
+import { Engine } from "../application/engine.js";
+import { createEngine as wireEngine } from "../di/create-engine.js";
+import { ShellGitRepository } from "../infrastructure/git/shell-git-repository.js";
 import type { GlobalOptions } from "./options.js";
 
 export async function repositoryRoot(cwd: string): Promise<string> {
@@ -27,20 +27,20 @@ export function tryLoadWorkflow(root: string, options: GlobalOptions): LoadedCon
   }
 }
 
-// export async function createEngine(options: GlobalOptions): Promise<Engine> {
-//   const cwd = options.cwd ?? process.cwd();
-//   const root = await repositoryRoot(cwd);
-//   const loaded = loadWorkflow(root, options);
-//   const logger = createConsoleLogger(options.verbose === true);
-//   const git = new ShellGitRepository({
-//     cwd: root,
-//     trace: options.verbose === true ? (args) => logger.debug(`git ${args.join(" ")}`) : undefined,
-//   });
-//   return wireEngine({
-//     root,
-//     config: loaded.config,
-//     logger,
-//     configPath: loaded.path,
-//     git,
-//   });
-// }
+export async function createEngine(options: GlobalOptions): Promise<Engine> {
+  const cwd = options.cwd ?? process.cwd();
+  const root = await repositoryRoot(cwd);
+  const loaded = loadWorkflow(root, options);
+  const logger = createConsoleLogger(options.verbose === true);
+  const git = new ShellGitRepository({
+    cwd: root,
+    trace: options.verbose === true ? (args) => logger.debug(`git ${args.join(" ")}`) : undefined,
+  });
+  return wireEngine({
+    root,
+    config: loaded.config,
+    logger,
+    configPath: loaded.path,
+    git,
+  });
+}

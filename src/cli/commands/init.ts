@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { join } from "node:path";
 import { Command } from "commander";
+import { resolvePath } from "../../application/path-resolver.js";
 
 import { ConfigError } from "../../domain/errors.js";
 import {
@@ -15,8 +16,8 @@ import {
   PRESET_NAMES,
   type PresetOverrides,
 } from "../../domain/config/presets.js";
-import { createConsoleLogger } from "../../infrastructure/logger/consoleLogger.js";
-import { createEngine as wireEngine } from "../../di/createEngine.js";
+import { createConsoleLogger } from "../../infrastructure/logger/console-logger.js";
+import { createEngine as wireEngine } from "../../di/create-engine.js";
 import { print, style, success, printStructured } from "../output.js";
 import { repositoryRoot } from "../context.js";
 import type { GlobalOptions } from "../options.js";
@@ -131,8 +132,10 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
 
       // --- ساخت config نهایی ---
       const config = createPreset(presetName, overrides);
-      const target = options.file ?? join(root, DEFAULT_CONFIG_FILE);
-      const path = existsSync(target) || target.includes("/") ? target : join(root, target);
+      const target = options.file
+        ? resolvePath(root, options.file)
+        : resolvePath(root, DEFAULT_CONFIG_FILE);
+      const path = existsSync(target) || target.includes("/") ? target : resolvePath(root, target);
 
       // --- خروجی JSON/YAML اگر درخواست شده باشد ---
       if (format === "json" || format === "yaml") {

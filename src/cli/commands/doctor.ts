@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { createEngine } from "../context.js";
 import type { GlobalOptions } from "../options.js";
 import { print, style, printStructured } from "../output.js";
+import type { OverviewReport } from "../../application/engine.js";
 
 export function registerDoctor(program: Command, globals: () => GlobalOptions): void {
   program
@@ -13,7 +14,7 @@ export function registerDoctor(program: Command, globals: () => GlobalOptions): 
       const engine = await createEngine(globals());
       // TODO: Replace with engine.doctor() once implemented (RFC-0003)
       // Currently using overview as a temporary solution.
-      const report = await engine.overview();
+      const report: OverviewReport = await engine.overview();
       const issues = report.health.filter((h) => h.level !== "ok");
 
       const format = globals().format;

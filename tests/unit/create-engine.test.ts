@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { createEngine } from "../../src/di/createEngine.js";
+import { createEngine } from "../../src/di/create-engine.js";
 import { createPreset } from "../../src/domain/config/presets.js";
-import { ShellGitRepository } from "../../src/infrastructure/git/ShellGitRepository.js";
-import { HookRunner } from "../../src/infrastructure/hooks/FileHookRunner.js";
-import { FileOperationStateStore } from "../../src/infrastructure/state/FileOperationStateStore.js";
-import type { GitRepository } from "../../src/application/interfaces/GitRepository.js";
+import { ShellGitRepository } from "../../src/infrastructure/git/shell-git-repository.js";
+import { HookRunner } from "../../src/infrastructure/hooks/file-hook-runner.js";
+import { FileOperationStateStore } from "../../src/infrastructure/state/file-operation-state-store.js";
+import type { GitRepository } from "../../src/application/interfaces/git-repository.js";
 
 describe("createEngine", () => {
   it.skip("should create engine with default adapters", async () => {

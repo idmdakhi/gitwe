@@ -16,8 +16,8 @@ ship with it, alongside GitHub Flow and GitLab Flow. Anything you can express as
 npm install -g gitwe
 
 gitwe init --preset classic     # or: github, gitlab
-gitwe feature start login
-gitwe feature finish login
+gitwe start feature login
+gitwe finish
 ```
 
 ## Why an engine?
@@ -27,22 +27,19 @@ rules in data:
 
 ```jsonc
 {
-  "baseBranches": [
-    { "name": "main" },
-    { "name": "develop", "parent": "main", "autoUpdate": true }
-  ],
+  "baseBranches": [{ "name": "main" }, { "name": "develop", "parent": "main", "autoUpdate": true }],
   "topicTypes": [
     { "name": "feature", "parent": "develop" },
-    { "name": "release", "parent": "main", "startPoint": "develop", "tag": true }
-  ]
+    { "name": "release", "parent": "main", "startPoint": "develop", "tag": true },
+  ],
 }
 ```
 
 From that definition the engine derives everything: which branch `feature start` forks
-from, where `release finish` merges and tags, that `develop` must be brought back in
-sync with `main` afterwards, and which CLI commands even exist — `gitwe <type> …` is
-generated per topic type, so adding a `spike` type immediately gives you
-`gitwe spike start|finish|publish|…`.
+from, where `release finish` merges and tags, and that `develop` must be brought back in
+sync with `main` afterwards. Adding a new topic type (e.g. `spike`) automatically makes
+it available to all commands — you just use `gitwe start spike ...` and the engine
+follows the rules you defined.
 
 ## Installation
 
@@ -53,25 +50,28 @@ npm install gitwe             # library (Node.js >= 20, ESM)
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `gitwe init [--preset classic\|github\|gitlab] [--defaults]` | write a workflow definition and create missing base branches |
-| `gitwe config list \| add \| edit \| rename \| delete` | inspect and edit the definition |
-| `gitwe overview [--format text\|json\|yaml]` (alias `status`) | configuration, branch structure and health |
-| `gitwe <type> start <name> [base]` | create a topic branch |
-| `gitwe <type> finish [name]` | integrate a topic branch into its parent |
-| `gitwe <type> publish [name]` | push a topic branch and set its upstream |
-| `gitwe <type> track <name>` | check out a topic branch published by someone else |
-| `gitwe <type> update [name] [--rebase]` | bring a topic branch up to date with its parent |
-| `gitwe <type> list [pattern]` | list topic branches (`*`, `?`, `[abc]` globs) |
-| `gitwe <type> checkout <name\|prefix>` | switch to a topic branch, partial names allowed |
-| `gitwe <type> rename <old> [new]` | rename a topic branch |
-| `gitwe <type> delete [name] [-r]` | delete a topic branch, optionally its remote |
-| `gitwe start\|finish\|update\|rebase\|publish\|delete\|rename` | shorthands for the current branch |
-| `gitwe version` | print the gitwe version |
+| Command                                                              | Description                                                     |
+| -------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `gitwe init [--preset classic\|github\|gitlab] [--defaults]`         | write a workflow definition and create missing base branches    |
+| `gitwe config list \| add \| edit \| rename \| delete`               | inspect and edit the definition                                 |
+| `gitwe overview [--format text\|json\|yaml\|table]` (alias `status`) | configuration, branch structure and health                      |
+| `gitwe start <type> <name> [base] [--fetch]`                         | create a topic branch                                           |
+| `gitwe finish [name] [options]`                                      | integrate a topic branch into its parent                        |
+| `gitwe update [name] [--rebase] [--fetch]`                           | bring a topic branch up to date with its parent                 |
+| `gitwe rebase [name]`                                                | update a topic branch by rebasing (alias for `update --rebase`) |
+| `gitwe publish [name] [-o <push-option>...]`                         | push a topic branch and set its upstream                        |
+| `gitwe delete [name] [-f] [-r]`                                      | delete a topic branch, optionally its remote                    |
+| `gitwe rename <new-name>`                                            | rename the current topic branch                                 |
+| `gitwe checkout <type> <name\|prefix>`                               | switch to a topic branch, partial names allowed                 |
+| `gitwe track <type> <name>`                                          | create a local topic branch tracking the remote one             |
+| `gitwe list <type> [pattern]`                                        | list topic branches of a given type (`*`, `?`, `[abc]` globs)   |
+| `gitwe current`                                                      | show information about the current topic branch                 |
+| `gitwe graph`                                                        | show branch graph (base branches and topics)                    |
+| `gitwe doctor [--fix] [--yes]`                                       | check repository health                                         |
+| `gitwe validate [file]`                                              | validate a workflow definition                                  |
+| `gitwe version`                                                      | print the gitwe version                                         |
 
-Global options — `--config <path>`, `--cwd <path>`, `-v, --verbose`, `--no-color` — are
-accepted anywhere on the command line.
+Global options — `--config <path>`, `--cwd <path>`, `-v, --verbose`, `--no-color`, `--dry-run`, `--format <text|json|yaml|table>` — are accepted anywhere on the command line.
 
 See [docs/commands.md](docs/commands.md) for every flag and
 [docs/workflow-definition.md](docs/workflow-definition.md) for the definition format.
@@ -83,12 +83,14 @@ topic type asks for it, update every auto-updating child branch, push if request
 then delete the topic branch. If git stops on a conflict, gitwe saves its progress:
 
 ```bash
-gitwe feature finish login
+gitwe start feature login
+# ... work, commit ...
+gitwe finish login
 # conflict: git merge stopped on conflicts in: src/app.ts
 
 # ... resolve, then git add the files ...
-gitwe feature finish --continue     # resume exactly where it stopped
-gitwe feature finish --abort        # or roll every touched branch and tag back
+gitwe finish --continue     # resume exactly where it stopped
+gitwe finish --abort        # or roll every touched branch and tag back
 ```
 
 ## Library use

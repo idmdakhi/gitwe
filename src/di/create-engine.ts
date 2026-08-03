@@ -1,10 +1,10 @@
 import type { WorkflowConfig } from "../domain/entities.js";
-import { type Logger, silentLogger } from "../application/interfaces/Logger.js";
-import { Engine } from "../application/Engine.js";
-import { ShellGitRepository } from "../infrastructure/git/ShellGitRepository.js";
-import { HookRunner } from "../infrastructure/hooks/FileHookRunner.js";
-import { FileOperationStateStore } from "../infrastructure/state/FileOperationStateStore.js";
-import type { GitRepository } from "../application/interfaces/GitRepository.js";
+import { type Logger, silentLogger } from "../application/interfaces/logger.js";
+import { Engine } from "../application/engine.js";
+import { ShellGitRepository } from "../infrastructure/git/shell-git-repository.js";
+import { HookRunner } from "../infrastructure/hooks/file-hook-runner.js";
+import { FileOperationStateStore } from "../infrastructure/state/file-operation-state-store.js";
+import type { GitRepository } from "../application/interfaces/git-repository.js";
 
 export interface CreateEngineOptions {
   root: string;

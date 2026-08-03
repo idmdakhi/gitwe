@@ -9,8 +9,8 @@ import {
   type PresetOverrides,
 } from "../../src/domain/config/presets.js";
 import type { WorkflowConfig } from "../../src/domain/entities.js";
-import type { Engine } from "../../src/application/Engine.js";
-import { createEngine } from "../../src/di/createEngine.js";
+import type { Engine } from "../../src/application/engine.js";
+import { createEngine } from "../../src/di/create-engine.js";
 
 export class TestRepo {
   readonly path: string;

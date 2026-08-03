@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-
-import type { Engine } from "../../src/application/Engine.js";
+import type { Engine, OverviewReport } from "../../src/application/engine.js";
 import { TestRepo } from "../support/repo.js";
 
 describe("Engine branch operations", () => {
@@ -111,7 +110,7 @@ describe("Engine branch operations", () => {
 
   it("reports workflow health in the overview", async () => {
     await engine.start("feature", "reported");
-    const report = await engine.overview();
+    const report: OverviewReport = await engine.overview();
 
     expect(report.workflow).toBe("classic");
     expect(report.baseBranches.map((b) => b.name)).toEqual(["main", "develop"]);
@@ -124,7 +123,7 @@ describe("Engine branch operations", () => {
   it("flags missing base branches", async () => {
     repo.git("checkout", "-q", "main");
     repo.git("branch", "-D", "develop");
-    const report = await engine.overview();
+    const report: OverviewReport = await engine.overview();
     expect(report.health).toContainEqual({
       level: "error",
       message: 'base branch "develop" is missing',

@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { createEngine } from "../context.js";
 import type { GlobalOptions } from "../options.js";
 import { print, renderTree, style, printStructured } from "../output.js";
+import type { OverviewReport } from "../../application/engine.js";
 
 export function registerGraph(program: Command, globals: () => GlobalOptions): void {
   program
@@ -12,7 +13,7 @@ export function registerGraph(program: Command, globals: () => GlobalOptions): v
       // options: { root?: string }
     ) => {
       const engine = await createEngine(globals());
-      const report = await engine.overview();
+      const report: OverviewReport = await engine.overview();
       const format = globals().format;
 
       // Prepare data for structured output
