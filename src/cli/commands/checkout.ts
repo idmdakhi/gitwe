@@ -12,7 +12,7 @@ export function registerCheckout(program: Command, globals: () => GlobalOptions)
     .action(async (type: string, name: string) => {
       const format = globals().format;
       const engine = await createEngine(globals());
-      const topicType = engine.workflow.requireTopicType(type);
+      const topicType = engine.workflow.requireBranchType(type);
       const branch = await engine.checkout(topicType, name);
       const data = { branch };
       if (format === "json" || format === "yaml") {

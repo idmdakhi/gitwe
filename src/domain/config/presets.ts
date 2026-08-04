@@ -1,9 +1,6 @@
-// src/domain/presets.ts
-// کارخانه‌های ساخت WorkflowConfig برای گردش‌های کاری رایج
 import type { WorkflowConfig } from "../entities.js";
 
 export type PresetName = "classic" | "github" | "gitlab";
-
 export const PRESET_NAMES: PresetName[] = ["classic", "github", "gitlab"];
 
 export interface PresetOverrides {
@@ -11,84 +8,149 @@ export interface PresetOverrides {
   develop?: string;
   production?: string;
   staging?: string;
-  prefixes?: Record<string, string>;
+  remoteName?: string;
+  remoteAutoPush?: boolean;
+  remoteAutoFetch?: boolean;
+  // Version overrides
   tagPrefix?: string;
-  remote?: string;
+  versionEnabled?: boolean;
+  versionTag?: string[];
+  versionBranchTypes?: {
+    version?: string[];
+    major?: string[];
+    minor?: string[];
+    patch?: string[];
+    metadata?: string[];
+  };
+  // Prefix overrides for branch types
+  prefixes?: Record<string, string>;
+  // Base branch overrides for branch types
+  bases?: Record<string, string>;
+  // Target branch overrides for branch types (comma-separated string)
+  targets?: Record<string, string>;
 }
 
-// ---- پیاده‌سازی پریست‌ها ----
 function classic(overrides: PresetOverrides): WorkflowConfig {
   const main = overrides.main ?? "main";
   const develop = overrides.develop ?? "develop";
+
+  const getBase = (name: string, fallback: string): string => {
+    return overrides.bases?.[name] ?? fallback;
+  };
+  const getTargets = (name: string, fallback: string[]): string[] => {
+    const val = overrides.targets?.[name];
+    if (val === undefined) return fallback;
+    return val
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s !== "");
+  };
+
   return {
     version: 1,
     name: "classic",
-    remote: overrides.remote ?? "origin",
-    tagPrefix: overrides.tagPrefix ?? "v",
-    hooks: { enabled: true, path: ".gitwe/hooks" },
+    remote: {
+      name: overrides.remoteName ?? "origin",
+      autoPush: overrides.remoteAutoPush ?? false,
+      autoFetch: overrides.remoteAutoFetch ?? true,
+    },
     baseBranches: [
       {
         name: main,
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        autoUpdate: false,
+        aliases: ["master"],
+        protected: true,
       },
       {
         name: develop,
-        parent: main,
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        autoUpdate: true,
+        aliases: ["dev"],
+        base: main,
+        protected: true,
       },
     ],
-    topicTypes: [
+    branchTypes: [
       {
         name: "feature",
-        parent: develop,
+        aliases: ["feat", "ftr"],
+        base: getBase("feature", develop),
+        target: getTargets("feature", [develop]),
         prefix: overrides.prefixes?.feature ?? "feature/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        tag: false,
-        deleteOnFinish: true,
       },
       {
         name: "bugfix",
-        parent: develop,
+        aliases: ["fix", "bug"],
+        base: getBase("bugfix", develop),
+        target: getTargets("bugfix", [develop]),
         prefix: overrides.prefixes?.bugfix ?? "bugfix/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        tag: false,
-        deleteOnFinish: true,
       },
       {
         name: "release",
-        parent: main,
-        startPoint: develop,
+        aliases: ["rls", "rels"],
+        base: getBase("release", develop),
+        target: getTargets("release", [main, develop]),
         prefix: overrides.prefixes?.release ?? "release/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        tag: true,
-        deleteOnFinish: true,
       },
       {
         name: "hotfix",
-        parent: main,
+        aliases: ["hot", "hfix"],
+        base: getBase("hotfix", main),
+        target: getTargets("hotfix", [main, develop]),
         prefix: overrides.prefixes?.hotfix ?? "hotfix/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        tag: true,
-        deleteOnFinish: true,
       },
       {
         name: "support",
-        parent: main,
+        aliases: ["lts"],
+        base: getBase("support", main),
+        target: getTargets("support", [main]),
         prefix: overrides.prefixes?.support ?? "support/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        tag: false,
-        deleteOnFinish: false,
       },
     ],
+    hooks: { enabled: true, path: ".gitwe/hooks" },
+    merge: {
+      strategy: "merge",
+      branchTypes: {
+        feature: "merge",
+        bugfix: "merge",
+        release: ["merge", "rebase"],
+        hotfix: "merge",
+        support: ["merge"],
+      },
+      deleteOnFinish: ["feature", "release", "hotfix", "bugfix"],
+      squash: {
+        branchTypes: ["feature"],
+        enabled: true,
+        default: false,
+      },
+    },
+    versioning: {
+      enabled: overrides.versionEnabled ?? true,
+      tagPrefix: overrides.tagPrefix ?? "v",
+      format: "{{tagPrefix}}{{version}}",
+      tag: overrides.versionTag ?? ["release", "hotfix"],
+      branchTypes: overrides.versionBranchTypes ?? {
+        version: ["release"],
+        major: [],
+        minor: ["feature"],
+        patch: ["hotfix"],
+        metadata: [],
+      },
+      annotated: true,
+      pushTags: false,
+      changelog: {
+        enabled: false,
+        path: "CHANGELOG.md",
+      },
+    },
+    cli: {
+      enabled: true,
+      interactive: true,
+      color: true,
+      aliases: {
+        fs: "finish feature",
+        rs: "release start",
+        hf: "hotfix start",
+        st: "status",
+      },
+    },
   };
 }
 
@@ -97,37 +159,57 @@ function github(overrides: PresetOverrides): WorkflowConfig {
   return {
     version: 1,
     name: "github",
-    remote: overrides.remote ?? "origin",
-    tagPrefix: overrides.tagPrefix ?? "v",
+    remote: {
+      name: overrides.remoteName ?? "origin",
+      autoPush: overrides.remoteAutoPush ?? false,
+      autoFetch: overrides.remoteAutoFetch ?? true,
+    },
     hooks: { enabled: true, path: ".gitwe/hooks" },
     baseBranches: [
       {
         name: main,
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        autoUpdate: false,
+        aliases: ["master"],
+        protected: true,
       },
     ],
-    topicTypes: [
+    branchTypes: [
       {
         name: "feature",
-        parent: main,
+        aliases: ["feat"],
+        base: main,
+        target: [main],
         prefix: overrides.prefixes?.feature ?? "feature/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "rebase",
-        tag: false,
-        deleteOnFinish: true,
       },
       {
         name: "bugfix",
-        parent: main,
+        aliases: ["fix"],
+        base: main,
+        target: [main],
         prefix: overrides.prefixes?.bugfix ?? "bugfix/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "rebase",
-        tag: false,
-        deleteOnFinish: true,
       },
     ],
+    merge: {
+      strategy: "merge",
+      branchTypes: {
+        feature: ["merge", "merge"],
+        bugfix: "merge",
+      },
+      deleteOnFinish: ["feature", "bugfix"],
+      squash: {
+        branchTypes: ["feature"],
+        enabled: true,
+        default: false,
+      },
+    },
+    versioning: {
+      enabled: false,
+      tagPrefix: overrides.tagPrefix ?? "v",
+      tag: [],
+      branchTypes: {},
+      annotated: true,
+      pushTags: false,
+      changelog: { enabled: false },
+    },
   };
 }
 
@@ -138,51 +220,78 @@ function gitlab(overrides: PresetOverrides): WorkflowConfig {
   return {
     version: 1,
     name: "gitlab",
-    remote: overrides.remote ?? "origin",
-    tagPrefix: overrides.tagPrefix ?? "v",
+    remote: {
+      name: overrides.remoteName ?? "origin",
+      autoPush: overrides.remoteAutoPush ?? false,
+      autoFetch: overrides.remoteAutoFetch ?? true,
+    },
     hooks: { enabled: true, path: ".gitwe/hooks" },
     baseBranches: [
       {
         name: main,
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        autoUpdate: false,
+        protected: true,
       },
       {
         name: staging,
-        parent: main,
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        autoUpdate: true,
+        aliases: ["stage", "preprod"],
+        base: main,
+        protected: true,
       },
       {
         name: production,
-        parent: staging,
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        autoUpdate: false,
+        aliases: ["prod", "live"],
+        base: staging,
+        protected: true,
       },
     ],
-    topicTypes: [
+    branchTypes: [
       {
         name: "feature",
-        parent: main,
+        aliases: ["feat"],
+        base: main,
+        target: [staging],
         prefix: overrides.prefixes?.feature ?? "feature/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        tag: false,
-        deleteOnFinish: true,
       },
       {
         name: "hotfix",
-        parent: production,
+        aliases: ["hot", "hfix"],
+        base: production,
+        target: [production, staging],
         prefix: overrides.prefixes?.hotfix ?? "hotfix/",
-        upstreamStrategy: "merge",
-        downstreamStrategy: "merge",
-        tag: true,
-        deleteOnFinish: true,
       },
     ],
+    merge: {
+      strategy: "merge",
+      branchTypes: {
+        feature: ["merge", "merge"],
+        hotfix: "merge",
+      },
+      deleteOnFinish: ["feature", "hotfix"],
+      squash: {
+        branchTypes: ["feature"],
+        enabled: true,
+        default: false,
+      },
+    },
+    versioning: {
+      enabled: true,
+      tagPrefix: overrides.tagPrefix ?? "v",
+      format: "{{tagPrefix}}{{version}}",
+      tag: ["hotfix"],
+      branchTypes: {
+        version: [],
+        major: [],
+        minor: [],
+        patch: ["hotfix"],
+        metadata: [],
+      },
+      annotated: true,
+      pushTags: false,
+      changelog: {
+        enabled: false,
+        path: "CHANGELOG.md",
+      },
+    },
   };
 }
 

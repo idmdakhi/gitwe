@@ -20,17 +20,17 @@ export function registerGraph(program: Command, globals: () => GlobalOptions): v
       const data = {
         baseBranches: report.baseBranches.map((b) => ({
           name: b.name,
-          parent: b.parent || null,
+          base: b.base || null,
           exists: b.exists,
           current: b.current,
           ahead: b.ahead,
           behind: b.behind,
           upstream: b.upstream || null,
         })),
-        topicTypes: report.topicTypes.map((t) => ({
+        branchTypes: report.branchTypes.map((t) => ({
           name: t.name,
           prefix: t.prefix,
-          parent: t.parent,
+          base: t.base,
           branches: t.branches,
         })),
       };
@@ -42,10 +42,10 @@ export function registerGraph(program: Command, globals: () => GlobalOptions): v
 
       // نمایش درخت base branches
       print(style.bold("Base branches:"));
-      const roots = report.baseBranches.filter((b) => b.parent === undefined).map((b) => b.name);
+      const roots = report.baseBranches.filter((b) => b.base === undefined).map((b) => b.name);
       const lines = renderTree(
         roots,
-        (name) => report.baseBranches.filter((b) => b.parent === name).map((b) => b.name),
+        (name) => report.baseBranches.filter((b) => b.base === name).map((b) => b.name),
         (name) => {
           const base = report.baseBranches.find((b) => b.name === name);
           if (!base) return name;
@@ -61,9 +61,9 @@ export function registerGraph(program: Command, globals: () => GlobalOptions): v
 
       // نمایش topic branches
       print(`\n${style.bold("Topic branches:")}`);
-      for (const type of report.topicTypes) {
+      for (const type of report.branchTypes) {
         if (type.branches.length === 0) continue;
-        print(`  ${style.cyan(type.name)} (${type.prefix} → ${type.parent})`);
+        print(`  ${style.cyan(type.name)} (${type.prefix} → ${type.base})`);
         for (const branch of type.branches) {
           print(`    ${branch}`);
         }

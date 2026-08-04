@@ -11,19 +11,19 @@ gitwe looks for, in order: `gitwe.json`, `.gitwe.json`, `gitwe.yaml`, `gitwe.yml
   "remote": "origin",
   "tagPrefix": "v",
   "hooks": { "enabled": true, "path": ".gitwe/hooks" },
-  "baseBranches": [ /* ... */ ],
-  "topicTypes": [ /* ... */ ]
+  "baseBranches": [/* ... */],
+  "branchTypes": [/* ... */],
 }
 ```
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `version` | `1` | `1` | definition format version |
-| `name` | string | `custom` | workflow name, shown by `gitwe overview` |
-| `remote` | string | `origin` | remote used by `publish`, `track` and `finish` |
-| `tagPrefix` | string | `v` | prefix for tags created on finish |
-| `hooks.enabled` | boolean | `true` | run hook scripts |
-| `hooks.path` | string | `.gitwe/hooks` | hook directory, relative to the repo root |
+| Field           | Type    | Default        | Description                                    |
+| --------------- | ------- | -------------- | ---------------------------------------------- |
+| `version`       | `1`     | `1`            | definition format version                      |
+| `name`          | string  | `custom`       | workflow name, shown by `gitwe overview`       |
+| `remote`        | string  | `origin`       | remote used by `publish`, `track` and `finish` |
+| `tagPrefix`     | string  | `v`            | prefix for tags created on finish              |
+| `hooks.enabled` | boolean | `true`         | run hook scripts                               |
+| `hooks.path`    | string  | `.gitwe/hooks` | hook directory, relative to the repo root      |
 
 ## Base branches
 
@@ -40,13 +40,13 @@ has no parent.
 }
 ```
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `name` | string | — | git branch name |
-| `parent` | string | — | base branch it integrates into |
-| `upstreamStrategy` | `merge` \| `squash` \| `rebase` | `merge` | how it merges into its parent |
-| `downstreamStrategy` | `merge` \| `rebase` | `merge` | how it is updated from its parent |
-| `autoUpdate` | boolean | `false` | update it automatically whenever its parent receives a finish |
+| Field                | Type                            | Default | Description                                                   |
+| -------------------- | ------------------------------- | ------- | ------------------------------------------------------------- |
+| `name`               | string                          | —       | git branch name                                               |
+| `parent`             | string                          | —       | base branch it integrates into                                |
+| `upstreamStrategy`   | `merge` \| `squash` \| `rebase` | `merge` | how it merges into its parent                                 |
+| `downstreamStrategy` | `merge` \| `rebase`             | `merge` | how it is updated from its parent                             |
+| `autoUpdate`         | boolean                         | `false` | update it automatically whenever its parent receives a finish |
 
 `autoUpdate` is what makes classic git-flow work: after a release or hotfix is merged
 into `main`, `develop` is brought back in sync automatically.
@@ -69,17 +69,17 @@ Short-lived branch categories. Every topic type produces its own CLI command gro
 }
 ```
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `name` | string | — | type name, also the CLI sub-command |
-| `parent` | string | — | base branch the topic is finished into |
-| `prefix` | string | `<name>/` | branch name prefix |
-| `startPoint` | string | `parent` | branch new topics are created from |
-| `upstreamStrategy` | `merge` \| `squash` \| `rebase` | `merge` | how `finish` integrates the topic |
-| `downstreamStrategy` | `merge` \| `rebase` | `merge` | how `update` refreshes the topic |
-| `tag` | boolean | `false` | create a tag on the parent when finishing |
-| `tagPrefix` | string | workflow `tagPrefix` | prefix for that tag |
-| `deleteOnFinish` | boolean | `true` | delete the topic branch after a successful finish |
+| Field                | Type                            | Default              | Description                                       |
+| -------------------- | ------------------------------- | -------------------- | ------------------------------------------------- |
+| `name`               | string                          | —                    | type name, also the CLI sub-command               |
+| `parent`             | string                          | —                    | base branch the topic is finished into            |
+| `prefix`             | string                          | `<name>/`            | branch name prefix                                |
+| `startPoint`         | string                          | `parent`             | branch new topics are created from                |
+| `upstreamStrategy`   | `merge` \| `squash` \| `rebase` | `merge`              | how `finish` integrates the topic                 |
+| `downstreamStrategy` | `merge` \| `rebase`             | `merge`              | how `update` refreshes the topic                  |
+| `tag`                | boolean                         | `false`              | create a tag on the parent when finishing         |
+| `tagPrefix`          | string                          | workflow `tagPrefix` | prefix for that tag                               |
+| `deleteOnFinish`     | boolean                         | `true`               | delete the topic branch after a successful finish |
 
 Validation is strict: unknown parents, duplicate names, shared prefixes, invalid
 strategies and cycles in the base branch tree are all rejected before anything runs —
@@ -109,7 +109,7 @@ baseBranches:
     autoUpdate: true
   - name: staging
     parent: develop
-topicTypes:
+branchTypes:
   - name: feature
     parent: develop
     downstreamStrategy: rebase
@@ -123,5 +123,5 @@ topicTypes:
     tag: true
 ```
 
-`gitwe spike start caching` and `gitwe spike finish --squash` exist as soon as the type
+`gitwe start spike caching` and `gitwe finish spike --squash` exist as soon as the type
 is in the file.

@@ -4,60 +4,100 @@ export type MergeStrategy = "merge" | "squash" | "rebase";
 /** How a branch is brought up to date with its parent branch. */
 export type UpdateStrategy = "merge" | "rebase";
 
-/**
- * A long-lived branch of the workflow (`main`, `develop`, `staging`, ...).
- * Base branches form a tree: `parent` points at the branch they integrate into.
- */
+/** A long-lived branch of the workflow. */
 export interface BaseBranch {
   name: string;
-  parent?: string;
-  upstreamStrategy: MergeStrategy;
-  downstreamStrategy: UpdateStrategy;
-  /** Update this branch from its parent whenever the parent receives a finish. */
-  autoUpdate: boolean;
+  aliases?: string[];
+  /** Parent branch (base branch it integrates into) */
+  base?: string;
+  /** Protect this branch from direct deletion */
+  protected?: boolean;
 }
 
-/** A short-lived branch category (`feature`, `release`, `hotfix`, ...). */
-export interface TopicType {
+/** A short-lived branch category. */
+export interface BranchType {
   name: string;
-  /** Base branch this type is finished into. */
-  parent: string;
+  aliases?: string[];
+  /** Branch new topics are created from */
+  base: string;
+  /** Base branch(es) this type is finished into */
+  target: string[];
   prefix: string;
-  /** Branch new topics are created from; defaults to `parent`. */
-  startPoint?: string;
-  upstreamStrategy: MergeStrategy;
-  downstreamStrategy: UpdateStrategy;
-  /** Create a tag on the parent branch when a topic of this type is finished. */
-  tag: boolean;
-  tagPrefix?: string;
-  /** Delete the topic branch after a successful finish. */
-  deleteOnFinish: boolean;
 }
 
 export interface HookConfig {
   enabled: boolean;
-  /** Directory holding executable hook scripts, relative to the repository root. */
   path: string;
 }
 
-/** A complete workflow definition: the engine's only source of truth. */
+export interface RemoteConfig {
+  name: string;
+  autoPush?: boolean;
+  autoFetch?: boolean;
+}
+
+export interface VersioningConfig {
+  enabled: boolean;
+  tagPrefix: string;
+  format?: string;
+  /** Array of branch type names that should be tagged */
+  tag: string[];
+  /** Mapping of version bump types to branch type names */
+  branchTypes?: {
+    version?: string[];
+    major?: string[];
+    minor?: string[];
+    patch?: string[];
+    metadata?: string[];
+  };
+  annotated?: boolean;
+  pushTags?: boolean;
+  changelog?: {
+    enabled: boolean;
+    path?: string;
+  };
+}
+
+export interface MergeConfig {
+  strategy: MergeStrategy;
+  /** Per-branch-type strategies: string | string[] */
+  branchTypes: Record<string, string | string[]>;
+  /** Array of branch type names that should be deleted after finish */
+  deleteOnFinish: string[];
+  squash?: {
+    /** Array of branch type names that allow squash */
+    branchTypes: string[];
+    enabled: boolean;
+    default: boolean;
+  };
+}
+
+export interface CliConfig {
+  enabled: boolean;
+  interactive?: boolean;
+  color?: boolean;
+  aliases?: Record<string, string>;
+}
+
 export interface WorkflowConfig {
   version: 1;
   name: string;
-  remote: string;
-  tagPrefix: string;
+  remote: RemoteConfig;
   baseBranches: BaseBranch[];
-  topicTypes: TopicType[];
+  branchTypes: BranchType[];
   hooks: HookConfig;
+  cli?: CliConfig;
+  merge: MergeConfig;
+  versioning: VersioningConfig;
 }
 
 /** A topic branch resolved against the workflow definition. */
-export interface ResolvedTopic {
+export interface ResolvedBranch {
   /** Full git branch name, e.g. `feature/login`. */
   branch: string;
   /** Name without the type prefix, e.g. `login`. */
   shortName: string;
-  type: TopicType;
+  type: BranchType;
 }
 
 export interface BranchStatus {

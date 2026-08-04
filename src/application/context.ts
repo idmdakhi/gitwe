@@ -15,10 +15,7 @@ export interface EngineContext {
 }
 
 /** Expand the git-flow style placeholders supported in message options. */
-export function expandMessage(
-  template: string,
-  values: { branch: string; parent: string },
-): string {
+export function expandMessage(template: string, values: { branch: string; base: string }): string {
   return template.replace(/%([bBpP%])/g, (_match, key: string) => {
     switch (key) {
       case "b":
@@ -26,9 +23,9 @@ export function expandMessage(
       case "B":
         return `refs/heads/${values.branch}`;
       case "p":
-        return values.parent;
+        return values.base;
       case "P":
-        return `refs/heads/${values.parent}`;
+        return `refs/heads/${values.base}`;
       default:
         return "%";
     }

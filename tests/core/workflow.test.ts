@@ -17,9 +17,9 @@ describe("Workflow", () => {
   });
 
   it("uses the configured start point", () => {
-    expect(workflow.startPointOf(workflow.requireTopicType("release"))).toBe("develop");
-    expect(workflow.startPointOf(workflow.requireTopicType("feature"))).toBe("develop");
-    expect(workflow.startPointOf(workflow.requireTopicType("hotfix"))).toBe("main");
+    expect(workflow.startPointOf(workflow.requireBranchType("release"))).toBe("develop");
+    expect(workflow.startPointOf(workflow.requireBranchType("feature"))).toBe("develop");
+    expect(workflow.startPointOf(workflow.requireBranchType("hotfix"))).toBe("main");
   });
 
   it("resolves branches by prefix", () => {
@@ -35,7 +35,7 @@ describe("Workflow", () => {
     const config = parseWorkflowConfig({
       name: "custom",
       baseBranches: [{ name: "main" }],
-      topicTypes: [
+      branchTypes: [
         { name: "feature", parent: "main", prefix: "feature/" },
         { name: "urgent", parent: "main", prefix: "feature/urgent/" },
       ],
@@ -44,12 +44,12 @@ describe("Workflow", () => {
   });
 
   it("accepts short and full names", () => {
-    const type = workflow.requireTopicType("feature");
-    expect(workflow.resolveTopic(type, "login").branch).toBe("feature/login");
-    expect(workflow.resolveTopic(type, "feature/login").branch).toBe("feature/login");
+    const type = workflow.requireBranchType("feature");
+    expect(workflow.resolveBranchType(type, "login").branch).toBe("feature/login");
+    expect(workflow.resolveBranchType(type, "feature/login").branch).toBe("feature/login");
   });
 
   it("reports unknown topic types", () => {
-    expect(() => workflow.requireTopicType("epic")).toThrow(ValidationError);
+    expect(() => workflow.requireBranchType("epic")).toThrow(ValidationError);
   });
 });

@@ -51,7 +51,7 @@ baseBranches:
   - name: main
     remote: origin # used for push of this base branch
 
-topicTypes:
+branchTypes:
   - name: feature
     pushRemote: origin # used by publish & finish --push
 ```

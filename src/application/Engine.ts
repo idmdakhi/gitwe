@@ -2,7 +2,12 @@ import { assertValidBranchName, globToRegExp } from "../domain/branch-name.js";
 import { OperationStateError, ValidationError } from "../domain/errors.js";
 import type { Logger } from "./interfaces/logger.js";
 import { silentLogger } from "./interfaces/logger.js";
-import type { BranchStatus, ResolvedTopic, TopicType, WorkflowConfig } from "../domain/entities.js";
+import type {
+  BranchStatus,
+  BranchType,
+  ResolvedBranch,
+  WorkflowConfig,
+} from "../domain/entities.js";
 import { Workflow } from "../domain/workflow.js";
 import type { GitRepository } from "./interfaces/git-repository.js";
 import type { EngineContext } from "./context.js";
@@ -53,8 +58,14 @@ export interface OverviewReport {
   configPath?: string;
   currentBranch?: string;
   remote: string;
-  baseBranches: Array<BranchStatus & { parent?: string; exists: boolean }>;
-  topicTypes: Array<{ name: string; prefix: string; parent: string; branches: string[] }>;
+  baseBranches: Array<BranchStatus & { base?: string; exists: boolean }>;
+  branchTypes: Array<{
+    name: string;
+    prefix: string;
+    base: string;
+    target: string[] | string;
+    branches: string[];
+  }>;
   health: Array<{ level: "ok" | "warning" | "error"; message: string }>;
 }
 
@@ -119,54 +130,50 @@ export class Engine {
   get context(): EngineContext {
     return this.ctx;
   }
-
-  /** Resolve a topic reference of a known type. */
-  resolve(typeName: string, name: string): ResolvedTopic {
-    return this.workflow.resolveTopic(this.workflow.requireTopicType(typeName), name);
+  /** Resolve a branch type + name to a ResolvedBranch */
+  resolve(typeName: string, name: string): ResolvedBranch {
+    const branchType = this.workflow.requireBranchType(typeName);
+    return this.workflow.resolveBranchType(branchType, name);
   }
 
-  /** Resolve the checked-out branch as a topic branch. */
-  async currentTopic(): Promise<ResolvedTopic> {
+  /** Resolve the checked-out branch as a branch type */
+  async currentBranchType(): Promise<ResolvedBranch> {
     const branch = await this.git.currentBranch();
     if (branch === undefined) {
-      throw new ValidationError("HEAD is detached; check out a topic branch first");
+      throw new ValidationError("HEAD is detached; check out a branch first");
     }
-    const topic = this.workflow.resolveBranch(branch);
-    if (topic === undefined) {
+    const resolved = this.workflow.resolveBranch(branch);
+    if (resolved === undefined) {
       throw new ValidationError(
-        `"${branch}" is not a topic branch of the "${this.workflow.config.name}" workflow`,
-        `topic prefixes: ${this.workflow.topicTypes.map((t) => t.prefix).join(", ")}`,
+        `"${branch}" is not a branch type of the "${this.workflow.config.name}" workflow`,
+        `prefixes: ${this.workflow.branchTypes.map((t) => t.prefix).join(", ")}`,
       );
     }
-    return topic;
+    return resolved;
   }
 
-  /**
-   * Resolve an optional reference: a name of `type`, a full branch name, or
-   * the current branch when nothing is given.
-   */
-  async resolveTarget(type: TopicType | undefined, name?: string): Promise<ResolvedTopic> {
+  async resolveTarget(type: BranchType | undefined, name?: string): Promise<ResolvedBranch> {
     if (name === undefined) {
-      const topic = await this.currentTopic();
-      if (type !== undefined && topic.type.name !== type.name) {
+      const resolved = await this.currentBranchType();
+      if (type !== undefined && resolved.type.name !== type.name) {
         throw new ValidationError(
-          `the current branch is a ${topic.type.name} branch, not a ${type.name} branch`,
+          `the current branch is a ${resolved.type.name} branch, not a ${type.name} branch`,
         );
       }
-      return topic;
+      return resolved;
     }
-    if (type !== undefined) return this.workflow.resolveTopic(type, name);
+    if (type !== undefined) return this.workflow.resolveBranchType(type, name);
     const resolved = this.workflow.resolveBranch(name);
     if (resolved === undefined) {
-      throw new ValidationError(`"${name}" does not match any configured topic prefix`);
+      throw new ValidationError(`"${name}" does not match any configured branch type prefix`);
     }
     return resolved;
   }
 
   async start(typeName: string, name: string, options: StartOptions = {}): Promise<StartResult> {
-    const type = this.workflow.requireTopicType(typeName);
-    const topic = this.workflow.resolveTopic(type, name);
-    assertValidBranchName(topic.branch);
+    const branchType = this.workflow.requireBranchType(typeName);
+    const resolved = this.workflow.resolveBranchType(branchType, name);
+    assertValidBranchName(resolved.branch);
 
     if (!(await this.git.isClean())) {
       throw new ValidationError(
@@ -174,14 +181,14 @@ export class Engine {
         "commit or stash them before starting a branch",
       );
     }
-    if (await this.git.branchExists(topic.branch)) {
-      throw new ValidationError(`branch "${topic.branch}" already exists`);
+    if (await this.git.branchExists(resolved.branch)) {
+      throw new ValidationError(`branch "${resolved.branch}" already exists`);
     }
-    if (options.fetch === true && (await this.git.remoteExists(this.workflow.remote))) {
-      await this.git.fetch(this.workflow.remote);
+    if (options.fetch === true && (await this.git.remoteExists(this.workflow.remoteName))) {
+      await this.git.fetch(this.workflow.remoteName);
     }
 
-    const startPoint = options.base ?? this.workflow.startPointOf(type);
+    const startPoint = options.base ?? this.workflow.baseOf(branchType);
     if (!(await this.git.refExists(startPoint))) {
       throw new ValidationError(
         `start point "${startPoint}" does not exist`,
@@ -190,186 +197,169 @@ export class Engine {
     }
 
     await this.ctx.hooks.run("pre-start", {
-      branch: topic.branch,
-      topicType: type.name,
-      parent: type.parent,
+      branch: resolved.branch,
+      branchType: branchType.name,
+      parent: branchType.target.join(","),
     });
-    await this.git.createBranch(topic.branch, startPoint);
-    await this.git.checkout(topic.branch);
+    await this.git.createBranch(resolved.branch, startPoint);
+    await this.git.checkout(resolved.branch);
     await this.ctx.hooks.run("post-start", {
-      branch: topic.branch,
-      topicType: type.name,
-      parent: type.parent,
+      branch: resolved.branch,
+      branchType: branchType.name,
+      parent: branchType.target.join(","),
     });
 
-    return { branch: topic.branch, startPoint };
+    return { branch: resolved.branch, startPoint };
   }
 
-  async finish(topic: ResolvedTopic, options: FinishOptions = {}): Promise<FinishResult> {
+  async finish(resolved: ResolvedBranch, options: FinishOptions = {}): Promise<FinishResult> {
     if (this.ctx.state.exists()) {
       throw new OperationStateError(
         "another gitwe operation is in progress",
         "run the command with --continue or --abort first",
       );
     }
-    return new FinishOperation(this.ctx, topic, options).execute();
+    return new FinishOperation(this.ctx, resolved, options).execute();
   }
 
-  /** Resume a finish that stopped on conflicts. */
-  async continueOperation(): Promise<FinishResult> {
-    const state = this.ctx.state.require();
-    const conflicts = await this.git.conflictedFiles();
-    if (conflicts.length > 0) {
-      throw new ValidationError(
-        `unresolved conflicts in: ${conflicts.join(", ")}`,
-        "resolve them and `git add` the files, then run --continue again",
-      );
-    }
-    if (await this.git.rebaseInProgress()) {
-      await this.git.continueRebase();
-    } else if (await this.git.mergeInProgress()) {
-      await this.git.raw(["commit", "--no-edit"]);
-    }
-    const type = this.workflow.requireTopicType(state.topicType);
-    const topic = this.workflow.resolveTopic(type, state.branch);
-    return new FinishOperation(this.ctx, topic, state.options as FinishOptions, state).execute();
-  }
+  // continueOperation و abortOperation مانند قبل با استفاده از branchType
 
-  /** Roll a stopped finish back to the state the repository started in. */
-  async abortOperation(): Promise<void> {
-    const state = this.ctx.state.require();
-    if (await this.git.rebaseInProgress()) await this.git.abortRebase();
-    if (await this.git.mergeInProgress()) await this.git.abortMerge();
-
-    for (const tag of state.createdTags) {
-      if ((await this.git.tags()).includes(tag)) await this.git.deleteTag(tag);
-    }
-    const current = await this.git.currentBranch();
-    for (const [branch, sha] of Object.entries(state.snapshots)) {
-      if (!(await this.git.branchExists(branch))) continue;
-      if (branch === current) await this.git.resetHard(sha);
-      else await this.git.raw(["update-ref", `refs/heads/${branch}`, sha]);
-    }
-    if (state.originalBranch !== undefined && (await this.git.branchExists(state.originalBranch))) {
-      await this.git.checkout(state.originalBranch);
-    }
-    this.ctx.state.clear();
-  }
-
-  async update(topic: ResolvedTopic, options: UpdateOptions = {}): Promise<UpdateResult> {
-    const parent = topic.type.parent;
-    if (!(await this.git.branchExists(topic.branch))) {
-      throw new ValidationError(`branch "${topic.branch}" does not exist`);
+  async update(resolved: ResolvedBranch, options: UpdateOptions = {}): Promise<UpdateResult> {
+    const parent = resolved.type.target[0];
+    if (!(await this.git.branchExists(resolved.branch))) {
+      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
     }
     if (!(await this.git.isClean())) {
       throw new ValidationError("the working tree has uncommitted changes");
     }
-    if (options.fetch === true && (await this.git.remoteExists(this.workflow.remote))) {
-      await this.git.fetch(this.workflow.remote);
+    if (options.fetch === true && (await this.git.remoteExists(this.workflow.remoteName))) {
+      await this.git.fetch(this.workflow.remoteName);
     }
-    const strategy: "merge" | "rebase" =
-      options.rebase === true ? "rebase" : topic.type.downstreamStrategy;
 
-    if (await this.git.isAncestor(parent, topic.branch)) {
-      return { branch: topic.branch, parent, strategy, alreadyUpToDate: true };
+    // محاسبه استراتژی: فقط "merge" یا "rebase" برای update معتبر است
+    const strategy =
+      options.rebase === true
+        ? "rebase"
+        : this.workflow.mergeStrategyFor(resolved.type) === "rebase"
+          ? "rebase"
+          : "merge";
+
+    if (await this.git.isAncestor(parent, resolved.branch)) {
+      return { branch: resolved.branch, parent, strategy, alreadyUpToDate: true };
     }
+
     await this.ctx.hooks.run("pre-update", {
-      branch: topic.branch,
-      topicType: topic.type.name,
+      branch: resolved.branch,
+      branchType: resolved.type.name,
       parent,
     });
-    await this.git.checkout(topic.branch);
+    await this.git.checkout(resolved.branch);
     if (strategy === "rebase") {
       await this.git.rebase(parent);
     } else {
       await this.git.merge(parent, {
         noFf: true,
-        message: `Merge branch '${parent}' into ${topic.branch}`,
+        message: `Merge branch '${parent}' into ${resolved.branch}`,
         noVerify: options.noVerify,
       });
     }
     await this.ctx.hooks.run("post-update", {
-      branch: topic.branch,
-      topicType: topic.type.name,
+      branch: resolved.branch,
+      branchType: resolved.type.name,
       parent,
     });
-    return { branch: topic.branch, parent, strategy, alreadyUpToDate: false };
+    return { branch: resolved.branch, parent, strategy, alreadyUpToDate: false };
   }
 
-  async publish(topic: ResolvedTopic, options: PublishOptions = {}): Promise<string> {
-    const remote = this.workflow.remote;
-    if (!(await this.git.branchExists(topic.branch))) {
-      throw new ValidationError(`branch "${topic.branch}" does not exist`);
+  async publish(resolved: ResolvedBranch, options: PublishOptions = {}): Promise<string> {
+    const remote = this.workflow.remoteName;
+    if (!(await this.git.branchExists(resolved.branch))) {
+      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
     }
     if (!(await this.git.remoteExists(remote))) {
       throw new ValidationError(`remote "${remote}" is not configured`);
     }
-    await this.ctx.hooks.run("pre-publish", { branch: topic.branch, topicType: topic.type.name });
-    await this.git.push(remote, topic.branch, {
+    await this.ctx.hooks.run("pre-publish", {
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+    });
+    await this.git.push(remote, resolved.branch, {
       setUpstream: true,
       pushOptions: options.pushOptions,
     });
-    await this.ctx.hooks.run("post-publish", { branch: topic.branch, topicType: topic.type.name });
-    return `${remote}/${topic.branch}`;
+    await this.ctx.hooks.run("post-publish", {
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+    });
+    return `${remote}/${resolved.branch}`;
   }
 
   async track(typeName: string, name: string): Promise<string> {
-    const type = this.workflow.requireTopicType(typeName);
-    const topic = this.workflow.resolveTopic(type, name);
-    const remote = this.workflow.remote;
+    const branchType = this.workflow.requireBranchType(typeName);
+    const resolved = this.workflow.resolveBranchType(branchType, name);
+    const remote = this.workflow.remoteName;
     if (!(await this.git.remoteExists(remote))) {
       throw new ValidationError(`remote "${remote}" is not configured`);
     }
     await this.git.fetch(remote);
-    if (!(await this.git.remoteBranchExists(remote, topic.branch))) {
-      throw new ValidationError(`${remote}/${topic.branch} does not exist`);
+    if (!(await this.git.remoteBranchExists(remote, resolved.branch))) {
+      throw new ValidationError(`${remote}/${resolved.branch} does not exist`);
     }
-    if (await this.git.branchExists(topic.branch)) {
-      await this.git.setUpstream(topic.branch, remote);
+    if (await this.git.branchExists(resolved.branch)) {
+      await this.git.setUpstream(resolved.branch, remote);
     } else {
-      await this.git.createTrackingBranch(topic.branch, remote);
+      await this.git.createTrackingBranch(resolved.branch, remote);
     }
-    await this.git.checkout(topic.branch);
-    return topic.branch;
+    await this.git.checkout(resolved.branch);
+    return resolved.branch;
   }
 
-  async deleteTopic(topic: ResolvedTopic, options: DeleteOptions = {}): Promise<DeleteResult> {
-    if (!(await this.git.branchExists(topic.branch))) {
-      throw new ValidationError(`branch "${topic.branch}" does not exist`);
+  async deleteBranchType(
+    resolved: ResolvedBranch,
+    options: DeleteOptions = {},
+  ): Promise<DeleteResult> {
+    if (!(await this.git.branchExists(resolved.branch))) {
+      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
     }
-    await this.ctx.hooks.run("pre-delete", { branch: topic.branch, topicType: topic.type.name });
-    if ((await this.git.currentBranch()) === topic.branch) {
-      await this.git.checkout(topic.type.parent);
+    await this.ctx.hooks.run("pre-delete", {
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+    });
+    if ((await this.git.currentBranch()) === resolved.branch) {
+      const targets = this.workflow.targetsOf(resolved.type);
+      await this.git.checkout(targets[0] ?? this.workflow.rootBranch.name);
     }
-    await this.git.deleteBranch(topic.branch, options.force === true);
+    await this.git.deleteBranch(resolved.branch, options.force === true);
     let deletedRemote = false;
     if (options.remote === true) {
-      const remote = this.workflow.remote;
-      if (await this.git.remoteBranchExists(remote, topic.branch)) {
-        await this.git.push(remote, topic.branch, { delete: true });
+      const remote = this.workflow.remoteName;
+      if (await this.git.remoteBranchExists(remote, resolved.branch)) {
+        await this.git.push(remote, resolved.branch, { delete: true });
         deletedRemote = true;
       }
     }
-    await this.ctx.hooks.run("post-delete", { branch: topic.branch, topicType: topic.type.name });
-    return { branch: topic.branch, deletedRemote };
+    await this.ctx.hooks.run("post-delete", {
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+    });
+    return { branch: resolved.branch, deletedRemote };
   }
 
-  async rename(topic: ResolvedTopic, newName: string): Promise<string> {
-    const target = this.workflow.resolveTopic(topic.type, newName);
+  async rename(resolved: ResolvedBranch, newName: string): Promise<string> {
+    const target = this.workflow.resolveBranchType(resolved.type, newName);
     assertValidBranchName(target.branch);
-    if (!(await this.git.branchExists(topic.branch))) {
-      throw new ValidationError(`branch "${topic.branch}" does not exist`);
+    if (!(await this.git.branchExists(resolved.branch))) {
+      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
     }
     if (await this.git.branchExists(target.branch)) {
       throw new ValidationError(`branch "${target.branch}" already exists`);
     }
-    await this.git.renameBranch(topic.branch, target.branch);
+    await this.git.renameBranch(resolved.branch, target.branch);
     return target.branch;
   }
 
-  /** Check out a topic branch, accepting a unique prefix of its name. */
-  async checkout(type: TopicType, name: string): Promise<string> {
-    const exact = this.workflow.resolveTopic(type, name);
+  async checkout(type: BranchType, name: string): Promise<string> {
+    const exact = this.workflow.resolveBranchType(type, name);
     if (await this.git.branchExists(exact.branch)) {
       await this.git.checkout(exact.branch);
       return exact.branch;
@@ -387,7 +377,7 @@ export class Engine {
     return candidates[0];
   }
 
-  async listTopics(type: TopicType, pattern?: string): Promise<BranchStatus[]> {
+  async listBranchTypes(type: BranchType, pattern?: string): Promise<BranchStatus[]> {
     const current = await this.git.currentBranch();
     const matcher = pattern === undefined ? undefined : globToRegExp(pattern);
     const branches = (await this.git.listBranches())
@@ -396,8 +386,9 @@ export class Engine {
       .sort();
     const statuses: BranchStatus[] = [];
     for (const branch of branches) {
-      const counts = (await this.git.branchExists(type.parent))
-        ? await this.git.aheadBehind(branch, type.parent)
+      const target = type.target[0] ?? this.workflow.rootBranch.name;
+      const counts = (await this.git.branchExists(target))
+        ? await this.git.aheadBehind(branch, target)
         : { ahead: 0, behind: 0 };
       statuses.push({
         name: branch,
@@ -434,7 +425,7 @@ export class Engine {
       }
       baseBranches.push({
         name: base.name,
-        parent: base.parent,
+        base: base.base,
         exists,
         current: base.name === current,
         ahead,
@@ -444,10 +435,11 @@ export class Engine {
     }
 
     const branches = await this.git.listBranches();
-    const topicTypes = this.workflow.topicTypes.map((type) => ({
+    const branchTypes = this.workflow.branchTypes.map((type) => ({
       name: type.name,
       prefix: type.prefix,
-      parent: type.parent,
+      base: type.base,
+      target: type.target,
       branches: branches.filter((branch) => branch.startsWith(type.prefix)).sort(),
     }));
 
@@ -468,9 +460,9 @@ export class Engine {
       workflow: this.workflow.config.name,
       configPath: this.configPath,
       currentBranch: current,
-      remote: this.workflow.remote,
+      remote: this.workflow.remoteName,
       baseBranches,
-      topicTypes,
+      branchTypes,
       health,
     };
   }
@@ -482,13 +474,57 @@ export class Engine {
     for (const base of this.workflow.baseBranches) {
       if (await this.git.branchExists(base.name)) continue;
       const startPoint =
-        base.parent !== undefined && (await this.git.branchExists(base.parent))
-          ? base.parent
-          : "HEAD";
+        base.base !== undefined && (await this.git.branchExists(base.base)) ? base.base : "HEAD";
       await this.git.createBranch(base.name, startPoint);
       created.push(base.name);
     }
     return created;
+  }
+
+  /**
+   * Roll a stopped finish back to the state the repository started in.
+   */
+  async abortOperation(): Promise<void> {
+    const state = this.ctx.state.require();
+    if (await this.git.rebaseInProgress()) await this.git.abortRebase();
+    if (await this.git.mergeInProgress()) await this.git.abortMerge();
+
+    for (const tag of state.createdTags) {
+      if ((await this.git.tags()).includes(tag)) await this.git.deleteTag(tag);
+    }
+    const current = await this.git.currentBranch();
+    for (const [branch, sha] of Object.entries(state.snapshots)) {
+      if (!(await this.git.branchExists(branch))) continue;
+      if (branch === current) await this.git.resetHard(sha);
+      else await this.git.raw(["update-ref", `refs/heads/${branch}`, sha]);
+    }
+    if (state.originalBranch !== undefined && (await this.git.branchExists(state.originalBranch))) {
+      await this.git.checkout(state.originalBranch);
+    }
+    this.ctx.state.clear();
+  }
+
+  /**
+   * Continue a previously interrupted finish operation.
+   * Requires an existing operation state (created by a previous finish that stopped on conflict).
+   */
+  async continueOperation(): Promise<FinishResult> {
+    const state = this.ctx.state.require();
+    if (state.operation !== "finish") {
+      throw new OperationStateError(
+        `unsupported operation: ${state.operation}`,
+        "only finish operations can be continued",
+      );
+    }
+    const branchType = this.workflow.requireBranchType(state.branchType);
+    const resolved: ResolvedBranch = {
+      branch: state.branch,
+      shortName: state.branch.slice(branchType.prefix.length),
+      type: branchType,
+    };
+    const options = state.options as FinishOptions;
+    const finishOp = new FinishOperation(this.ctx, resolved, options, state);
+    return finishOp.execute();
   }
 }
 

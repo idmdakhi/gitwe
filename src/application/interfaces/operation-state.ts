@@ -3,7 +3,10 @@ export interface OperationState {
   version: 1;
   operation: "finish";
   branch: string;
-  topicType: string;
+  /** @deprecated Use branchType instead */
+  topicType?: string;
+  /** Branch type name (e.g. 'feature', 'release') */
+  branchType: string;
   options: Record<string, unknown>;
   stepIndex: number;
   startedAt: string;
@@ -15,7 +18,6 @@ export interface OperationState {
 
 export const STATE_FILE = "gitwe/operation.json";
 
-/** Port for reading/writing resumable operation state. */
 export interface OperationStateStore {
   exists(): boolean;
   read(): OperationState | undefined;

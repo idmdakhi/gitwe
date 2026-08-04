@@ -11,12 +11,12 @@ export function registerCurrent(program: Command, globals: () => GlobalOptions):
       const format = globals().format;
       const engine = await createEngine(globals());
       try {
-        const topic = await engine.currentTopic();
+        const topic = await engine.currentBranchType();
         const upstream = await engine.git.upstreamOf(topic.branch);
         const data = {
           branch: topic.branch,
           type: topic.type.name,
-          parent: topic.type.parent,
+          base: topic.type.base,
           upstream: upstream || undefined,
         };
         if (format === "json" || format === "yaml") {
@@ -24,7 +24,7 @@ export function registerCurrent(program: Command, globals: () => GlobalOptions):
         } else {
           print(`${style.bold("Branch:")} ${topic.branch}`);
           print(`${style.bold("Type:")}  ${topic.type.name}`);
-          print(`${style.bold("Parent:")} ${topic.type.parent}`);
+          print(`${style.bold("Base:")} ${topic.type.base}`);
           if (upstream) print(`${style.bold("Upstream:")} ${upstream}`);
         }
       } catch {

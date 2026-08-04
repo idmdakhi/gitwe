@@ -221,9 +221,60 @@ describe("ShellGitRepository", () => {
     expect(await git.tags()).not.toContain("v1.0.0");
   });
 
+  it("creates an annotated tag by default", async () => {
+    await git.createTag("v1.0.0");
+
+    expect(git.tags()).toContain("v1.0.0");
+
+    const type = await git.raw(["cat-file", "-t", "refs/tags/v1.0.0"]);
+
+    expect(type).toBe("tag");
+  });
+
+  it("creates annotated tag with custom message", async () => {
+    await git.createTag("v1.0.0", {
+      message: "Release 1.0.0",
+    });
+
+    const message = await git.raw(["for-each-ref", "--format=%(contents)", "refs/tags/v1.0.0"]);
+
+    expect(message.trim()).toContain("Release 1.0.0");
+  });
+
   it("should execute raw git commands", async () => {
     const output = await git.raw(["rev-parse", "HEAD"]);
     expect(output).toBe(repo.git("rev-parse", "HEAD"));
+  });
+
+  it("creates tag on specified commit", async () => {
+    const first = await repo.head();
+
+    repo.write("a.txt", "hello");
+    await git.commit("second");
+
+    await git.createTag("v1.0.0", {
+      ref: first,
+    });
+
+    const commit = await repo.run(["rev-list", "-n", "1", "v1.0.0"]);
+
+    expect(commit.trim()).toBe(first);
+  });
+
+  it("throws if tag already exists", async () => {
+    await repo.createTag("v1.0.0");
+
+    await expect(repo.createTag("v1.0.0")).rejects.toThrow(GitError);
+  });
+
+  it("creates tag on HEAD when ref is omitted", async () => {
+    const head = await repo.head();
+
+    await repo.createTag("v1.0.0");
+
+    const tagged = await repo.run(["rev-list", "-n", "1", "v1.0.0"]);
+
+    expect(tagged.trim()).toBe(head);
   });
 
   it("should get conflicted files", async () => {

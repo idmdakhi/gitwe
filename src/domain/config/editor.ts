@@ -1,42 +1,29 @@
-// src/domain/WorkflowEditor.ts
-// عملیات ویرایش روی WorkflowConfig (بدون دخالت در سیستم فایل)
 import { ConfigError } from "../errors.js";
-import type { MergeStrategy, UpdateStrategy, WorkflowConfig } from "../entities.js";
+import type { WorkflowConfig } from "../entities.js";
 import { parseWorkflowConfig } from "./parse.js";
 
-// --- Typeهای ورودی برای ویرایش ---
 export interface BaseBranchInput {
-  parent?: string;
-  upstreamStrategy?: MergeStrategy;
-  downstreamStrategy?: UpdateStrategy;
-  autoUpdate?: boolean;
+  base?: string;
+  protected?: boolean;
+  aliases?: string[];
 }
 
-export interface TopicTypeInput {
-  parent?: string;
+export interface BranchTypeInput {
+  base?: string;
+  target?: string[] | string;
   prefix?: string;
-  startPoint?: string;
-  upstreamStrategy?: MergeStrategy;
-  downstreamStrategy?: UpdateStrategy;
-  tag?: boolean;
-  tagPrefix?: string;
-  deleteOnFinish?: boolean;
+  aliases?: string[] | string;
 }
 
-// --- Helpers ---
 function clone(config: WorkflowConfig): WorkflowConfig {
   return JSON.parse(JSON.stringify(config)) as WorkflowConfig;
 }
 
-/**
- * پس از هر تغییر، دوباره parse کامل انجام می‌شود تا اعتبارسنجی نهایی اعمال شود.
- * این تضمین می‌کند که هیچ‌گاه یک Workflow ناقص ذخیره نمی‌شود.
- */
 function revalidate(config: WorkflowConfig): WorkflowConfig {
   return parseWorkflowConfig(config);
 }
 
-// --- عملیات Base Branches ---
+// --- Base Branches ---
 export function addBaseBranch(
   config: WorkflowConfig,
   name: string,
@@ -48,10 +35,9 @@ export function addBaseBranch(
   }
   next.baseBranches.push({
     name,
-    parent: input.parent,
-    upstreamStrategy: input.upstreamStrategy ?? "merge",
-    downstreamStrategy: input.downstreamStrategy ?? "merge",
-    autoUpdate: input.autoUpdate ?? false,
+    aliases: input.aliases,
+    base: input.base,
+    protected: input.protected ?? false,
   });
   return revalidate(next);
 }
@@ -65,10 +51,9 @@ export function editBaseBranch(
   const base = next.baseBranches.find((b) => b.name === name);
   if (base === undefined) throw new ConfigError(`unknown base branch "${name}"`);
   Object.assign(base, {
-    parent: input.parent ?? base.parent,
-    upstreamStrategy: input.upstreamStrategy ?? base.upstreamStrategy,
-    downstreamStrategy: input.downstreamStrategy ?? base.downstreamStrategy,
-    autoUpdate: input.autoUpdate ?? base.autoUpdate,
+    aliases: input.aliases ?? base.aliases,
+    base: input.base ?? base.base,
+    protected: input.protected ?? base.protected,
   });
   return revalidate(next);
 }
@@ -79,14 +64,14 @@ export function renameBaseBranch(config: WorkflowConfig, from: string, to: strin
   if (base === undefined) throw new ConfigError(`unknown base branch "${from}"`);
   base.name = to;
 
-  // به‌روزرسانی ارجاعات در سایر Base Branches
+  // Update references in base branches
   for (const other of next.baseBranches) {
-    if (other.parent === from) other.parent = to;
+    if (other.base === from) other.base = to;
   }
-  // به‌روزرسانی ارجاعات در Topic Types
-  for (const topic of next.topicTypes) {
-    if (topic.parent === from) topic.parent = to;
-    if (topic.startPoint === from) topic.startPoint = to;
+  // Update references in branch types
+  for (const bt of next.branchTypes) {
+    if (bt.base === from) bt.base = to;
+    bt.target = bt.target.map((t) => (t === from ? to : t));
   }
   return revalidate(next);
 }
@@ -98,8 +83,9 @@ export function deleteBaseBranch(config: WorkflowConfig, name: string): Workflow
   }
 
   const dependents = [
-    ...next.baseBranches.filter((b) => b.parent === name).map((b) => b.name),
-    ...next.topicTypes.filter((t) => t.parent === name).map((t) => t.name),
+    ...next.baseBranches.filter((b) => b.base === name).map((b) => b.name),
+    ...next.branchTypes.filter((bt) => bt.base === name).map((bt) => bt.name),
+    ...next.branchTypes.filter((bt) => bt.target.includes(name)).map((bt) => bt.name),
   ];
   if (dependents.length > 0) {
     throw new ConfigError(`base branch "${name}" is still referenced by: ${dependents.join(", ")}`);
@@ -109,65 +95,101 @@ export function deleteBaseBranch(config: WorkflowConfig, name: string): Workflow
   return revalidate(next);
 }
 
-// --- عملیات Topic Types ---
-export function addTopicType(
+// --- Branch Types ---
+export function addBranchType(
   config: WorkflowConfig,
   name: string,
-  parent: string,
-  input: TopicTypeInput = {},
+  base: string,
+  target: string[],
+  input: BranchTypeInput = {},
 ): WorkflowConfig {
   const next = clone(config);
-  if (next.topicTypes.some((t) => t.name === name)) {
-    throw new ConfigError(`topic type "${name}" already exists`);
+  if (next.branchTypes.some((bt) => bt.name === name)) {
+    throw new ConfigError(`branch type "${name}" already exists`);
   }
-  next.topicTypes.push({
+  next.branchTypes.push({
     name,
-    parent,
+    aliases: input.aliases as string[],
+    base,
+    target,
     prefix: input.prefix ?? `${name}/`,
-    startPoint: input.startPoint,
-    upstreamStrategy: input.upstreamStrategy ?? "merge",
-    downstreamStrategy: input.downstreamStrategy ?? "merge",
-    tag: input.tag ?? false,
-    tagPrefix: input.tagPrefix,
-    deleteOnFinish: input.deleteOnFinish ?? true,
   });
   return revalidate(next);
 }
 
-export function editTopicType(
+export function editBranchType(
   config: WorkflowConfig,
   name: string,
-  input: TopicTypeInput,
+  input: BranchTypeInput,
 ): WorkflowConfig {
   const next = clone(config);
-  const topic = next.topicTypes.find((t) => t.name === name);
-  if (topic === undefined) throw new ConfigError(`unknown topic type "${name}"`);
-  Object.assign(topic, {
-    parent: input.parent ?? topic.parent,
-    prefix: input.prefix ?? topic.prefix,
-    startPoint: input.startPoint ?? topic.startPoint,
-    upstreamStrategy: input.upstreamStrategy ?? topic.upstreamStrategy,
-    downstreamStrategy: input.downstreamStrategy ?? topic.downstreamStrategy,
-    tag: input.tag ?? topic.tag,
-    tagPrefix: input.tagPrefix ?? topic.tagPrefix,
-    deleteOnFinish: input.deleteOnFinish ?? topic.deleteOnFinish,
+  const bt = next.branchTypes.find((b) => b.name === name);
+  if (bt === undefined) throw new ConfigError(`unknown branch type "${name}"`);
+  Object.assign(bt, {
+    aliases: input.aliases ?? bt.aliases,
+    base: input.base ?? bt.base,
+    target: input.target ?? bt.target,
+    prefix: input.prefix ?? bt.prefix,
   });
   return revalidate(next);
 }
 
-export function renameTopicType(config: WorkflowConfig, from: string, to: string): WorkflowConfig {
+export function renameBranchType(config: WorkflowConfig, from: string, to: string): WorkflowConfig {
   const next = clone(config);
-  const topic = next.topicTypes.find((t) => t.name === from);
-  if (topic === undefined) throw new ConfigError(`unknown topic type "${from}"`);
-  topic.name = to;
+  const bt = next.branchTypes.find((b) => b.name === from);
+  if (bt === undefined) throw new ConfigError(`unknown branch type "${from}"`);
+  bt.name = to;
+
+  // Update references in merge config
+  const merge = next.merge;
+  if (merge.branchTypes[from] !== undefined) {
+    merge.branchTypes[to] = merge.branchTypes[from];
+    delete merge.branchTypes[from];
+  }
+  merge.deleteOnFinish = merge.deleteOnFinish.map((n: string) => (n === from ? to : n));
+  if (merge.squash) {
+    merge.squash.branchTypes = merge.squash.branchTypes.map((n: string) => (n === from ? to : n));
+  }
+
+  // Update references in versioning
+  const versioning = next.versioning;
+  versioning.tag = versioning.tag.map((n) => (n === from ? to : n));
+  if (versioning.branchTypes) {
+    for (const key of ["version", "major", "minor", "patch", "metadata"] as const) {
+      if (versioning.branchTypes[key]) {
+        versioning.branchTypes[key] = versioning.branchTypes[key]!.map((n) =>
+          n === from ? to : n,
+        );
+      }
+    }
+  }
   return revalidate(next);
 }
 
-export function deleteTopicType(config: WorkflowConfig, name: string): WorkflowConfig {
+export function deleteBranchType(config: WorkflowConfig, name: string): WorkflowConfig {
   const next = clone(config);
-  if (!next.topicTypes.some((t) => t.name === name)) {
-    throw new ConfigError(`unknown topic type "${name}"`);
+  if (!next.branchTypes.some((bt) => bt.name === name)) {
+    throw new ConfigError(`unknown branch type "${name}"`);
   }
-  next.topicTypes = next.topicTypes.filter((t) => t.name !== name);
+  next.branchTypes = next.branchTypes.filter((bt) => bt.name !== name);
+
+  // Remove from merge config
+  delete next.merge.branchTypes[name];
+  next.merge.deleteOnFinish = next.merge.deleteOnFinish.filter((n) => n !== name);
+  if (next.merge.squash) {
+    next.merge.squash.branchTypes = next.merge.squash.branchTypes.filter((n) => n !== name);
+  }
+
+  // Remove from versioning
+  next.versioning.tag = next.versioning.tag.filter((n) => n !== name);
+  if (next.versioning.branchTypes) {
+    for (const key of ["version", "major", "minor", "patch", "metadata"] as const) {
+      if (next.versioning.branchTypes[key]) {
+        next.versioning.branchTypes[key] = next.versioning.branchTypes[key]!.filter(
+          (n) => n !== name,
+        );
+      }
+    }
+  }
   return revalidate(next);
 }

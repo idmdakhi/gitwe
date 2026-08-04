@@ -51,14 +51,17 @@ describe("Engine branch operations", () => {
     await engine.start("feature", "user-profile", { base: "develop" });
     await engine.start("feature", "billing", { base: "develop" });
 
-    const all = await engine.listTopics(engine.workflow.requireTopicType("feature"));
+    const all = await engine.listBranchTypes(engine.workflow.requireBranchType("feature"));
     expect(all.map((b) => b.name)).toEqual([
       "feature/billing",
       "feature/user-auth",
       "feature/user-profile",
     ]);
 
-    const filtered = await engine.listTopics(engine.workflow.requireTopicType("feature"), "user-*");
+    const filtered = await engine.listBranchTypes(
+      engine.workflow.requireBranchType("feature"),
+      "user-*",
+    );
     expect(filtered.map((b) => b.name)).toEqual(["feature/user-auth", "feature/user-profile"]);
     expect(filtered[0].ahead).toBe(1);
   });
@@ -67,7 +70,7 @@ describe("Engine branch operations", () => {
     await engine.start("feature", "user-auth");
     repo.git("checkout", "-q", "develop");
 
-    const branch = await engine.checkout(engine.workflow.requireTopicType("feature"), "user");
+    const branch = await engine.checkout(engine.workflow.requireBranchType("feature"), "user");
     expect(branch).toBe("feature/user-auth");
     expect(repo.currentBranch()).toBe("feature/user-auth");
   });
@@ -78,7 +81,7 @@ describe("Engine branch operations", () => {
     repo.git("checkout", "-q", "develop");
 
     await expect(
-      engine.checkout(engine.workflow.requireTopicType("feature"), "user"),
+      engine.checkout(engine.workflow.requireBranchType("feature"), "user"),
     ).rejects.toThrow(/matches multiple branches/);
   });
 
@@ -91,7 +94,9 @@ describe("Engine branch operations", () => {
 
   it("deletes a topic branch, switching away from it first", async () => {
     await engine.start("feature", "doomed");
-    const result = await engine.deleteTopic(engine.resolve("feature", "doomed"), { force: true });
+    const result = await engine.deleteBranchType(engine.resolve("feature", "doomed"), {
+      force: true,
+    });
     expect(result.branch).toBe("feature/doomed");
     expect(repo.branches()).not.toContain("feature/doomed");
     expect(repo.currentBranch()).toBe("develop");
@@ -99,13 +104,13 @@ describe("Engine branch operations", () => {
 
   it("resolves the current branch as a topic", async () => {
     await engine.start("feature", "current");
-    const topic = await engine.currentTopic();
+    const topic = await engine.currentBranchType();
     expect(topic).toMatchObject({ branch: "feature/current", shortName: "current" });
   });
 
   it("rejects base branches as topics", async () => {
     repo.git("checkout", "-q", "develop");
-    await expect(engine.currentTopic()).rejects.toThrow(/not a topic branch/);
+    await expect(engine.currentBranchType()).rejects.toThrow(/not a topic branch/);
   });
 
   it("reports workflow health in the overview", async () => {
@@ -114,7 +119,7 @@ describe("Engine branch operations", () => {
 
     expect(report.workflow).toBe("classic");
     expect(report.baseBranches.map((b) => b.name)).toEqual(["main", "develop"]);
-    expect(report.topicTypes.find((t) => t.name === "feature")?.branches).toEqual([
+    expect(report.branchTypes.find((t) => t.name === "feature")?.branches).toEqual([
       "feature/reported",
     ]);
     expect(report.health).toEqual([{ level: "ok", message: "workflow is healthy" }]);

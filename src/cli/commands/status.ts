@@ -7,10 +7,10 @@ import type { GlobalOptions } from "../options.js";
 import { print, renderTree, style } from "../output.js";
 import type { OverviewReport } from "../../application/engine.js";
 
-export function registerOverview(program: Command, globals: () => GlobalOptions): void {
+export function registerStatus(program: Command, globals: () => GlobalOptions): void {
   program
-    .command("overview")
-    .alias("status")
+    .command("status")
+    .alias("overview")
     .description("show the workflow configuration, branch structure and health")
     // .option("--format <format>", "output format: text, json or yaml", "text")
     .action(async () => {
@@ -49,10 +49,10 @@ export function registerOverview(program: Command, globals: () => GlobalOptions)
       print();
 
       print(style.bold("Base branches"));
-      const roots = report.baseBranches.filter((b) => b.parent === undefined).map((b) => b.name);
+      const roots = report.baseBranches.filter((b) => b.base === undefined).map((b) => b.name);
       const lines = renderTree(
         roots,
-        (name) => report.baseBranches.filter((b) => b.parent === name).map((b) => b.name),
+        (name) => report.baseBranches.filter((b) => b.base === name).map((b) => b.name),
         (name) => {
           const base = report.baseBranches.find((b) => b.name === name);
           if (base === undefined) return name;
@@ -68,9 +68,9 @@ export function registerOverview(program: Command, globals: () => GlobalOptions)
       print();
 
       print(style.bold("Topic types"));
-      for (const type of report.topicTypes) {
+      for (const type of report.branchTypes) {
         print(
-          `  ${style.cyan(type.name.padEnd(10))} ${style.dim(`${type.prefix} → ${type.parent}`)}` +
+          `  ${style.cyan(type.name.padEnd(10))} ${style.dim(`${type.prefix} → ${type.base}`)}` +
             `  ${type.branches.length} branch(es)`,
         );
         for (const branch of type.branches) print(`    ${branch}`);

@@ -1,19 +1,20 @@
-// src/domain/WorkflowParser.ts
-// تبدیل داده‌های خام (از JSON/YAML) به موجودیت‌های معتبر دامنه
 import { ConfigError } from "../errors.js";
 import type {
   BaseBranch,
+  BranchType,
   HookConfig,
   MergeStrategy,
-  TopicType,
-  UpdateStrategy,
+  // UpdateStrategy,
   WorkflowConfig,
+  RemoteConfig,
+  VersioningConfig,
+  MergeConfig,
+  CliConfig,
 } from "../entities.js";
 
 const MERGE_STRATEGIES: MergeStrategy[] = ["merge", "squash", "rebase"];
-const UPDATE_STRATEGIES: UpdateStrategy[] = ["merge", "rebase"];
 
-// --- Helperهای محض ---
+// --- Helperها (بدون تغییر) ---
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -50,19 +51,23 @@ function parseMergeStrategy(value: unknown, path: string, fallback: MergeStrateg
   return value as MergeStrategy;
 }
 
-function parseUpdateStrategy(
-  value: unknown,
-  path: string,
-  fallback: UpdateStrategy,
-): UpdateStrategy {
-  if (value === undefined || value === null) return fallback;
-  if (typeof value !== "string" || !UPDATE_STRATEGIES.includes(value as UpdateStrategy)) {
-    throw new ConfigError(`${path} must be one of: ${UPDATE_STRATEGIES.join(", ")}`);
+function parseStringArray(value: unknown, path: string): string[] {
+  if (value === undefined || value === null) return [];
+  if (Array.isArray(value)) {
+    return value.map((item, index) => {
+      if (typeof item !== "string" || item.trim() === "") {
+        throw new ConfigError(`${path}[${index}] must be a non-empty string`);
+      }
+      return item.trim();
+    });
   }
-  return value as UpdateStrategy;
+  if (typeof value === "string") {
+    return [value.trim()];
+  }
+  throw new ConfigError(`${path} must be a string or array of strings`);
 }
 
-// --- پارس‌کننده‌های اصلی ---
+// --- پارس‌کننده‌ها ---
 function parseBaseBranch(value: unknown, index: number): BaseBranch {
   if (!isRecord(value)) {
     throw new ConfigError(`baseBranches[${index}] must be an object`);
@@ -70,54 +75,30 @@ function parseBaseBranch(value: unknown, index: number): BaseBranch {
   const path = `baseBranches[${index}]`;
   return {
     name: requireString(value.name, `${path}.name`),
-    parent: optionalString(value.parent, `${path}.parent`),
-    upstreamStrategy: parseMergeStrategy(
-      value.upstreamStrategy,
-      `${path}.upstreamStrategy`,
-      "merge",
-    ),
-    downstreamStrategy: parseUpdateStrategy(
-      value.downstreamStrategy,
-      `${path}.downstreamStrategy`,
-      "merge",
-    ),
-    autoUpdate: booleanValue(value.autoUpdate, `${path}.autoUpdate`, false),
+    aliases: Array.isArray(value.aliases) ? value.aliases.map(String) : undefined,
+    base: optionalString(value.base, `${path}.base`),
+    protected: booleanValue(value.protected, `${path}.protected`, false),
   };
 }
 
-function parseTopicType(value: unknown, index: number): TopicType {
+function parseBranchType(value: unknown, index: number): BranchType {
   if (!isRecord(value)) {
-    throw new ConfigError(`topicTypes[${index}] must be an object`);
+    throw new ConfigError(`branchTypes[${index}] must be an object`);
   }
-  const path = `topicTypes[${index}]`;
+  const path = `branchTypes[${index}]`;
   const name = requireString(value.name, `${path}.name`);
   return {
     name,
-    parent: requireString(value.parent, `${path}.parent`),
+    aliases: Array.isArray(value.aliases) ? value.aliases.map(String) : undefined,
+    base: requireString(value.base, `${path}.base`),
+    target: parseStringArray(value.target, `${path}.target`),
     prefix: requireString(value.prefix, `${path}.prefix`, `${name}/`),
-    startPoint: optionalString(value.startPoint, `${path}.startPoint`),
-    upstreamStrategy: parseMergeStrategy(
-      value.upstreamStrategy,
-      `${path}.upstreamStrategy`,
-      "merge",
-    ),
-    downstreamStrategy: parseUpdateStrategy(
-      value.downstreamStrategy,
-      `${path}.downstreamStrategy`,
-      "merge",
-    ),
-    tag: booleanValue(value.tag, `${path}.tag`, false),
-    tagPrefix: optionalString(value.tagPrefix, `${path}.tagPrefix`),
-    deleteOnFinish: booleanValue(value.deleteOnFinish, `${path}.deleteOnFinish`, true),
   };
 }
 
 function parseHooks(value: unknown): HookConfig {
-  if (value === undefined || value === null) {
-    return { enabled: true, path: ".gitwe/hooks" };
-  }
   if (!isRecord(value)) {
-    throw new ConfigError("hooks must be an object");
+    return { enabled: true, path: ".gitwe/hooks" };
   }
   return {
     enabled: booleanValue(value.enabled, "hooks.enabled", true),
@@ -125,14 +106,104 @@ function parseHooks(value: unknown): HookConfig {
   };
 }
 
-// --- اعتبارسنجی ساختاری (Cross-field validation) ---
+function parseRemote(value: unknown): RemoteConfig {
+  if (isRecord(value)) {
+    return {
+      name: requireString(value.name, "remote.name"),
+      autoPush: booleanValue(value.autoPush, "remote.autoPush", false),
+      autoFetch: booleanValue(value.autoFetch, "remote.autoFetch", true),
+    };
+  }
+  // اگر string باشد، به object تبدیل کن
+  if (typeof value === "string") {
+    return { name: value };
+  }
+  return { name: "origin" };
+}
+
+function parseVersion(value: unknown): VersioningConfig {
+  if (!isRecord(value)) {
+    return {
+      enabled: false,
+      tagPrefix: "v",
+      tag: [],
+      branchTypes: {},
+    };
+  }
+  return {
+    enabled: booleanValue(value.enabled, "versioning.enabled", true),
+    tagPrefix: requireString(value.tagPrefix, "versioning.tagPrefix", "v"),
+    format: optionalString(value.format, "versioning.format") ?? "{{tagPrefix}}{{version}}",
+    tag: parseStringArray(value.tag, "versioning.tag"),
+    branchTypes: isRecord(value.branchTypes)
+      ? {
+          version: parseStringArray(value.branchTypes.version, "versioning.branchTypes.version"),
+          major: parseStringArray(value.branchTypes.major, "versioning.branchTypes.major"),
+          minor: parseStringArray(value.branchTypes.minor, "versioning.branchTypes.minor"),
+          patch: parseStringArray(value.branchTypes.patch, "versioning.branchTypes.patch"),
+          metadata: parseStringArray(value.branchTypes.metadata, "versioning.branchTypes.metadata"),
+        }
+      : {},
+    annotated: booleanValue(value.annotated, "versioning.annotated", true),
+    pushTags: booleanValue(value.pushTags, "versioning.pushTags", false),
+    changelog: isRecord(value.changelog)
+      ? {
+          enabled: booleanValue(value.changelog.enabled, "versioning.changelog.enabled", false),
+          path: optionalString(value.changelog.path, "versioning.changelog.path") ?? "CHANGELOG.md",
+        }
+      : undefined,
+  };
+}
+
+function parseMerge(value: unknown): MergeConfig {
+  if (!isRecord(value)) {
+    return {
+      strategy: "merge",
+      branchTypes: {},
+      deleteOnFinish: [],
+    };
+  }
+  const branchTypes: Record<string, string | string[]> = {};
+  if (isRecord(value.branchTypes)) {
+    for (const [key, val] of Object.entries(value.branchTypes)) {
+      if (typeof val === "string") {
+        branchTypes[key] = val;
+      } else if (Array.isArray(val)) {
+        branchTypes[key] = val.map(String);
+      }
+    }
+  }
+  return {
+    strategy: parseMergeStrategy(value.strategy, "merge.strategy", "merge"),
+    branchTypes,
+    deleteOnFinish: parseStringArray(value.deleteOnFinish, "merge.deleteOnFinish"),
+    squash: isRecord(value.squash)
+      ? {
+          branchTypes: parseStringArray(value.squash.branchTypes, "merge.squash.branchTypes"),
+          enabled: booleanValue(value.squash.enabled, "merge.squash.enabled", true),
+          default: booleanValue(value.squash.default, "merge.squash.default", false),
+        }
+      : undefined,
+  };
+}
+
+function parseCli(value: unknown): CliConfig | undefined {
+  if (!isRecord(value)) return undefined;
+  return {
+    enabled: booleanValue(value.enabled, "cli.enabled", true),
+    interactive: booleanValue(value.interactive, "cli.interactive", true),
+    color: booleanValue(value.color, "cli.color", true),
+    aliases: isRecord(value.aliases)
+      ? Object.fromEntries(Object.entries(value.aliases).map(([k, v]) => [k, String(v)]))
+      : undefined,
+  };
+}
+
 function validateWorkflow(config: WorkflowConfig): void {
-  // ۱. حداقل یک Base Branch
   if (config.baseBranches.length === 0) {
     throw new ConfigError("at least one base branch is required");
   }
 
-  // ۲. عدم تکراری بودن نام Base و وجود والد
   const bases = new Map<string, BaseBranch>();
   for (const base of config.baseBranches) {
     if (bases.has(base.name)) {
@@ -141,70 +212,115 @@ function validateWorkflow(config: WorkflowConfig): void {
     bases.set(base.name, base);
   }
 
+  // Check base relationships
   for (const base of config.baseBranches) {
-    if (base.parent === undefined) continue;
-    if (!bases.has(base.parent)) {
-      throw new ConfigError(`base branch "${base.name}" has unknown parent "${base.parent}"`);
+    if (base.base === undefined) continue;
+    if (!bases.has(base.base)) {
+      throw new ConfigError(`base branch "${base.name}" has unknown base "${base.base}"`);
     }
-    if (base.parent === base.name) {
-      throw new ConfigError(`base branch "${base.name}" cannot be its own parent`);
+    if (base.base === base.name) {
+      throw new ConfigError(`base branch "${base.name}" cannot be its own base`);
     }
   }
 
-  // ۳. تشخیص چرخه (Cycle) در درخت Base Branches
+  // Check cycles
   for (const base of config.baseBranches) {
     const seen = new Set<string>([base.name]);
-    let current = bases.get(base.name)?.parent;
+    let current = base.base;
     while (current !== undefined) {
       if (seen.has(current)) {
         throw new ConfigError(`base branch hierarchy contains a cycle at "${current}"`);
       }
       seen.add(current);
-      current = bases.get(current)?.parent;
+      const parent = bases.get(current);
+      current = parent?.base;
     }
   }
 
-  // ۴. اعتبارسنجی Topic Types
-  const topics = new Set<string>();
-  const prefixes = new Map<string, string>(); // کلید: پیشوند، مقدار: نام نوع
+  // Validate branch types
+  const names = new Set<string>();
+  const prefixes = new Map<string, string>();
 
-  for (const topic of config.topicTypes) {
-    if (topics.has(topic.name)) {
-      throw new ConfigError(`duplicate topic type "${topic.name}"`);
+  for (const bt of config.branchTypes) {
+    if (names.has(bt.name)) {
+      throw new ConfigError(`duplicate branch type "${bt.name}"`);
     }
-    topics.add(topic.name);
+    names.add(bt.name);
 
-    const owner = prefixes.get(topic.prefix);
+    const owner = prefixes.get(bt.prefix);
     if (owner !== undefined) {
       throw new ConfigError(
-        `topic types "${owner}" and "${topic.name}" share the prefix "${topic.prefix}"`,
+        `branch types "${owner}" and "${bt.name}" share the prefix "${bt.prefix}"`,
       );
     }
-    prefixes.set(topic.prefix, topic.name);
+    prefixes.set(bt.prefix, bt.name);
 
-    if (!bases.has(topic.parent)) {
-      throw new ConfigError(
-        `topic type "${topic.name}" has unknown parent branch "${topic.parent}"`,
-      );
+    if (!bases.has(bt.base)) {
+      throw new ConfigError(`branch type "${bt.name}" has unknown base "${bt.base}"`);
+    }
+
+    for (const target of bt.target) {
+      if (!bases.has(target)) {
+        throw new ConfigError(`branch type "${bt.name}" has unknown target "${target}"`);
+      }
+    }
+
+    if (bt.target.length === 0) {
+      throw new ConfigError(`branch type "${bt.name}" must have at least one target`);
+    }
+  }
+
+  // Validate merge.deleteOnFinish
+  for (const name of config.merge.deleteOnFinish) {
+    if (!names.has(name)) {
+      throw new ConfigError(`merge.deleteOnFinish references unknown branch type "${name}"`);
+    }
+  }
+
+  // Validate merge.branchTypes keys
+  for (const [key] of Object.entries(config.merge.branchTypes)) {
+    if (!names.has(key)) {
+      throw new ConfigError(`merge.branchTypes references unknown branch type "${key}"`);
+    }
+  }
+
+  // Validate merge.squash.branchTypes
+  if (config.merge.squash) {
+    for (const name of config.merge.squash.branchTypes) {
+      if (!names.has(name)) {
+        throw new ConfigError(`merge.squash.branchTypes references unknown branch type "${name}"`);
+      }
+    }
+  }
+
+  // Validate versioning.tag
+  for (const name of config.versioning.tag) {
+    if (!names.has(name)) {
+      throw new ConfigError(`versioning.tag references unknown branch type "${name}"`);
+    }
+  }
+
+  // Validate versioning.branchTypes
+  if (config.versioning.branchTypes) {
+    for (const [key, arr] of Object.entries(config.versioning.branchTypes)) {
+      for (const name of arr) {
+        if (name !== "" && !names.has(name)) {
+          throw new ConfigError(
+            `versioning.branchTypes.${key} references unknown branch type "${name}"`,
+          );
+        }
+      }
     }
   }
 }
 
-/**
- * نقطهٔ ورودی اصلی: دادهٔ خام (معمولاً از JSON یا YAML) را گرفته،
- * آن را به ساختار دامنه تبدیل کرده و اعتبارسنجی می‌کند.
- */
 export function parseWorkflowConfig(input: unknown): WorkflowConfig {
   if (!isRecord(input)) {
     throw new ConfigError("workflow definition must be an object");
   }
 
-  // پشتیبانی از نسخه
   if (input.version !== undefined && input.version !== 1) {
-    throw new ConfigError(
-      `unsupported workflow version ${String(input.version)}`,
-      "gitwe 1.x only understands version 1",
-    );
+    throw new ConfigError(`unsupported workflow version ${String(input.version)}`);
   }
 
   const baseBranches = Array.isArray(input.baseBranches) ? input.baseBranches : undefined;
@@ -212,19 +328,23 @@ export function parseWorkflowConfig(input: unknown): WorkflowConfig {
     throw new ConfigError("baseBranches must be an array");
   }
 
-  const topicTypes = Array.isArray(input.topicTypes) ? input.topicTypes : [];
+  const branchTypes = Array.isArray(input.branchTypes) ? input.branchTypes : [];
+  if (branchTypes.length === 0) {
+    throw new ConfigError("branchTypes must be defined and non-empty");
+  }
 
   const config: WorkflowConfig = {
     version: 1,
     name: requireString(input.name, "name", "custom"),
-    remote: requireString(input.remote, "remote", "origin"),
-    tagPrefix: typeof input.tagPrefix === "string" ? input.tagPrefix : "v",
+    remote: parseRemote(input.remote),
     baseBranches: baseBranches.map(parseBaseBranch),
-    topicTypes: topicTypes.map(parseTopicType),
+    branchTypes: branchTypes.map(parseBranchType),
     hooks: parseHooks(input.hooks),
+    cli: parseCli(input.cli),
+    merge: parseMerge(input.merge),
+    versioning: parseVersion(input.versioning),
   };
 
-  // اعمال اعتبارسنجی‌های سنگین
   validateWorkflow(config);
   return config;
 }

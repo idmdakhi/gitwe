@@ -49,6 +49,8 @@ describe("Full Workflow Integration", () => {
     await gitwe("start", "release", "1.0.0");
     repo.commit("changelog.md", "notes", "Prepare 1.0.0");
     await gitwe("finish", "release/1.0.0");
+    const type = repo.exec(["cat-file", "-t", "refs/tags/v1.0.0"]);
+    expect(type).toBe("tag");
     expect(repo.tags()).toContain("v1.0.0");
     expect(repo.log("main")).toContain("Prepare 1.0.0");
     expect(repo.log("develop")).toContain("Prepare 1.0.0");
@@ -85,19 +87,12 @@ describe("Full Workflow Integration", () => {
       name: "custom",
       remote: "origin",
       tagPrefix: "v",
-      baseBranches: [
-        { name: "main" },
-        { name: "staging", parent: "main", autoUpdate: true },
-      ],
-      topicTypes: [
+      baseBranches: [{ name: "main" }, { name: "staging", base: "main", autoUpdate: true }],
+      branchTypes: [
         {
           name: "feature",
-          parent: "staging",
+          base: "staging",
           prefix: "feat/",
-          upstreamStrategy: "merge",
-          downstreamStrategy: "merge",
-          tag: false,
-          deleteOnFinish: true,
         },
       ],
       hooks: { enabled: true, path: ".gitwe/hooks" },

@@ -23,7 +23,8 @@ export class FileOperationStateStore implements OperationStateStore {
   read(): OperationState | undefined {
     if (!this.exists()) return undefined;
     try {
-      return JSON.parse(readFileSync(this.file, "utf8")) as OperationState;
+      const data = JSON.parse(readFileSync(this.file, "utf8")) as OperationState;
+      return data;
     } catch (error) {
       throw new OperationStateError(
         `cannot read the saved operation state: ${(error as Error).message}`,

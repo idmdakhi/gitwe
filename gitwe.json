@@ -1,73 +1,114 @@
 {
   "version": 1,
   "name": "classic",
-  "remote": "origin",
-  "tagPrefix": "v",
+
   "baseBranches": [
     {
       "name": "main",
-      "upstreamStrategy": "merge",
-      "downstreamStrategy": "merge",
-      "autoUpdate": false
+      "aliases": ["master"],
+      "protected": true
     },
     {
       "name": "develop",
-      "parent": "main",
-      "upstreamStrategy": "merge",
-      "downstreamStrategy": "merge",
-      "autoUpdate": true
+      "aliases": ["dev"],
+      "base": "main",
+      "protected": true
     }
   ],
-  "topicTypes": [
+
+  "branchTypes": [
     {
       "name": "feature",
-      "parent": "develop",
-      "prefix": "feature/",
-      "upstreamStrategy": "merge",
-      "downstreamStrategy": "merge",
-      "tag": false,
-      "deleteOnFinish": true
-    },
-    {
-      "name": "bugfix",
-      "parent": "develop",
-      "prefix": "bugfix/",
-      "upstreamStrategy": "merge",
-      "downstreamStrategy": "merge",
-      "tag": false,
-      "deleteOnFinish": true
+      "aliases": ["feat", "ftr"],
+      "base": "develop",
+      "target": "develop",
+      "prefix": "feature/"
     },
     {
       "name": "release",
-      "parent": "main",
-      "prefix": "release/",
-      "startPoint": "develop",
-      "upstreamStrategy": "merge",
-      "downstreamStrategy": "merge",
-      "tag": true,
-      "deleteOnFinish": true
+      "aliases": ["rls", "rels"],
+      "base": "develop",
+      "target": ["main", "develop"],
+      "prefix": "release/"
     },
     {
       "name": "hotfix",
-      "parent": "main",
-      "prefix": "hotfix/",
-      "upstreamStrategy": "merge",
-      "downstreamStrategy": "merge",
-      "tag": true,
-      "deleteOnFinish": true
+      "aliases": ["hfix", "patch"],
+      "base": "main",
+      "target": ["main", "develop"],
+      "prefix": "hotfix/"
+    },
+    {
+      "name": "bugfix",
+      "aliases": ["bug", "bfix"],
+      "base": "main",
+      "target": ["develop"],
+      "prefix": "bugfix/"
     },
     {
       "name": "support",
-      "parent": "main",
-      "prefix": "support/",
-      "upstreamStrategy": "merge",
-      "downstreamStrategy": "merge",
-      "tag": false,
-      "deleteOnFinish": false
+      "aliases": ["lts"],
+      "base": "main",
+      "target": "",
+      "prefix": "support/"
     }
   ],
+
+  "cli": {
+    "enabled": true,
+    "interactive": true,
+    "color": true,
+    "aliases": {
+      "fs": "finish feature",
+      "rs": "release start",
+      "hf": "hotfix start",
+      "st": "status"
+    }
+  },
+
+  "merge": {
+    "strategy": "merge",
+    "branchTypes": {
+      "main": "merge",
+      "develop": "merge",
+      "feature": "squash",
+      "release": ["merge", "rebase"],
+      "hotfix": "default",
+      "bugfix": "merge",
+      "support": ["default", "merge"]
+    },
+    "deleteOnFinish": ["feature", "release", "hotfix", "bugfix"],
+    "squash": { "branchTypes": ["feature"], "enabled": true, "default": false }
+  },
+
   "hooks": {
     "enabled": true,
     "path": ".gitwe/hooks"
+  },
+
+  "remote": {
+    "name": "origin",
+    "autoPush": false,
+    "autoFetch": true
+  },
+
+  "versioning": {
+    "enabled": true,
+    "tagPrefix": "v",
+    "format": "{{tagPrefix}}{{version}}",
+    "tag": ["release", "hotfix"],
+    "branchTypes": {
+      "version": ["release"],
+      "major": [""],
+      "minor": ["feature"],
+      "patch": ["hotfix"],
+      "metadata ": [""]
+    },
+    "annotated": true,
+    "pushTags": false,
+    "changelog": {
+      "enabled": false,
+      "path": "CHANGELOG.md"
+    }
   }
 }

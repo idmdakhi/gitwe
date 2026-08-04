@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { createInterface } from "node:readline/promises";
-// import { join } from "node:path";
 import { Command } from "commander";
 import { resolvePath } from "../../application/path-resolver.js";
 
@@ -14,6 +13,7 @@ import {
   createPreset,
   isPresetName,
   PRESET_NAMES,
+  type PresetName,
   type PresetOverrides,
 } from "../../domain/config/presets.js";
 import { createConsoleLogger } from "../../infrastructure/logger/console-logger.js";
@@ -46,6 +46,43 @@ async function prompt(question: string, fallback: string): Promise<string> {
   try {
     const answer = await rl.question(`${question} [${fallback}] `);
     return answer.trim() === "" ? fallback : answer.trim();
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * نمایش لیست گزینه‌ها و دریافت انتخاب کاربر
+ * @param question سوالی که پرسیده می‌شود
+ * @param options آرایه‌ای از گزینه‌ها (مثلاً ['classic', 'github', 'gitlab'])
+ * @param defaultOption گزینه پیش‌فرض
+ * @returns گزینه انتخاب‌شده
+ */
+async function selectFromList(
+  question: string,
+  options: string[],
+  defaultOption: string,
+): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    print();
+    print(style.bold(question));
+    for (let i = 0; i < options.length; i++) {
+      const label = options[i] === defaultOption ? `${style.green("●")}` : "○";
+      print(`  ${label} ${i + 1}) ${options[i]}`);
+    }
+    const promptText = `Enter number or name [${defaultOption}]: `;
+    const answer = await rl.question(promptText);
+    const trimmed = answer.trim();
+    if (trimmed === "") return defaultOption;
+    const num = Number.parseInt(trimmed, 10);
+    if (!isNaN(num) && num >= 1 && num <= options.length) {
+      return options[num - 1];
+    }
+    const matched = options.find((opt) => opt.toLowerCase() === trimmed.toLowerCase());
+    if (matched !== undefined) return matched;
+    print(style.yellow(`"${trimmed}" is not a valid option. Using default "${defaultOption}".`));
+    return defaultOption;
   } finally {
     rl.close();
   }
@@ -84,8 +121,8 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         throw new ConfigError(`${existing} already exists`, "pass --force to overwrite it");
       }
 
-      // --- تعیین preset ---
-      const presetName = options.preset ?? "classic";
+      // --- تعیین preset (از خط فرمان یا تعاملی) ---
+      let presetName: PresetName = (options.preset ?? "classic") as PresetName;
       if (!isPresetName(presetName)) {
         throw new ConfigError(
           `unknown preset "${presetName}"`,
@@ -93,14 +130,14 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         );
       }
 
-      // --- جمع‌آوری overrideها ---
-      const overrides: PresetOverrides = {
+      // --- جمع‌آوری overrideها از خط فرمان ---
+      const cliOverrides: PresetOverrides = {
         main: options.main,
         develop: options.develop,
         production: options.production,
         staging: options.staging,
         tagPrefix: options.tag,
-        remote: options.remote,
+        remoteName: options.remote,
         prefixes: {
           ...(options.feature !== undefined ? { feature: options.feature } : {}),
           ...(options.bugfix !== undefined ? { bugfix: options.bugfix } : {}),
@@ -113,24 +150,83 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
       // --- حالت تعاملی ---
       const interactive =
         options.defaults !== true && process.stdin.isTTY === true && process.stdout.isTTY === true;
+
+      const overrides: PresetOverrides = { ...cliOverrides };
+
       if (interactive) {
+        // ۱. انتخاب preset
+        const chosen = await selectFromList("Select workflow preset:", PRESET_NAMES, presetName);
+        presetName = chosen as PresetName;
+
+        // ۲. ساخت draft برای preset انتخاب‌شده
         const draft = createPreset(presetName, overrides);
-        print(style.bold(`Configuring the "${presetName}" workflow`));
+
+        print(style.bold(`\nConfiguring the "${presetName}" workflow`));
+
+        // ۳. پرسش‌وجو برای base branches
         for (const base of draft.baseBranches) {
+          // بررسی override از خط فرمان
+          const hasCliOverride =
+            (base.name === "main" && options.main !== undefined) ||
+            (base.name === "develop" && options.develop !== undefined) ||
+            (base.name === "staging" && options.staging !== undefined) ||
+            (base.name === "production" && options.production !== undefined);
+
+          if (hasCliOverride) continue;
+
           const answer = await prompt(`Base branch name for "${base.name}"?`, base.name);
           if (base.name === draft.baseBranches[0].name) overrides.main = answer;
           else if (base.name === "develop") overrides.develop = answer;
           else if (base.name === "staging") overrides.staging = answer;
           else if (base.name === "production") overrides.production = answer;
         }
-        for (const topic of draft.topicTypes) {
-          const answer = await prompt(`Prefix for ${topic.name} branches?`, topic.prefix);
-          overrides.prefixes = { ...overrides.prefixes, [topic.name]: answer };
+
+        // ۴. پرسش‌وجو برای branch types
+        // ابتدا overrides.prefixes, overrides.bases, overrides.targets را مقداردهی اولیه می‌کنیم
+        if (!overrides.prefixes) overrides.prefixes = {};
+        if (!overrides.bases) overrides.bases = {};
+        if (!overrides.targets) overrides.targets = {};
+
+        for (const bt of draft.branchTypes) {
+          // بررسی override از خط فرمان (برای prefix)
+          const hasCliOverride = options[bt.name as keyof InitOptions] !== undefined;
+
+          // سوال برای base (مبدأ)
+          const baseAnswer = await prompt(
+            `Base branch for "${bt.name}" branches? (where they start from)`,
+            bt.base,
+          );
+          overrides.bases[bt.name] = baseAnswer;
+
+          // سوال برای target (هدف) – می‌تواند آرایه باشد
+          const targetAnswer = await prompt(
+            `Target branch(es) for "${bt.name}" branches? (comma-separated)`,
+            bt.target.join(","),
+          );
+          overrides.targets[bt.name] = targetAnswer;
+
+          // سوال برای prefix (فقط اگر از خط فرمان نیامده باشد)
+          if (!hasCliOverride) {
+            const prefixAnswer = await prompt(`Prefix for ${bt.name} branches?`, bt.prefix);
+            overrides.prefixes[bt.name] = prefixAnswer;
+          }
         }
-        overrides.tagPrefix = await prompt("Version tag prefix?", draft.tagPrefix);
+
+        // ۵. پرسش‌وجو برای tag prefix (اگر از خط فرمان نیامده باشد)
+        if (options.tag === undefined) {
+          overrides.tagPrefix = await prompt("Version tag prefix?", draft.versioning.tagPrefix);
+        }
+
+        // ۶. پرسش‌وجو برای remote (اگر از خط فرمان نیامده باشد)
+        if (options.remote === undefined) {
+          const remoteNameAnswer = await prompt("Remote name?", draft.remote.name);
+          overrides.remoteName = remoteNameAnswer;
+        }
+
+        print(); // یک خط خالی
       }
 
-      // --- ساخت config نهایی ---
+      // --- ساخت config نهایی با overrideهای نهایی ---
       const config = createPreset(presetName, overrides);
       const target = options.file
         ? resolvePath(root, options.file)
@@ -142,6 +238,7 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         printStructured(
           {
             action: dryRun ? "dry-run" : "write",
+            preset: presetName,
             path,
             config,
             branchesCreated: options.createBranches !== false ? [] : undefined,
@@ -151,7 +248,7 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         if (dryRun) return;
       }
 
-      // --- نوشتن فایل (اگر dry-run نباشد) ---
+      // --- نوشتن فایل ---
       if (!dryRun) {
         writeConfigFile(path, config);
         success(`wrote ${path}`);
@@ -177,7 +274,7 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
       if (!dryRun) {
         print();
         print(`Workflow ${style.cyan(config.name)} is ready. Try:`);
-        const firstTopic = config.topicTypes[0]?.name ?? "feature";
+        const firstTopic = config.branchTypes[0]?.name ?? "feature";
         print(`  gitwe start ${firstTopic} my-first-${firstTopic}`);
         print(`  gitwe overview`);
       }

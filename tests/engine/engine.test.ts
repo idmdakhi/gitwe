@@ -253,14 +253,14 @@ describe("Engine - Comprehensive Tests", () => {
       repo.commit("a.txt", "a", "work");
       await engine.start("feature", "user-profile", { base: "develop" });
       await engine.start("feature", "billing", { base: "develop" });
-      const all = await engine.listTopics(engine.workflow.requireTopicType("feature"));
+      const all = await engine.listBranchTypes(engine.workflow.requireBranchType("feature"));
       expect(all.map((b) => b.name)).toEqual([
         "feature/billing",
         "feature/user-auth",
         "feature/user-profile",
       ]);
-      const filtered = await engine.listTopics(
-        engine.workflow.requireTopicType("feature"),
+      const filtered = await engine.listBranchTypes(
+        engine.workflow.requireBranchType("feature"),
         "user-*",
       );
       expect(filtered.map((b) => b.name)).toEqual(["feature/user-auth", "feature/user-profile"]);
@@ -270,7 +270,7 @@ describe("Engine - Comprehensive Tests", () => {
     it("should checkout by unique prefix", async () => {
       await engine.start("feature", "user-auth");
       repo.git("checkout", "-q", "develop");
-      const branch = await engine.checkout(engine.workflow.requireTopicType("feature"), "user");
+      const branch = await engine.checkout(engine.workflow.requireBranchType("feature"), "user");
       expect(branch).toBe("feature/user-auth");
       expect(repo.currentBranch()).toBe("feature/user-auth");
     });
@@ -280,7 +280,7 @@ describe("Engine - Comprehensive Tests", () => {
       await engine.start("feature", "user-profile", { base: "develop" });
       repo.git("checkout", "-q", "develop");
       await expect(
-        engine.checkout(engine.workflow.requireTopicType("feature"), "user"),
+        engine.checkout(engine.workflow.requireBranchType("feature"), "user"),
       ).rejects.toThrow(/matches multiple branches/);
     });
   });
@@ -295,7 +295,9 @@ describe("Engine - Comprehensive Tests", () => {
 
     it("should delete a topic branch and switch away", async () => {
       await engine.start("feature", "doomed");
-      const result = await engine.deleteTopic(engine.resolve("feature", "doomed"), { force: true });
+      const result = await engine.deleteBranchType(engine.resolve("feature", "doomed"), {
+        force: true,
+      });
       expect(result.branch).toBe("feature/doomed");
       expect(repo.branches()).not.toContain("feature/doomed");
       expect(repo.currentBranch()).toBe("develop");
@@ -305,13 +307,13 @@ describe("Engine - Comprehensive Tests", () => {
   describe("current and overview", () => {
     it("should get current topic branch", async () => {
       await engine.start("feature", "current");
-      const topic = await engine.currentTopic();
+      const topic = await engine.currentBranchType();
       expect(topic).toMatchObject({ branch: "feature/current", shortName: "current" });
     });
 
     it("should reject base branches as topics", async () => {
       repo.git("checkout", "-q", "develop");
-      await expect(engine.currentTopic()).rejects.toThrow(/not a topic branch/);
+      await expect(engine.currentBranchType()).rejects.toThrow(/not a topic branch/);
     });
 
     it("should generate overview report", async () => {
@@ -319,7 +321,7 @@ describe("Engine - Comprehensive Tests", () => {
       const report: OverviewReport = await engine.overview();
       expect(report.workflow).toBe("classic");
       expect(report.baseBranches.map((b) => b.name)).toEqual(["main", "develop"]);
-      expect(report.topicTypes.find((t) => t.name === "feature")?.branches).toEqual([
+      expect(report.branchTypes.find((t) => t.name === "feature")?.branches).toEqual([
         "feature/reported",
       ]);
       expect(report.health).toEqual([{ level: "ok", message: "workflow is healthy" }]);

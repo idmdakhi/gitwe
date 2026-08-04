@@ -6,7 +6,7 @@ import { ConfigError } from "../../src/domain/errors.js";
 const minimal = {
   name: "custom",
   baseBranches: [{ name: "main" }],
-  topicTypes: [{ name: "feature", parent: "main" }],
+  branchTypes: [{ name: "feature", parent: "main" }],
 };
 
 describe("parseWorkflowConfig", () => {
@@ -14,14 +14,14 @@ describe("parseWorkflowConfig", () => {
     const config = parseWorkflowConfig(minimal);
     expect(config.version).toBe(1);
     expect(config.remote).toBe("origin");
-    expect(config.tagPrefix).toBe("v");
+    expect(config.version.tagPrefix).toBe("v");
     expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
     expect(config.baseBranches[0]).toMatchObject({
       upstreamStrategy: "merge",
       downstreamStrategy: "merge",
       autoUpdate: false,
     });
-    expect(config.topicTypes[0]).toMatchObject({ prefix: "feature/", deleteOnFinish: true });
+    expect(config.branchTypes[0]).toMatchObject({ prefix: "feature/", deleteOnFinish: true });
   });
 
   it("rejects unsupported versions", () => {
@@ -30,7 +30,7 @@ describe("parseWorkflowConfig", () => {
 
   it("rejects unknown parents", () => {
     expect(() =>
-      parseWorkflowConfig({ ...minimal, topicTypes: [{ name: "feature", parent: "nope" }] }),
+      parseWorkflowConfig({ ...minimal, branchTypes: [{ name: "feature", parent: "nope" }] }),
     ).toThrow(/unknown parent branch/);
   });
 
@@ -38,7 +38,7 @@ describe("parseWorkflowConfig", () => {
     expect(() =>
       parseWorkflowConfig({
         ...minimal,
-        topicTypes: [
+        branchTypes: [
           { name: "feature", parent: "main", prefix: "topic/" },
           { name: "bugfix", parent: "main", prefix: "topic/" },
         ],
@@ -62,7 +62,7 @@ describe("parseWorkflowConfig", () => {
     expect(() =>
       parseWorkflowConfig({
         ...minimal,
-        topicTypes: [{ name: "feature", parent: "main", upstreamStrategy: "cherry-pick" }],
+        branchTypes: [{ name: "feature", parent: "main", upstreamStrategy: "cherry-pick" }],
       }),
     ).toThrow(/must be one of/);
   });

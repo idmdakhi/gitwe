@@ -1,7 +1,12 @@
-// src/domain/Workflow.ts
-// ویو (View) فقط خواندنی روی WorkflowConfig برای موتور و CLI
 import { ValidationError } from "./errors.js";
-import type { BaseBranch, ResolvedTopic, TopicType, WorkflowConfig } from "./entities.js";
+import type {
+  BaseBranch,
+  BranchType,
+  ResolvedBranch,
+  WorkflowConfig,
+  RemoteConfig,
+  MergeStrategy,
+} from "./entities.js";
 
 export class Workflow {
   readonly config: WorkflowConfig;
@@ -10,7 +15,11 @@ export class Workflow {
     this.config = config;
   }
 
-  get remote(): string {
+  get remoteName(): string {
+    return this.config.remote.name;
+  }
+
+  get remoteConfig(): RemoteConfig {
     return this.config.remote;
   }
 
@@ -18,13 +27,12 @@ export class Workflow {
     return this.config.baseBranches;
   }
 
-  get topicTypes(): TopicType[] {
-    return this.config.topicTypes;
+  get branchTypes(): BranchType[] {
+    return this.config.branchTypes;
   }
 
-  /** شاخهٔ ریشه (ریشه درخت) را برمی‌گرداند. */
   get rootBranch(): BaseBranch {
-    const root = this.config.baseBranches.find((b) => b.parent === undefined);
+    const root = this.config.baseBranches.find((b) => b.base === undefined);
     return root ?? this.config.baseBranches[0];
   }
 
@@ -43,49 +51,82 @@ export class Workflow {
     return base;
   }
 
-  findTopicType(name: string): TopicType | undefined {
-    return this.config.topicTypes.find((t) => t.name === name);
+  findBranchType(name: string): BranchType | undefined {
+    return this.config.branchTypes.find((bt) => bt.name === name);
   }
 
-  requireTopicType(name: string): TopicType {
-    const type = this.findTopicType(name);
-    if (type === undefined) {
+  requireBranchType(name: string): BranchType {
+    const bt = this.findBranchType(name);
+    if (bt === undefined) {
       throw new ValidationError(
-        `unknown topic type "${name}"`,
-        `known topic types: ${this.config.topicTypes.map((t) => t.name).join(", ")}`,
+        `unknown branch type "${name}"`,
+        `known types: ${this.config.branchTypes.map((bt) => bt.name).join(", ")}`,
       );
     }
-    return type;
+    return bt;
   }
 
-  /** شاخه‌های Base که از `name` ارث‌بری می‌کنند (فرزندان). */
+  findBranchTypeByAlias(alias: string): BranchType | undefined {
+    return this.config.branchTypes.find((bt) => bt.aliases?.includes(alias));
+  }
+
   childrenOf(name: string): BaseBranch[] {
-    return this.config.baseBranches.filter((b) => b.parent === name);
+    return this.config.baseBranches.filter((b) => b.base === name);
   }
 
-  /** نقطهٔ شروع پیش‌فرض برای ساخت یک Topic از نوع داده شده. */
-  startPointOf(type: TopicType): string {
-    return type.startPoint ?? type.parent;
+  baseOf(type: BranchType): string {
+    return type.base;
   }
 
-  /** پیشوند تگ برای یک Topic خاص. */
-  tagPrefixOf(type: TopicType): string {
-    return type.tagPrefix ?? this.config.tagPrefix;
+  targetsOf(type: BranchType): string[] {
+    return type.target;
   }
 
-  /** نام کامل شاخه را از نوع و نام کوتاه می‌سازد. */
-  branchName(type: TopicType, shortName: string): string {
+  shouldTag(type: BranchType): boolean {
+    return this.config.versioning.tag.includes(type.name);
+  }
+
+  mergeStrategyFor(type: BranchType): MergeStrategy {
+    const configured = this.config.merge.branchTypes[type.name];
+    if (configured === undefined) return this.config.merge.strategy;
+    if (typeof configured === "string") return configured as MergeStrategy;
+    for (const s of configured) {
+      if (s === "merge" || s === "squash" || s === "rebase") {
+        return s as MergeStrategy;
+      }
+    }
+    return this.config.merge.strategy;
+  }
+
+  shouldDeleteOnFinish(type: BranchType): boolean {
+    return this.config.merge.deleteOnFinish.includes(type.name);
+  }
+
+  allowSquash(type: BranchType): boolean {
+    if (!this.config.merge.squash) return false;
+    return this.config.merge.squash.branchTypes.includes(type.name);
+  }
+
+  versionBumpFor(type: BranchType): "major" | "minor" | "patch" | "none" {
+    const vt = this.config.versioning.branchTypes;
+    if (!vt) return "none";
+    if (vt.major?.includes(type.name)) return "major";
+    if (vt.minor?.includes(type.name)) return "minor";
+    if (vt.patch?.includes(type.name)) return "patch";
+    return "none";
+  }
+
+  tagPrefixFor(_type: BranchType): string {
+    return this.config.versioning.tagPrefix;
+  }
+
+  branchName(type: BranchType, shortName: string): string {
     return `${type.prefix}${shortName}`;
   }
 
-  /**
-   * تلاش برای تطبیق یک نام شاخه با یکی از پیشوندهای Topic.
-   * در صورت تطابق، شیء ResolvedTopic را برمی‌گرداند.
-   */
-  resolveBranch(branch: string): ResolvedTopic | undefined {
-    // مرتب‌سازی بر اساس طول پیشوند (طولانی‌ترین اولویت دارد)
-    const matches = this.config.topicTypes
-      .filter((type) => branch.startsWith(type.prefix))
+  resolveBranch(branch: string): ResolvedBranch | undefined {
+    const matches = this.config.branchTypes
+      .filter((bt) => branch.startsWith(bt.prefix))
       .sort((a, b) => b.prefix.length - a.prefix.length);
 
     const type = matches[0];
@@ -97,11 +138,7 @@ export class Workflow {
     return { branch, shortName, type };
   }
 
-  /**
-   * تبدیل ورودی کاربر (نام کوتاه یا کامل) به ResolvedTopic.
-   * اگر نام با پیشوند شروع شود، آن را حذف می‌کند.
-   */
-  resolveTopic(type: TopicType, name: string): ResolvedTopic {
+  resolveBranchType(type: BranchType, name: string): ResolvedBranch {
     const shortName = name.startsWith(type.prefix) ? name.slice(type.prefix.length) : name;
     if (shortName === "") {
       throw new ValidationError(`a ${type.name} name is required`);
@@ -109,7 +146,6 @@ export class Workflow {
     return { branch: this.branchName(type, shortName), shortName, type };
   }
 
-  /** بررسی می‌کند که آیا یک نام شاخه، جزو Base Branches است؟ */
   isBaseBranch(branch: string): boolean {
     return this.findBase(branch) !== undefined;
   }
