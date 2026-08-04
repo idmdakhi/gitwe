@@ -95,7 +95,7 @@ export class TestRepo {
     for (const base of config.baseBranches) {
       if (this.branches().includes(base.name)) continue;
       const start =
-        base.parent !== undefined && this.branches().includes(base.parent) ? base.parent : "HEAD";
+        base.base !== undefined && this.branches().includes(base.base) ? base.base : "HEAD";
       this.git("branch", base.name, start);
     }
   }

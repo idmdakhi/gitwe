@@ -49,7 +49,7 @@ describe("Full Workflow Integration", () => {
     await gitwe("start", "release", "1.0.0");
     repo.commit("changelog.md", "notes", "Prepare 1.0.0");
     await gitwe("finish", "release/1.0.0");
-    const type = repo.exec(["cat-file", "-t", "refs/tags/v1.0.0"]);
+    const type = repo.git("cat-file", "-t", "refs/tags/v1.0.0");
     expect(type).toBe("tag");
     expect(repo.tags()).toContain("v1.0.0");
     expect(repo.log("main")).toContain("Prepare 1.0.0");

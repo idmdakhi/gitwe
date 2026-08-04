@@ -3,6 +3,7 @@ import { ShellGitRepository } from "../../src/infrastructure/git/shell-git-repos
 import { TestRepo } from "../support/repo.js";
 import {
   ConflictError,
+  GitError,
   // GitError
 } from "../../src/domain/errors.js";
 import { join } from "node:path";
@@ -247,7 +248,7 @@ describe("ShellGitRepository", () => {
   });
 
   it("creates tag on specified commit", async () => {
-    const first = await repo.head();
+    const first = repo.git("rev-parse", "HEAD");
 
     repo.write("a.txt", "hello");
     await git.commit("second");
@@ -256,23 +257,23 @@ describe("ShellGitRepository", () => {
       ref: first,
     });
 
-    const commit = await repo.run(["rev-list", "-n", "1", "v1.0.0"]);
+    const commit = await repo.git("rev-list", "-n", "1", "v1.0.0");
 
     expect(commit.trim()).toBe(first);
   });
 
   it("throws if tag already exists", async () => {
-    await repo.createTag("v1.0.0");
+    await repo.git("tag", "v1.0.0");
 
-    await expect(repo.createTag("v1.0.0")).rejects.toThrow(GitError);
+    await expect(repo.git("tag", "v1.0.0")).rejects.toThrow(GitError);
   });
 
   it("creates tag on HEAD when ref is omitted", async () => {
-    const head = await repo.head();
+    const head = repo.git("rev-parse", "HEAD");
 
-    await repo.createTag("v1.0.0");
+    await repo.git("tag", "v1.0.0");
 
-    const tagged = await repo.run(["rev-list", "-n", "1", "v1.0.0"]);
+    const tagged = await repo.git("rev-list", "-n", "1", "v1.0.0");
 
     expect(tagged.trim()).toBe(head);
   });

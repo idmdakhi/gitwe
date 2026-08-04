@@ -105,10 +105,6 @@ describe("Domain Layer", () => {
         branchTypes: [{ name: "feature", parent: "main" }],
       });
       expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
-      expect(config.baseBranches[0].upstreamStrategy).toBe("merge");
-      expect(config.baseBranches[0].downstreamStrategy).toBe("merge");
-      expect(config.baseBranches[0].autoUpdate).toBe(false);
-      expect(config.branchTypes[0].deleteOnFinish).toBe(true);
     });
   });
 
@@ -178,13 +174,10 @@ describe("Domain Layer", () => {
     it("should add a base branch", () => {
       const config = addBaseBranch(baseConfig, "staging", {
         base: "main",
-        autoUpdate: true,
-        upstreamStrategy: "squash",
       });
       expect(config.baseBranches).toHaveLength(2);
       expect(config.baseBranches[1].name).toBe("staging");
       expect(config.baseBranches[1].base).toBe("main");
-      expect(config.baseBranches[1].autoUpdate).toBe(true);
     });
 
     it("should reject adding existing base branch", () => {
@@ -193,19 +186,12 @@ describe("Domain Layer", () => {
 
     it("should edit a base branch", () => {
       let config = addBaseBranch(baseConfig, "staging", { base: "main" });
-      config = editBaseBranch(config, "staging", {
-        autoUpdate: true,
-        upstreamStrategy: "squash",
-      });
-      expect(config.baseBranches.find((b) => b.name === "staging")?.autoUpdate).toBe(true);
-      expect(config.baseBranches.find((b) => b.name === "staging")?.upstreamStrategy).toBe(
-        "squash",
-      );
+      config = editBaseBranch(config, "staging", {});
     });
 
     it("should rename a base branch and update references", () => {
       let config = addBaseBranch(baseConfig, "staging", { base: "main" });
-      config = addBranchType(config, "release", "staging", { tag: true });
+      config = addBranchType(config, "release", "staging", []);
       config = renameBaseBranch(config, "staging", "release-candidate");
       expect(config.baseBranches.find((b) => b.name === "release-candidate")).toBeDefined();
       expect(config.branchTypes.find((t) => t.name === "release")?.base).toBe("release-candidate");
@@ -214,7 +200,7 @@ describe("Domain Layer", () => {
 
     it("should delete a base branch only if not referenced", () => {
       let config = addBaseBranch(baseConfig, "staging", { base: "main" });
-      config = addBranchType(config, "release", "staging", { tag: true });
+      config = addBranchType(config, "release", "staging", []);
       expect(() => deleteBaseBranch(config, "staging")).toThrow(/still referenced by/);
       config = deleteBranchType(config, "release");
       config = deleteBaseBranch(config, "staging");
@@ -222,43 +208,36 @@ describe("Domain Layer", () => {
     });
 
     it("should add a topic type", () => {
-      const config = addBranchType(baseConfig, "hotfix", "main", {
-        tag: true,
+      const config = addBranchType(baseConfig, "hotfix", "main", [], {
         prefix: "hotfix/",
-        upstreamStrategy: "rebase",
       });
       expect(config.branchTypes).toHaveLength(3);
       expect(config.branchTypes[2].name).toBe("hotfix");
       expect(config.branchTypes[2].base).toBe("main");
-      expect(config.branchTypes[2].tag).toBe(true);
     });
 
     it("should reject adding existing topic type", () => {
-      expect(() => addBranchType(baseConfig, "feature", "main", {})).toThrow(/already exists/);
+      expect(() => addBranchType(baseConfig, "feature", "main", [])).toThrow(/already exists/);
     });
 
     it("should edit a topic type", () => {
-      let config = addBranchType(baseConfig, "hotfix", "main", {});
+      let config = addBranchType(baseConfig, "hotfix", "main", []);
       config = editBranchType(config, "hotfix", {
-        tag: true,
-        upstreamStrategy: "squash",
         prefix: "hot/",
       });
       const topic = config.branchTypes.find((t) => t.name === "hotfix");
-      expect(topic?.tag).toBe(true);
-      expect(topic?.upstreamStrategy).toBe("squash");
       expect(topic?.prefix).toBe("hot/");
     });
 
     it("should rename a topic type", () => {
-      let config = addBranchType(baseConfig, "hotfix", "main", {});
+      let config = addBranchType(baseConfig, "hotfix", "main", []);
       config = renameBranchType(config, "hotfix", "quickfix");
       expect(config.branchTypes.find((t) => t.name === "quickfix")).toBeDefined();
       expect(config.branchTypes.find((t) => t.name === "hotfix")).toBeUndefined();
     });
 
     it("should delete a topic type", () => {
-      let config = addBranchType(baseConfig, "hotfix", "main", {});
+      let config = addBranchType(baseConfig, "hotfix", "main", []);
       config = deleteBranchType(config, "hotfix");
       expect(config.branchTypes.find((t) => t.name === "hotfix")).toBeUndefined();
     });

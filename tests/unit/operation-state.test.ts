@@ -39,6 +39,7 @@ describe("FileOperationStateStore", () => {
       originalBranch: "develop",
       snapshots: { develop: "abc123" },
       createdTags: ["v1.0.0"],
+      branchType: "",
     };
     store.write(state);
     expect(store.exists()).toBe(true);
@@ -58,6 +59,7 @@ describe("FileOperationStateStore", () => {
       startedAt: new Date().toISOString(),
       snapshots: {},
       createdTags: [],
+      branchType: "",
     };
     store.write(state);
     expect(store.require()).toEqual(state);
@@ -74,6 +76,7 @@ describe("FileOperationStateStore", () => {
       startedAt: new Date().toISOString(),
       snapshots: {},
       createdTags: [],
+      branchType: "",
     };
     store.write(state);
     expect(store.exists()).toBe(true);

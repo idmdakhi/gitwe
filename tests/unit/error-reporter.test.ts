@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { reportError, exitCodeFor } from "../../src/cli/error-reporter.js";
 import { GitweError, ConflictError } from "../../src/domain/errors.js";
+import type { MockInstance } from "vitest";
 
 describe("error reporter", () => {
-  let stderrWrite: ReturnType<typeof vi.spyOn>;
+  let stderrWrite: MockInstance<typeof process.stderr.write>;
 
   beforeEach(() => {
     stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);

@@ -17,9 +17,9 @@ describe("Workflow", () => {
   });
 
   it("uses the configured start point", () => {
-    expect(workflow.startPointOf(workflow.requireBranchType("release"))).toBe("develop");
-    expect(workflow.startPointOf(workflow.requireBranchType("feature"))).toBe("develop");
-    expect(workflow.startPointOf(workflow.requireBranchType("hotfix"))).toBe("main");
+    expect(workflow.baseOf(workflow.requireBranchType("release"))).toBe("develop");
+    expect(workflow.baseOf(workflow.requireBranchType("feature"))).toBe("develop");
+    expect(workflow.baseOf(workflow.requireBranchType("hotfix"))).toBe("main");
   });
 
   it("resolves branches by prefix", () => {

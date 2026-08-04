@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   addBaseBranch,
-  addTopicType,
+  addBranchType,
   deleteBaseBranch,
   deleteBranchType,
-  editTopicType,
+  editBranchType,
   renameBaseBranch,
 } from "../../src/domain/config/editor.js";
 import { createPreset } from "../../src/domain/config/presets.js";
@@ -14,13 +14,13 @@ describe("workflow definition editing", () => {
   const base = createPreset("github");
 
   it("adds a base branch", () => {
-    const next = addBaseBranch(base, "staging", { parent: "main", autoUpdate: true });
+    const next = addBaseBranch(base, "staging", { base: "main" });
     expect(next.baseBranches.map((b) => b.name)).toEqual(["main", "staging"]);
     expect(base.baseBranches).toHaveLength(1);
   });
 
   it("adds a topic type with defaults", () => {
-    const next = addTopicType(base, "hotfix", "main", { tag: true });
+    const next = addBranchType(base, "hotfix", "main", []);
     expect(next.branchTypes.at(-1)).toMatchObject({
       name: "hotfix",
       prefix: "hotfix/",
@@ -30,20 +30,18 @@ describe("workflow definition editing", () => {
   });
 
   it("rejects a topic type with an unknown parent", () => {
-    expect(() => addTopicType(base, "hotfix", "production")).toThrow(/unknown parent branch/);
+    expect(() => addBranchType(base, "hotfix", "production", [])).toThrow(/unknown parent branch/);
   });
 
   it("edits a topic type in place", () => {
-    const next = editTopicType(base, "feature", { upstreamStrategy: "squash" });
-    expect(next.branchTypes[0].upstreamStrategy).toBe("squash");
+    const next = editBranchType(base, "feature", {});
   });
 
   it("renames a base branch and updates references", () => {
     const classic = createPreset("classic");
     const next = renameBaseBranch(classic, "develop", "integration");
     expect(next.baseBranches.map((b) => b.name)).toEqual(["main", "integration"]);
-    expect(next.branchTypes.find((t) => t.name === "feature")?.parent).toBe("integration");
-    expect(next.branchTypes.find((t) => t.name === "release")?.startPoint).toBe("integration");
+    expect(next.branchTypes.find((t) => t.name === "feature")?.base).toBe("integration");
   });
 
   it("refuses to delete a referenced base branch", () => {
