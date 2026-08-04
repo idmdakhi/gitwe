@@ -29,7 +29,7 @@ describe("Engine.finish", () => {
 
     expect(result).toMatchObject({
       branch: "feature/login",
-      parent: "develop",
+      base: "develop",
       strategy: "merge",
       deletedLocal: true,
       finalBranch: "develop",

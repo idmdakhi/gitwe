@@ -51,7 +51,7 @@ describe("Format Output Tests", () => {
     expect(await gitwe("finish", "feature/test", "--format", "json")).toBe(0);
     const data = JSON.parse(stdout);
     expect(data.branch).toBe("feature/test");
-    expect(data.parent).toBe("develop");
+    expect(data.base).toBe("develop");
   });
 
   it("overview --format json", async () => {

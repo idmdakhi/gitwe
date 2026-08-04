@@ -55,7 +55,7 @@ describe.skipIf(isWindows)("HookRunner", () => {
     await runner.run("post-start", {
       branch: "feature/abc",
       topicType: "feature",
-      parent: "develop",
+      base: "develop",
     });
     // Check file content
     const content = readFileSync(join(root, "hook.out"), "utf8").trim();
@@ -74,7 +74,7 @@ describe.skipIf(isWindows)("HookRunner", () => {
       "pre-finish",
       'echo "$GITWE_BRANCH $GITWE_TOPIC_TYPE $GITWE_PARENT" > "$PWD/hook.out"',
     );
-    await runner.run("pre-finish", { branch: "hotfix/1.0.1", topicType: "hotfix", parent: "main" });
+    await runner.run("pre-finish", { branch: "hotfix/1.0.1", topicType: "hotfix", base: "main" });
     expect(readFileSync(join(root, "hook.out"), "utf8").trim()).toBe("hotfix/1.0.1 hotfix main");
   });
 });

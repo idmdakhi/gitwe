@@ -82,9 +82,9 @@ describe("gitwe CLI", () => {
     expect(repo.currentBranch()).toBe("spike/idea");
   });
 
-  it("reports unknown topic types with a hint", async () => {
+  it("reports unknown branch types with a hint", async () => {
     await gitwe("init", "--defaults");
     expect(await gitwe("start", "epic", "x")).toBe(1);
-    expect(stderr).toMatch(/unknown topic type "epic"/);
+    expect(stderr).toMatch(/unknown branch type "epic"/);
   });
 });

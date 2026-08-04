@@ -24,12 +24,12 @@ describe("Domain Layer", () => {
       const input = {
         name: "test",
         baseBranches: [{ name: "main" }],
-        branchTypes: [{ name: "feature", parent: "main" }],
+        branchTypes: [{ name: "feature", base: "main" }],
       };
       const config = parseWorkflowConfig(input);
       expect(config.version).toBe(1);
       expect(config.name).toBe("test");
-      expect(config.remote).toBe("origin");
+      expect(config.remote.name).toBe("origin");
       expect(config.versioning.tagPrefix).toBe("v");
       expect(config.baseBranches).toHaveLength(1);
       expect(config.branchTypes).toHaveLength(1);
@@ -58,7 +58,7 @@ describe("Domain Layer", () => {
       expect(() =>
         parseWorkflowConfig({
           name: "test",
-          baseBranches: [{ name: "develop", parent: "unknown" }],
+          baseBranches: [{ name: "develop", base: "unknown" }],
         }),
       ).toThrow(/unknown parent/);
     });
@@ -68,8 +68,8 @@ describe("Domain Layer", () => {
         parseWorkflowConfig({
           name: "test",
           baseBranches: [
-            { name: "main", parent: "develop" },
-            { name: "develop", parent: "main" },
+            { name: "main", base: "develop" },
+            { name: "develop", base: "main" },
           ],
         }),
       ).toThrow(/cycle/);
@@ -81,8 +81,8 @@ describe("Domain Layer", () => {
           name: "test",
           baseBranches: [{ name: "main" }],
           branchTypes: [
-            { name: "feature", parent: "main", prefix: "topic/" },
-            { name: "bugfix", parent: "main", prefix: "topic/" },
+            { name: "feature", base: "main", prefix: "topic/" },
+            { name: "bugfix", base: "main", prefix: "topic/" },
           ],
         }),
       ).toThrow(/share the prefix/);
@@ -93,7 +93,7 @@ describe("Domain Layer", () => {
         parseWorkflowConfig({
           name: "test",
           baseBranches: [{ name: "main" }],
-          branchTypes: [{ name: "feature", parent: "main", upstreamStrategy: "cherry-pick" }],
+          branchTypes: [{ name: "feature", base: "main", upstreamStrategy: "cherry-pick" }],
         }),
       ).toThrow(/must be one of/);
     });
@@ -102,7 +102,7 @@ describe("Domain Layer", () => {
       const config = parseWorkflowConfig({
         name: "test",
         baseBranches: [{ name: "main" }],
-        branchTypes: [{ name: "feature", parent: "main" }],
+        branchTypes: [{ name: "feature", base: "main" }],
       });
       expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
     });
@@ -155,7 +155,7 @@ describe("Domain Layer", () => {
       expect(config.baseBranches[0].name).toBe("trunk");
       expect(config.baseBranches[1].name).toBe("dev");
       expect(config.versioning.tagPrefix).toBe("release-");
-      expect(config.remote).toBe("upstream");
+      expect(config.remote.name).toBe("upstream");
       expect(config.branchTypes.find((t) => t.name === "feature")?.prefix).toBe("feat/");
       expect(config.branchTypes.find((t) => t.name === "release")?.prefix).toBe("rel/");
     });
@@ -346,7 +346,7 @@ describe("Domain Layer", () => {
 
     it("should require topic type or throw", () => {
       expect(() => workflow.requireBranchType("feature")).not.toThrow();
-      expect(() => workflow.requireBranchType("unknown")).toThrow(/unknown topic type/);
+      expect(() => workflow.requireBranchType("unknown")).toThrow(/unknown branch type/);
     });
 
     it("should find children of a base branch", () => {
@@ -382,8 +382,8 @@ describe("Domain Layer", () => {
         name: "test",
         baseBranches: [{ name: "main" }],
         branchTypes: [
-          { name: "feature", parent: "main", prefix: "feature/" },
-          { name: "urgent", parent: "main", prefix: "feature/urgent/" },
+          { name: "feature", base: "main", prefix: "feature/" },
+          { name: "urgent", base: "main", prefix: "feature/urgent/" },
         ],
       });
       const workflow2 = new Workflow(customConfig);

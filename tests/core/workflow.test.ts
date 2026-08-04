@@ -36,8 +36,8 @@ describe("Workflow", () => {
       name: "custom",
       baseBranches: [{ name: "main" }],
       branchTypes: [
-        { name: "feature", parent: "main", prefix: "feature/" },
-        { name: "urgent", parent: "main", prefix: "feature/urgent/" },
+        { name: "feature", base: "main", prefix: "feature/" },
+        { name: "urgent", base: "main", prefix: "feature/urgent/" },
       ],
     });
     expect(new Workflow(config).resolveBranch("feature/urgent/x")?.type.name).toBe("urgent");
@@ -49,7 +49,7 @@ describe("Workflow", () => {
     expect(workflow.resolveBranchType(type, "feature/login").branch).toBe("feature/login");
   });
 
-  it("reports unknown topic types", () => {
+  it("reports unknown branch types", () => {
     expect(() => workflow.requireBranchType("epic")).toThrow(ValidationError);
   });
 });

@@ -6,14 +6,14 @@ import { ConfigError } from "../../src/domain/errors.js";
 const minimal = {
   name: "custom",
   baseBranches: [{ name: "main" }],
-  branchTypes: [{ name: "feature", parent: "main" }],
+  branchTypes: [{ name: "feature", base: "main" }],
 };
 
 describe("parseWorkflowConfig", () => {
   it("applies defaults", () => {
     const config = parseWorkflowConfig(minimal);
     expect(config.version).toBe(1);
-    expect(config.remote).toBe("origin");
+    expect(config.remote.name).toBe("origin");
     expect(config.versioning.tagPrefix).toBe("v");
     expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
     expect(config.baseBranches[0]).toMatchObject({
@@ -30,7 +30,7 @@ describe("parseWorkflowConfig", () => {
 
   it("rejects unknown parents", () => {
     expect(() =>
-      parseWorkflowConfig({ ...minimal, branchTypes: [{ name: "feature", parent: "nope" }] }),
+      parseWorkflowConfig({ ...minimal, branchTypes: [{ name: "feature", base: "nope" }] }),
     ).toThrow(/unknown parent branch/);
   });
 
@@ -39,8 +39,8 @@ describe("parseWorkflowConfig", () => {
       parseWorkflowConfig({
         ...minimal,
         branchTypes: [
-          { name: "feature", parent: "main", prefix: "topic/" },
-          { name: "bugfix", parent: "main", prefix: "topic/" },
+          { name: "feature", base: "main", prefix: "topic/" },
+          { name: "bugfix", base: "main", prefix: "topic/" },
         ],
       }),
     ).toThrow(/share the prefix/);
@@ -51,8 +51,8 @@ describe("parseWorkflowConfig", () => {
       parseWorkflowConfig({
         ...minimal,
         baseBranches: [
-          { name: "main", parent: "develop" },
-          { name: "develop", parent: "main" },
+          { name: "main", base: "develop" },
+          { name: "develop", base: "main" },
         ],
       }),
     ).toThrow(/cycle/);
@@ -62,7 +62,7 @@ describe("parseWorkflowConfig", () => {
     expect(() =>
       parseWorkflowConfig({
         ...minimal,
-        branchTypes: [{ name: "feature", parent: "main", upstreamStrategy: "cherry-pick" }],
+        branchTypes: [{ name: "feature", base: "main", upstreamStrategy: "cherry-pick" }],
       }),
     ).toThrow(/must be one of/);
   });

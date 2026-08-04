@@ -95,7 +95,7 @@ describe("Engine - Comprehensive Tests", () => {
       const result = await engine.finish(engine.resolve("feature", "login"));
       expect(result).toMatchObject({
         branch: "feature/login",
-        parent: "develop",
+        base: "develop",
         strategy: "merge",
         deletedLocal: true,
         finalBranch: "develop",

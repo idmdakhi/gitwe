@@ -153,10 +153,10 @@ describe("CLI Integration Tests", () => {
     expect(existsSync(join(repo.path, "gitwe.json"))).toBe(false);
   });
 
-  it("unknown topic type reports error", async () => {
+  it("unknown branch type reports error", async () => {
     await gitwe("init", "--defaults");
     expect(await gitwe("start", "epic", "x")).toBe(1);
-    expect(stderr).toMatch(/unknown topic type/i);
+    expect(stderr).toMatch(/unknown branch type/i);
   });
 
   it("--help shows usage", async () => {
