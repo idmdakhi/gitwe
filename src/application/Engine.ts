@@ -34,7 +34,7 @@ export interface UpdateOptions {
 
 export interface UpdateResult {
   branch: string;
-  parent: string;
+  base: string;
   strategy: "merge" | "rebase";
   alreadyUpToDate: boolean;
 }
@@ -225,7 +225,7 @@ export class Engine {
   // continueOperation و abortOperation مانند قبل با استفاده از branchType
 
   async update(resolved: ResolvedBranch, options: UpdateOptions = {}): Promise<UpdateResult> {
-    const parent = resolved.type.target[0];
+    const base = resolved.type.target[0];
     if (!(await this.git.branchExists(resolved.branch))) {
       throw new ValidationError(`branch "${resolved.branch}" does not exist`);
     }
@@ -244,31 +244,31 @@ export class Engine {
           ? "rebase"
           : "merge";
 
-    if (await this.git.isAncestor(parent, resolved.branch)) {
-      return { branch: resolved.branch, parent, strategy, alreadyUpToDate: true };
+    if (await this.git.isAncestor(base, resolved.branch)) {
+      return { branch: resolved.branch, base, strategy, alreadyUpToDate: true };
     }
 
     await this.ctx.hooks.run("pre-update", {
       branch: resolved.branch,
       branchType: resolved.type.name,
-      parent,
+      base,
     });
     await this.git.checkout(resolved.branch);
     if (strategy === "rebase") {
-      await this.git.rebase(parent);
+      await this.git.rebase(base);
     } else {
-      await this.git.merge(parent, {
+      await this.git.merge(base, {
         noFf: true,
-        message: `Merge branch '${parent}' into ${resolved.branch}`,
+        message: `Merge branch '${base}' into ${resolved.branch}`,
         noVerify: options.noVerify,
       });
     }
     await this.ctx.hooks.run("post-update", {
       branch: resolved.branch,
       branchType: resolved.type.name,
-      parent,
+      base,
     });
-    return { branch: resolved.branch, parent, strategy, alreadyUpToDate: false };
+    return { branch: resolved.branch, base, strategy, alreadyUpToDate: false };
   }
 
   async publish(resolved: ResolvedBranch, options: PublishOptions = {}): Promise<string> {

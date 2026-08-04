@@ -240,7 +240,7 @@ export class FinishOperation {
           await this.snapshot(childName);
           await git.checkout(childName);
           // استراتژی به‌روزرسانی را از childBase بگیرید
-          if (workflow.mergeStrategyFor(childName) === "rebase") {
+          if (workflow.mergeStrategyFor(this.resolved.type) === "rebase") {
             await git.rebase(baseBranch);
           } else {
             const template = this.options.updateMessage ?? `Merge branch '%p' into %b`;

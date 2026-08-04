@@ -1,9 +1,8 @@
-import { Command, Option } from "commander";
+import { Command } from "commander";
 import { createEngine } from "../context.js";
 import { print, style, success, printStructured } from "../output.js";
 import type { GlobalOptions } from "../options.js";
-import type { Engine } from "../../application/engine.js";
-import type { FinishOptions, FinishResult } from "../../application/use-case/finish.js";
+import type { FinishResult } from "../../application/use-case/finish.js";
 
 interface FinishCliOptions {
   continue?: boolean;

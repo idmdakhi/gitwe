@@ -20,7 +20,7 @@ export function registerUpdate(program: Command, globals: () => GlobalOptions): 
       } else if (result.alreadyUpToDate) {
         print(style.dim(`${result.branch} is already up to date`));
       } else {
-        success(`updated ${result.branch} from ${result.parent} (${result.strategy})`);
+        success(`updated ${result.branch} from ${result.base} (${result.strategy})`);
       }
     });
 }

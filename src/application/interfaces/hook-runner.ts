@@ -12,8 +12,8 @@ export type HookName =
 
 export interface HookContext {
   branch?: string;
-  topicType?: string;
-  parent?: string;
+  branchType?: string;
+  base?: string;
   [key: string]: string | undefined;
 }
 

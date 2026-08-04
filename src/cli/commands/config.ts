@@ -198,18 +198,17 @@ export function registerConfig(program: Command, globals: () => GlobalOptions): 
                   .split(",")
                   .map((s: string) => s.trim())
                   .filter(Boolean)
-              : undefined;
+              : [];
             // تبدیل aliases از رشته کاما جدا به آرایه
             const aliases = options.aliases
               ? options.aliases
                   .split(",")
                   .map((s: string) => s.trim())
                   .filter(Boolean)
-              : undefined;
+              : [];
 
-            return addBranchType(current, name, branchBase, {
+            return addBranchType(current, name, branchBase, target, {
               ...branchTypeInput(options),
-              target,
               aliases,
             });
           }

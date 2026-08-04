@@ -18,7 +18,7 @@ export function registerRebase(program: Command, globals: () => GlobalOptions): 
       } else if (result.alreadyUpToDate) {
         print(style.dim(`${result.branch} is already up to date`));
       } else {
-        success(`rebased ${result.branch} onto ${result.parent}`);
+        success(`rebased ${result.branch} onto ${result.base}`);
       }
     });
 }
