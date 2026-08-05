@@ -6,7 +6,7 @@ import { ConfigError } from "../../src/domain/errors.js";
 const minimal = {
   name: "custom",
   baseBranches: [{ name: "main" }],
-  branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
+  branchTypes: [{ name: "feature", base: "main", target: "main" }],
 };
 
 describe("parseWorkflowConfig", () => {
@@ -16,8 +16,13 @@ describe("parseWorkflowConfig", () => {
     expect(config.remote.name).toBe("origin");
     expect(config.versioning.tagPrefix).toBe("v");
     expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
-    expect(config.baseBranches[0]).toMatchObject({});
-    expect(config.branchTypes[0]).toMatchObject({ prefix: "feature/" });
+    expect(config.baseBranches[0]).toMatchObject({ name: "main" });
+    expect(config.branchTypes[0]).toMatchObject({
+      prefix: "feature/",
+      base: "main",
+      target: ["main"],
+    });
+    expect(config.merge.strategy).toBe("merge");
   });
 
   it("rejects unsupported versions", () => {
@@ -26,8 +31,11 @@ describe("parseWorkflowConfig", () => {
 
   it("rejects unknown parents", () => {
     expect(() =>
-      parseWorkflowConfig({ ...minimal, branchTypes: [{ name: "feature", base: "nope" }] }),
-    ).toThrow(/unknown parent branch/);
+      parseWorkflowConfig({
+        ...minimal,
+        branchTypes: [{ name: "feature", base: "nope", target: "main" }],
+      }),
+    ).toThrow(/unknown base/);
   });
 
   it("rejects duplicate prefixes", () => {
@@ -35,8 +43,8 @@ describe("parseWorkflowConfig", () => {
       parseWorkflowConfig({
         ...minimal,
         branchTypes: [
-          { name: "feature", base: "main", prefix: "topic/" },
-          { name: "bugfix", base: "main", prefix: "topic/" },
+          { name: "feature", base: "main", target: "main", prefix: "topic/" },
+          { name: "bugfix", base: "main", target: "main", prefix: "topic/" },
         ],
       }),
     ).toThrow(/share the prefix/);
@@ -50,6 +58,7 @@ describe("parseWorkflowConfig", () => {
           { name: "main", base: "develop" },
           { name: "develop", base: "main" },
         ],
+        branchTypes: [{ name: "feature", base: "main", target: "main" }],
       }),
     ).toThrow(/cycle/);
   });
@@ -58,7 +67,7 @@ describe("parseWorkflowConfig", () => {
     expect(() =>
       parseWorkflowConfig({
         ...minimal,
-        branchTypes: [{ name: "feature", base: "main" }],
+        merge: { strategy: "cherry-pick" },
       }),
     ).toThrow(/must be one of/);
   });

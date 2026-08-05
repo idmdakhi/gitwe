@@ -101,6 +101,13 @@ export class TestRepo {
   }
 
   destroy(): void {
-    rmSync(this.path, { recursive: true, force: true });
+    try {
+      rmSync(this.path, { recursive: true, force: true });
+    } catch {
+      // در Windows ممکن است خطا بدهد، صبر کنید و دوباره تلاش کنید
+      setTimeout(() => {
+        rmSync(this.path, { recursive: true, force: true });
+      }, 100);
+    }
   }
 }

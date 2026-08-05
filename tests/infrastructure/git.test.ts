@@ -1,11 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ShellGitRepository } from "../../src/infrastructure/git/shell-git-repository.js";
 import { TestRepo } from "../support/repo.js";
-import {
-  ConflictError,
-  GitError,
-  // GitError
-} from "../../src/domain/errors.js";
+import { ConflictError, GitError } from "../../src/domain/errors.js";
 import { join } from "node:path";
 
 describe("ShellGitRepository", () => {
@@ -78,7 +74,6 @@ describe("ShellGitRepository", () => {
 
   it("should check if clean", async () => {
     expect(await git.isClean()).toBe(true);
-    // untracked files are ignored (--untracked-files=no)
     repo.write("newfile.txt", "content");
     expect(await git.isClean()).toBe(true);
     repo.write("README.md", "dirty");
@@ -112,14 +107,12 @@ describe("ShellGitRepository", () => {
     repo.git("remote", "add", "origin", remote);
     repo.git("push", "-q", "origin", "main");
     await git.fetch("origin");
-    // Should not throw
   });
 
   it("should push to remote", async () => {
     const remote = TestRepo.createBare();
     repo.git("remote", "add", "origin", remote);
     await git.push("origin", "main", { setUpstream: true });
-    // Should not throw
   });
 
   it("should merge a branch", async () => {
@@ -224,11 +217,9 @@ describe("ShellGitRepository", () => {
 
   it("creates an annotated tag by default", async () => {
     await git.createTag("v1.0.0");
-
-    expect(git.tags()).toContain("v1.0.0");
-
+    const tags = await git.tags();
+    expect(tags).toContain("v1.0.0");
     const type = await git.raw(["cat-file", "-t", "refs/tags/v1.0.0"]);
-
     expect(type).toBe("tag");
   });
 
@@ -236,9 +227,7 @@ describe("ShellGitRepository", () => {
     await git.createTag("v1.0.0", {
       message: "Release 1.0.0",
     });
-
     const message = await git.raw(["for-each-ref", "--format=%(contents)", "refs/tags/v1.0.0"]);
-
     expect(message.trim()).toContain("Release 1.0.0");
   });
 
@@ -249,32 +238,23 @@ describe("ShellGitRepository", () => {
 
   it("creates tag on specified commit", async () => {
     const first = repo.git("rev-parse", "HEAD");
-
     repo.write("a.txt", "hello");
+    repo.git("add", "a.txt");
     await git.commit("second");
-
-    await git.createTag("v1.0.0", {
-      ref: first,
-    });
-
-    const commit = await repo.git("rev-list", "-n", "1", "v1.0.0");
-
+    await git.createTag("v1.0.0", { ref: first });
+    const commit = repo.git("rev-list", "-n", "1", "v1.0.0");
     expect(commit.trim()).toBe(first);
   });
 
   it("throws if tag already exists", async () => {
-    await repo.git("tag", "v1.0.0");
-
-    await expect(repo.git("tag", "v1.0.0")).rejects.toThrow(GitError);
+    await git.createTag("v1.0.0");
+    await expect(git.createTag("v1.0.0")).rejects.toThrow();
   });
 
   it("creates tag on HEAD when ref is omitted", async () => {
     const head = repo.git("rev-parse", "HEAD");
-
-    await repo.git("tag", "v1.0.0");
-
-    const tagged = await repo.git("rev-list", "-n", "1", "v1.0.0");
-
+    await git.createTag("v1.0.0");
+    const tagged = repo.git("rev-list", "-n", "1", "v1.0.0");
     expect(tagged.trim()).toBe(head);
   });
 
@@ -300,7 +280,6 @@ describe("ShellGitRepository", () => {
 
   it("should check if has commits", async () => {
     expect(await git.hasCommits()).toBe(true);
-    // Cannot test empty repo easily with TestRepo which always has initial commit
   });
 
   it("should set upstream", async () => {

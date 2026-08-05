@@ -256,6 +256,17 @@ function validateWorkflow(config: WorkflowConfig): void {
   }
 
   // Validate branch types
+  //
+  // FIX: this check used to run in parseWorkflowConfig, before any of the
+  // base-branch checks above. That meant a config with both a duplicate
+  // base branch AND no branchTypes always reported "branchTypes must be
+  // defined and non-empty" — masking the base-branch error the caller was
+  // actually trying to trigger/see. Running it here, after base branches
+  // are validated, means base-branch problems are always reported first.
+  if (config.branchTypes.length === 0) {
+    throw new ConfigError("branchTypes must be defined and non-empty");
+  }
+
   const names = new Set<string>();
   const prefixes = new Map<string, string>();
 
@@ -353,9 +364,6 @@ export function parseWorkflowConfig(input: unknown): WorkflowConfig {
   }
 
   const branchTypes = Array.isArray(input.branchTypes) ? input.branchTypes : [];
-  if (branchTypes.length === 0) {
-    throw new ConfigError("branchTypes must be defined and non-empty");
-  }
 
   const config: WorkflowConfig = {
     version: 1,

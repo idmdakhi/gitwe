@@ -50,6 +50,7 @@ describe("Domain Layer", () => {
         parseWorkflowConfig({
           name: "test",
           baseBranches: [{ name: "main" }, { name: "main" }],
+          branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
         }),
       ).toThrow(/duplicate base branch/);
     });
@@ -59,8 +60,9 @@ describe("Domain Layer", () => {
         parseWorkflowConfig({
           name: "test",
           baseBranches: [{ name: "develop", base: "unknown" }],
+          branchTypes: [{ name: "feature", base: "develop", target: ["develop"] }],
         }),
-      ).toThrow(/unknown parent/);
+      ).toThrow(/unknown base/);
     });
 
     it("should reject cycles in base branch tree", () => {
@@ -71,6 +73,7 @@ describe("Domain Layer", () => {
             { name: "main", base: "develop" },
             { name: "develop", base: "main" },
           ],
+          branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
         }),
       ).toThrow(/cycle/);
     });
@@ -94,6 +97,7 @@ describe("Domain Layer", () => {
           name: "test",
           baseBranches: [{ name: "main" }],
           branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
+          merge: { strategy: "cherry-pick" },
         }),
       ).toThrow(/must be one of/);
     });
@@ -105,6 +109,10 @@ describe("Domain Layer", () => {
         branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
       });
       expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
+      expect(config.merge.strategy).toBe("merge");
+      expect(config.remote.name).toBe("origin");
+      expect(config.branchTypes[0].prefix).toBe("feature/");
+      expect(config.branchTypes[0].target).toEqual(["main"]);
     });
   });
 

@@ -14,6 +14,7 @@ describe("remote-facing operations", () => {
     repo = TestRepo.create();
     repo.git("remote", "add", "origin", remote);
     engine = await repo.engine();
+    engine.context.state.clear();
     repo.git("push", "-q", "origin", "main", "develop");
   });
 

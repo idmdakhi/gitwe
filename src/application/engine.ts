@@ -144,7 +144,7 @@ export class Engine {
     const resolved = this.workflow.resolveBranch(branch);
     if (resolved === undefined) {
       throw new ValidationError(
-        `"${branch}" is not a branch type of the "${this.workflow.config.name}" workflow`,
+        `"${branch}" is not a topic branch of the "${this.workflow.config.name}" workflow`,
         `prefixes: ${this.workflow.branchTypes.map((t) => t.prefix).join(", ")}`,
       );
     }

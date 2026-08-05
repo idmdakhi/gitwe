@@ -140,6 +140,12 @@ export class FinishOperation {
           if (!(await git.branchExists(branch))) {
             throw new ValidationError(`branch "${branch}" does not exist`);
           }
+          if (!hasTarget) {
+            logger.warn(
+              `branch type "${this.resolved.type.name}" has no target; no merge will be performed`,
+            );
+            return;
+          }
           for (const target of targets) {
             if (!(await git.branchExists(target))) {
               throw new ValidationError(`base branch "${target}" does not exist`);
@@ -197,12 +203,15 @@ export class FinishOperation {
         },
       },
       {
-        name: "merge-into-parent",
+        name: "merge-into-base",
         run: async () => {
           // No target => skip the merge entirely. finish() still runs the
           // tag/push/delete steps below, it just never integrates the
           // branch anywhere on its own.
-          if (!hasTarget) return;
+          if (!hasTarget) {
+            logger.info(`skipping merge because "${this.resolved.type.name}" has no target`);
+            return;
+          }
           if (await git.isAncestor(branch, base)) return;
           await this.snapshot(base);
           await git.checkout(base);
@@ -226,6 +235,7 @@ export class FinishOperation {
       {
         name: "tag",
         run: async () => {
+          if (!hasTarget) return;
           if (!this.shouldTag()) return;
           const name = this.tagName();
           if ((await git.tags()).includes(name)) {
@@ -249,6 +259,7 @@ export class FinishOperation {
       steps.push({
         name: `update-${child}`,
         run: async () => {
+          if (!hasTarget) return;
           const childName = child.name; // ذخیره نام child
           if (!(await git.branchExists(childName))) return;
           const childBase = workflow.requireBase(childName);
@@ -284,6 +295,11 @@ export class FinishOperation {
           if (!(await git.remoteExists(remote))) return;
           // Only push `base` if finish actually merged into it; with no
           // target, `base` was never touched here.
+          if (!hasTarget) {
+            const current = (await git.currentBranch()) as string;
+            await git.push(remote, current);
+            return;
+          }
           if (hasTarget) {
             await git.push(remote, base, { followTags: this.shouldTag() });
           } else if (this.shouldTag()) {
@@ -298,6 +314,7 @@ export class FinishOperation {
       {
         name: "delete-remote-branch",
         run: async () => {
+          if (!hasTarget) return;
           if (this.options.keep === true || this.options.keepRemote === true) return;
           if (!this.ctx.workflow.shouldDeleteOnFinish(this.resolved.type)) return;
           if (!(await git.remoteExists(remote))) return;
@@ -309,6 +326,7 @@ export class FinishOperation {
       {
         name: "delete-local-branch",
         run: async () => {
+          if (!hasTarget) return;
           if (this.options.keep === true) return;
           if (!this.ctx.workflow.shouldDeleteOnFinish(this.resolved.type)) return;
           if (!(await git.branchExists(branch))) return;
@@ -322,6 +340,7 @@ export class FinishOperation {
       {
         name: "checkout-final-branch",
         run: async () => {
+          if (!hasTarget) return;
           const target = (await git.branchExists(this.result.finalBranch))
             ? this.result.finalBranch
             : base;
@@ -351,9 +370,11 @@ export class FinishOperation {
         await step.run();
       } catch (error) {
         if (error instanceof ConflictError) {
+          // فقط کانفلیکت state را نگه می‌دارد → --continue / --abort
           this.state.stepIndex = index;
           this.ctx.state.write(this.state);
         } else {
+          // بقیه خطاها (ValidationError و…) → پاک کردن state
           this.ctx.state.clear();
         }
         throw error;

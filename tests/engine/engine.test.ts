@@ -13,6 +13,7 @@ describe("Engine - Comprehensive Tests", () => {
   beforeEach(async () => {
     repo = TestRepo.create();
     engine = await repo.engine();
+    engine.context.state.clear();
   });
 
   afterEach(() => {

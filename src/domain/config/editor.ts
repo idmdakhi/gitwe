@@ -100,7 +100,7 @@ export function addBranchType(
   config: WorkflowConfig,
   name: string,
   base: string,
-  target: string[],
+  target: string[] = [],
   input: BranchTypeInput = {},
 ): WorkflowConfig {
   const next = clone(config);
