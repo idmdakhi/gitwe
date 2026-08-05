@@ -9,7 +9,7 @@ engine; the pre-1.0 code base is not carried over and no upgrade path is provide
 
 ### Added
 
-- **Workflow definition (v1)** — base branches with a parent tree, `autoUpdate`
+- **Workflow definition (v1)** — base branches with a parent tree, ``
   back-merges, and topic types with prefix, start point, merge/update strategies,
   tagging and retention. Strict validation of parents, prefixes, strategies and cycles.
 - **Presets** — `classic` (git-flow), `github` and `gitlab`, written by `gitwe init`.

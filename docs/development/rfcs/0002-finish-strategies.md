@@ -11,7 +11,7 @@
 
 ## Summary
 
-Extend the `upstreamStrategy` vocabulary of topic types from the current three values (`merge`, `squash`, `rebase`) to five values by adding `cherry-pick` and `rebase-merge`.
+Extend the `` vocabulary of topic types from the current three values (`merge`, `squash`, `rebase`) to five values by adding `cherry-pick` and `rebase-merge`.
 
 ## Motivation
 
@@ -103,6 +103,6 @@ New explicit flags (optional, for clarity):
 
 ## Acceptance Criteria
 
-- [ ] `upstreamStrategy: cherry-pick` produces only the topic’s non-merge commits on the parent.
-- [ ] `upstreamStrategy: rebase-me
+- [ ] `: cherry-pick` produces only the topic’s non-merge commits on the parent.
+- [ ] `: rebase-me
       ...

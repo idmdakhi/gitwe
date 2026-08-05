@@ -184,8 +184,6 @@ remote
 
 protected
 
-autoUpdate
-
 strategy
 
 permissions
@@ -507,10 +505,6 @@ Resume
 ↓
 
 Tag
-
-↓
-
-AutoUpdate
 
 ↓
 

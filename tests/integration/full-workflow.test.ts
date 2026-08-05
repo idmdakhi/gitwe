@@ -87,12 +87,13 @@ describe("Full Workflow Integration", () => {
       name: "custom",
       remote: "origin",
       tagPrefix: "v",
-      baseBranches: [{ name: "main" }, { name: "staging", base: "main", autoUpdate: true }],
+      baseBranches: [{ name: "main" }, { name: "staging", base: "main" }],
       branchTypes: [
         {
           name: "feature",
           base: "staging",
           prefix: "feat/",
+          target: "staging",
         },
       ],
       hooks: { enabled: true, path: ".gitwe/hooks" },

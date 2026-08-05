@@ -27,7 +27,7 @@ rules in data:
 
 ```jsonc
 {
-  "baseBranches": [{ "name": "main" }, { "name": "develop", "parent": "main", "autoUpdate": true }],
+  "baseBranches": [{ "name": "main" }, { "name": "develop", "parent": "main" }],
   "branchTypes": [
     { "name": "feature", "parent": "develop" },
     { "name": "release", "parent": "main", "startPoint": "develop", "tag": true },

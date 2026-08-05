@@ -49,7 +49,7 @@
       "name": "support",
       "aliases": ["lts"],
       "base": "main",
-      "target": "",
+      "target": "main",
       "prefix": "support/"
     }
   ],
@@ -99,10 +99,10 @@
     "tag": ["release", "hotfix"],
     "branchTypes": {
       "version": ["release"],
-      "major": [""],
+      "major": [],
       "minor": ["feature"],
       "patch": ["hotfix"],
-      "metadata ": [""]
+      "metadata ": []
     },
     "annotated": true,
     "pushTags": false,

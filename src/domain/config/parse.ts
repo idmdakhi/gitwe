@@ -51,6 +51,21 @@ function parseMergeStrategy(value: unknown, path: string, fallback: MergeStrateg
   return value as MergeStrategy;
 }
 
+/**
+ * Parses a value that should be a string or an array of strings.
+ *
+ * FIX: previously the "single string" branch skipped the empty-string check
+ * that the "array of strings" branch enforced, so `"target": ""` silently
+ * became `[""]` instead of failing fast the way `"target": [""]` already
+ * did. That let an invalid `gitwe.json` (e.g. `branchTypes[*].target: ""`,
+ * `versioning.branchTypes.major: [""]`) pass parsing and blow up later —
+ * either with a confusing "unknown target """ validation error, or, if it
+ * ever slipped past validation, as a runtime `git checkout ""` inside the
+ * engine. Both branches now apply the exact same rule: every entry must be
+ * a non-empty, trimmed string, or parsing fails immediately with a clear
+ * message that names the offending field. Omitting the field entirely (or
+ * `null`) is still fine and yields `[]`; a *blank* value is not.
+ */
 function parseStringArray(value: unknown, path: string): string[] {
   if (value === undefined || value === null) return [];
   if (Array.isArray(value)) {
@@ -62,6 +77,9 @@ function parseStringArray(value: unknown, path: string): string[] {
     });
   }
   if (typeof value === "string") {
+    if (value.trim() === "") {
+      throw new ConfigError(`${path} must be a non-empty string`);
+    }
     return [value.trim()];
   }
   throw new ConfigError(`${path} must be a string or array of strings`);
@@ -259,14 +277,14 @@ function validateWorkflow(config: WorkflowConfig): void {
       throw new ConfigError(`branch type "${bt.name}" has unknown base "${bt.base}"`);
     }
 
+    // An empty `target` is allowed on purpose: it means this branch type is
+    // never automatically merged anywhere (e.g. a long-lived "support"
+    // branch). `finish`/`update` handle that case explicitly instead of
+    // assuming every branch type has somewhere to merge into.
     for (const target of bt.target) {
       if (!bases.has(target)) {
         throw new ConfigError(`branch type "${bt.name}" has unknown target "${target}"`);
       }
-    }
-
-    if (bt.target.length === 0) {
-      throw new ConfigError(`branch type "${bt.name}" must have at least one target`);
     }
   }
 
@@ -301,10 +319,16 @@ function validateWorkflow(config: WorkflowConfig): void {
   }
 
   // Validate versioning.branchTypes
+  //
+  // FIX: the old code special-cased `name !== ""` here because
+  // parseStringArray used to be able to hand back `[""]`. Now that
+  // parseStringArray always normalizes blank strings to `[]`, an empty
+  // string can never reach this point — so the exception was dead code
+  // that only masked the real bug. Removed for a single, consistent rule.
   if (config.versioning.branchTypes) {
     for (const [key, arr] of Object.entries(config.versioning.branchTypes)) {
       for (const name of arr) {
-        if (name !== "" && !names.has(name)) {
+        if (!names.has(name)) {
           throw new ConfigError(
             `versioning.branchTypes.${key} references unknown branch type "${name}"`,
           );

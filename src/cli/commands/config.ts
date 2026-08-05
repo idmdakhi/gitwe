@@ -188,29 +188,23 @@ export function registerConfig(program: Command, globals: () => GlobalOptions): 
           }
           if (kind === "branchType" || kind === "topic") {
             const branchBase = base ?? options.base;
-            if (branchBase === undefined) {
-              throw new ValidationError("a branch type needs a base branch");
-            }
+            if (!branchBase) throw new ValidationError("a branch type needs a base branch");
+            if (!options.target) throw new ValidationError("--target is required for branch types");
 
             // تبدیل target از رشته کاما جدا به آرایه
             const target = options.target
-              ? options.target
-                  .split(",")
-                  .map((s: string) => s.trim())
-                  .filter(Boolean)
-              : [];
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+
             // تبدیل aliases از رشته کاما جدا به آرایه
             const aliases = options.aliases
-              ? options.aliases
-                  .split(",")
-                  .map((s: string) => s.trim())
-                  .filter(Boolean)
-              : [];
+              ?.split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            const prefix = options.prefix ?? `${name}/`;
 
-            return addBranchType(current, name, branchBase, target, {
-              ...branchTypeInput(options),
-              aliases,
-            });
+            return addBranchType(current, name, branchBase, target, { prefix, aliases });
           }
           throw new ValidationError(`unknown kind "${kind}"`, "use base or branchType");
         });

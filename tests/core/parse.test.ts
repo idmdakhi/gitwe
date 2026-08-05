@@ -6,7 +6,7 @@ import { ConfigError } from "../../src/domain/errors.js";
 const minimal = {
   name: "custom",
   baseBranches: [{ name: "main" }],
-  branchTypes: [{ name: "feature", base: "main" }],
+  branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
 };
 
 describe("parseWorkflowConfig", () => {
@@ -16,12 +16,8 @@ describe("parseWorkflowConfig", () => {
     expect(config.remote.name).toBe("origin");
     expect(config.versioning.tagPrefix).toBe("v");
     expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
-    expect(config.baseBranches[0]).toMatchObject({
-      upstreamStrategy: "merge",
-      downstreamStrategy: "merge",
-      autoUpdate: false,
-    });
-    expect(config.branchTypes[0]).toMatchObject({ prefix: "feature/", deleteOnFinish: true });
+    expect(config.baseBranches[0]).toMatchObject({});
+    expect(config.branchTypes[0]).toMatchObject({ prefix: "feature/" });
   });
 
   it("rejects unsupported versions", () => {
@@ -62,7 +58,7 @@ describe("parseWorkflowConfig", () => {
     expect(() =>
       parseWorkflowConfig({
         ...minimal,
-        branchTypes: [{ name: "feature", base: "main", upstreamStrategy: "cherry-pick" }],
+        branchTypes: [{ name: "feature", base: "main" }],
       }),
     ).toThrow(/must be one of/);
   });

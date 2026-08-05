@@ -36,8 +36,8 @@ describe("Workflow", () => {
       name: "custom",
       baseBranches: [{ name: "main" }],
       branchTypes: [
-        { name: "feature", base: "main", prefix: "feature/" },
-        { name: "urgent", base: "main", prefix: "feature/urgent/" },
+        { name: "feature", base: "main", prefix: "feature/", target: ["main"] },
+        { name: "urgent", base: "main", prefix: "feature/urgent/", target: ["main"] },
       ],
     });
     expect(new Workflow(config).resolveBranch("feature/urgent/x")?.type.name).toBe("urgent");

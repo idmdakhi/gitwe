@@ -77,7 +77,19 @@ describe("CLI Integration Tests", () => {
 
   it("config add topic and use it", async () => {
     await gitwe("init", "--defaults");
-    expect(await gitwe("config", "add", "topic", "spike", "develop", "--prefix", "spike/")).toBe(0);
+    expect(
+      await gitwe(
+        "config",
+        "add",
+        "topic",
+        "spike",
+        "develop",
+        "--prefix",
+        "spike/",
+        "--target",
+        "develop",
+      ),
+    ).toBe(0);
     expect(await gitwe("start", "spike", "idea")).toBe(0);
     expect(repo.currentBranch()).toBe("spike/idea");
   });

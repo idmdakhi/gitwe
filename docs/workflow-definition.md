@@ -33,22 +33,16 @@ has no parent.
 ```json
 {
   "name": "develop",
-  "parent": "main",
-  "upstreamStrategy": "merge",
-  "downstreamStrategy": "merge",
-  "autoUpdate": true
+  "parent": "main"
 }
 ```
 
-| Field                | Type                            | Default | Description                                                   |
-| -------------------- | ------------------------------- | ------- | ------------------------------------------------------------- |
-| `name`               | string                          | —       | git branch name                                               |
-| `parent`             | string                          | —       | base branch it integrates into                                |
-| `upstreamStrategy`   | `merge` \| `squash` \| `rebase` | `merge` | how it merges into its parent                                 |
-| `downstreamStrategy` | `merge` \| `rebase`             | `merge` | how it is updated from its parent                             |
-| `autoUpdate`         | boolean                         | `false` | update it automatically whenever its parent receives a finish |
+| Field    | Type   | Default | Description                    |
+| -------- | ------ | ------- | ------------------------------ |
+| `name`   | string | —       | git branch name                |
+| `parent` | string | —       | base branch it integrates into |
 
-`autoUpdate` is what makes classic git-flow work: after a release or hotfix is merged
+`` is what makes classic git-flow work: after a release or hotfix is merged
 into `main`, `develop` is brought back in sync automatically.
 
 ## Topic types
@@ -58,28 +52,18 @@ Short-lived branch categories. Every topic type produces its own CLI command gro
 ```json
 {
   "name": "release",
-  "parent": "main",
-  "startPoint": "develop",
-  "prefix": "release/",
-  "upstreamStrategy": "merge",
-  "downstreamStrategy": "merge",
-  "tag": true,
-  "tagPrefix": "v",
-  "deleteOnFinish": true
+  "base": "main",
+  "target": "develop",
+  "prefix": "release/"
 }
 ```
 
-| Field                | Type                            | Default              | Description                                       |
-| -------------------- | ------------------------------- | -------------------- | ------------------------------------------------- |
-| `name`               | string                          | —                    | type name, also the CLI sub-command               |
-| `parent`             | string                          | —                    | base branch the topic is finished into            |
-| `prefix`             | string                          | `<name>/`            | branch name prefix                                |
-| `startPoint`         | string                          | `parent`             | branch new topics are created from                |
-| `upstreamStrategy`   | `merge` \| `squash` \| `rebase` | `merge`              | how `finish` integrates the topic                 |
-| `downstreamStrategy` | `merge` \| `rebase`             | `merge`              | how `update` refreshes the topic                  |
-| `tag`                | boolean                         | `false`              | create a tag on the parent when finishing         |
-| `tagPrefix`          | string                          | workflow `tagPrefix` | prefix for that tag                               |
-| `deleteOnFinish`     | boolean                         | `true`               | delete the topic branch after a successful finish |
+| Field    | Type   | Default   | Description                            |
+| -------- | ------ | --------- | -------------------------------------- |
+| `name`   | string | —         | type name, also the CLI sub-command    |
+| `base`   | string | —         | base branch the topic is finished into |
+| `prefix` | string | `<name>/` | branch name prefix                     |
+| `target` | string | `base`    | branch new topics are created from     |
 
 Validation is strict: unknown parents, duplicate names, shared prefixes, invalid
 strategies and cycles in the base branch tree are all rejected before anything runs —
@@ -100,27 +84,21 @@ Presets are a starting point: edit the file, or use `gitwe config add|edit|renam
 ```yaml
 version: 1
 name: acme
-remote: origin
-tagPrefix: v
 baseBranches:
   - name: main
   - name: develop
-    parent: main
-    autoUpdate: true
+    base: main
   - name: staging
-    parent: develop
+    base: develop
 branchTypes:
   - name: feature
-    parent: develop
-    downstreamStrategy: rebase
+    base: develop
   - name: spike
-    parent: develop
+    base: develop
     prefix: spike/
-    upstreamStrategy: squash
   - name: release
-    parent: main
-    startPoint: develop
-    tag: true
+    base: main
+    target: develop
 ```
 
 `gitwe start spike caching` and `gitwe finish spike --squash` exist as soon as the type

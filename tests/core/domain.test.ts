@@ -24,7 +24,7 @@ describe("Domain Layer", () => {
       const input = {
         name: "test",
         baseBranches: [{ name: "main" }],
-        branchTypes: [{ name: "feature", base: "main" }],
+        branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
       };
       const config = parseWorkflowConfig(input);
       expect(config.version).toBe(1);
@@ -81,8 +81,8 @@ describe("Domain Layer", () => {
           name: "test",
           baseBranches: [{ name: "main" }],
           branchTypes: [
-            { name: "feature", base: "main", prefix: "topic/" },
-            { name: "bugfix", base: "main", prefix: "topic/" },
+            { name: "feature", base: "main", prefix: "topic/", target: ["main"] },
+            { name: "bugfix", base: "main", prefix: "topic/", target: ["main"] },
           ],
         }),
       ).toThrow(/share the prefix/);
@@ -93,7 +93,7 @@ describe("Domain Layer", () => {
         parseWorkflowConfig({
           name: "test",
           baseBranches: [{ name: "main" }],
-          branchTypes: [{ name: "feature", base: "main", upstreamStrategy: "cherry-pick" }],
+          branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
         }),
       ).toThrow(/must be one of/);
     });
@@ -102,7 +102,7 @@ describe("Domain Layer", () => {
       const config = parseWorkflowConfig({
         name: "test",
         baseBranches: [{ name: "main" }],
-        branchTypes: [{ name: "feature", base: "main" }],
+        branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
       });
       expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
     });
@@ -129,7 +129,6 @@ describe("Domain Layer", () => {
       expect(config.name).toBe("github");
       expect(config.baseBranches).toHaveLength(1);
       expect(config.branchTypes).toHaveLength(2);
-      // expect(config.branchTypes[0].downstreamStrategy).toBe("rebase");
     });
 
     it("should create gitlab preset", () => {
@@ -137,7 +136,6 @@ describe("Domain Layer", () => {
       expect(config.name).toBe("gitlab");
       expect(config.baseBranches).toHaveLength(3);
       expect(config.baseBranches.map((b) => b.name)).toEqual(["main", "staging", "production"]);
-      // expect(config.baseBranches[1].autoUpdate).toBe(true);
       expect(config.branchTypes).toHaveLength(2);
     });
 
@@ -382,8 +380,8 @@ describe("Domain Layer", () => {
         name: "test",
         baseBranches: [{ name: "main" }],
         branchTypes: [
-          { name: "feature", base: "main", prefix: "feature/" },
-          { name: "urgent", base: "main", prefix: "feature/urgent/" },
+          { name: "feature", base: "main", prefix: "feature/", target: ["main"] },
+          { name: "urgent", base: "main", prefix: "feature/urgent/", target: ["main"] },
         ],
       });
       const workflow2 = new Workflow(customConfig);

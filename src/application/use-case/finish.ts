@@ -30,6 +30,12 @@ export interface FinishOptions {
 
 export interface FinishResult {
   branch: string;
+  /**
+   * The branch this topic was merged into. When the branch type has no
+   * `target` configured (nothing to merge into automatically), this falls
+   * back to the branch type's own `base` — it is *not* touched by finish,
+   * it's only where control returns to.
+   */
   base: string;
   strategy: "merge" | "squash" | "rebase";
   tag?: string;
@@ -69,14 +75,18 @@ export class FinishOperation {
       : options.rebase
         ? "rebase"
         : ctx.workflow.mergeStrategyFor(resolved.type);
+    // No target configured => nothing to merge into. Fall back to the
+    // branch type's own base purely for reporting/checkout purposes, not
+    // as something finish will merge into.
+    const fallbackBase = this.targets[0] ?? resolved.type.base;
     this.result = {
       branch: resolved.branch,
-      base: this.targets[0] ?? ctx.workflow.rootBranch.name,
+      base: fallbackBase,
       strategy: this.strategy,
       updatedBranches: [],
       deletedLocal: false,
       deletedRemote: false,
-      finalBranch: this.targets[0] ?? ctx.workflow.rootBranch.name,
+      finalBranch: fallbackBase,
     };
     this.state = state ?? {
       version: 1,
@@ -110,10 +120,13 @@ export class FinishOperation {
   private steps(): Step[] {
     const { git, workflow, logger, hooks } = this.ctx;
     const branch = this.resolved.branch;
-    const base = this.targets[0] ?? this.ctx.workflow.rootBranch.name;
+    const targets = this.targets;
+    const hasTarget = targets.length > 0;
+    // Only used as a fallback checkout/reporting point when there is no
+    // target — never merged into.
+    const base = targets[0] ?? this.resolved.type.base;
     const strategy = this.strategy;
     const remote = workflow.remoteName;
-    const targets = this.targets;
     const children: BaseBranch[] = [];
     for (const target of targets) {
       for (const child of workflow.childrenOf(target)) {
@@ -174,6 +187,9 @@ export class FinishOperation {
       {
         name: "rebase-branch",
         run: async () => {
+          // No target => nothing to rebase onto; this branch type is never
+          // automatically integrated anywhere.
+          if (!hasTarget) return;
           if (strategy !== "rebase") return;
           if (await git.isAncestor(base, branch)) return;
           await git.checkout(branch);
@@ -183,6 +199,10 @@ export class FinishOperation {
       {
         name: "merge-into-parent",
         run: async () => {
+          // No target => skip the merge entirely. finish() still runs the
+          // tag/push/delete steps below, it just never integrates the
+          // branch anywhere on its own.
+          if (!hasTarget) return;
           if (await git.isAncestor(branch, base)) return;
           await this.snapshot(base);
           await git.checkout(base);
@@ -262,7 +282,14 @@ export class FinishOperation {
         run: async () => {
           if (this.options.push !== true) return;
           if (!(await git.remoteExists(remote))) return;
-          await git.push(remote, base, { followTags: this.shouldTag() });
+          // Only push `base` if finish actually merged into it; with no
+          // target, `base` was never touched here.
+          if (hasTarget) {
+            await git.push(remote, base, { followTags: this.shouldTag() });
+          } else if (this.shouldTag()) {
+            // Still push tags even when there's no merge target.
+            await git.push(remote, branch, { followTags: true });
+          }
           for (const child of this.result.updatedBranches) {
             await git.push(remote, child);
           }

@@ -72,7 +72,19 @@ describe("gitwe CLI", () => {
   it("edits the workflow definition through `config`", async () => {
     await gitwe("init", "--defaults");
 
-    expect(await gitwe("config", "add", "topic", "spike", "develop", "--prefix", "spike/")).toBe(0);
+    expect(
+      await gitwe(
+        "config",
+        "add",
+        "topic",
+        "spike",
+        "develop",
+        "--prefix",
+        "spike/",
+        "--target",
+        "develop",
+      ),
+    ).toBe(0);
 
     stdout = "";
     expect(await gitwe("config", "list")).toBe(0);

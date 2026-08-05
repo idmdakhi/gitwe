@@ -1,7 +1,6 @@
 import { assertValidBranchName, globToRegExp } from "../domain/branch-name.js";
 import { OperationStateError, ValidationError } from "../domain/errors.js";
-import type { Logger } from "./interfaces/logger.js";
-import { silentLogger } from "./interfaces/logger.js";
+import { silentLogger, type Logger } from "./interfaces/logger.js";
 import type {
   BranchStatus,
   BranchType,
@@ -222,10 +221,14 @@ export class Engine {
     return new FinishOperation(this.ctx, resolved, options).execute();
   }
 
-  // continueOperation و abortOperation مانند قبل با استفاده از branchType
-
   async update(resolved: ResolvedBranch, options: UpdateOptions = {}): Promise<UpdateResult> {
     const base = resolved.type.target[0];
+    if (base === undefined) {
+      throw new ValidationError(
+        `branch type "${resolved.type.name}" has no target configured`,
+        "update is only available for branch types with at least one target",
+      );
+    }
     if (!(await this.git.branchExists(resolved.branch))) {
       throw new ValidationError(`branch "${resolved.branch}" does not exist`);
     }
