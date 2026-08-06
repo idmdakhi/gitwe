@@ -36,59 +36,39 @@ export class ShellGitRepository implements GitRepository {
 
   private async run(args: string[]): Promise<string> {
     const result = await this.exec(args);
-    if (result.exitCode !== 0) {
-      if (await this.looksLikeConflict(result)) {
-        const conflicts = await this.conflictedFiles();
-        throw new ConflictError(
-          conflicts.length > 0
-            ? `git ${args[0]} stopped on conflicts in: ${conflicts.join(", ")}`
-            : `git ${args[0]} stopped on a conflict`,
-          conflicts,
-        );
-      }
-      throw new GitError(args, result.exitCode, result.stderr.trim());
-    }
-    return result.stdout.trim();
-  }
 
-  /**
-   * تشخیص کانفلیکت با چند سیگنال مستقل:
-   * ۱. متن خروجی (stdout + stderr) — git جدید پیام‌ها را روی stdout می‌نویسد
-   * ۲. MERGE_HEAD / rebase directory
-   * ۳. ایندکس unmerged — مطمئن‌ترین سیگنال
-   */
-  private async looksLikeConflict(result: {
-    stdout: string;
-    stderr: string;
-    exitCode: number;
-  }): Promise<boolean> {
-    // ۱. بررسی متن خروجی (هر دو stream)
-    const output = `${result.stdout}\n${result.stderr}`.toLowerCase();
-    if (
-      output.includes("conflict") ||
-      output.includes("automatic merge failed") ||
-      output.includes("fix conflicts") ||
-      output.includes("could not apply")
-    ) {
-      return true;
+    // اگر دستور با موفقیت اجرا شد، خروجی را برگردان
+    if (result.exitCode === 0) {
+      return result.stdout.trim();
     }
 
-    // ۲. بررسی MERGE_HEAD / rebase
-    try {
-      if ((await this.mergeInProgress()) || (await this.rebaseInProgress())) return true;
-    } catch {
-      // اگر بررسی شکست خورد، ادامه بده
+    // ===== تشخیص Conflict =====
+    // ۱. اگر کد خروجی ۲ باشد (معمولاً conflict در Git)
+    if (result.exitCode === 2) {
+      const conflicts = await this.conflictedFiles();
+      throw new ConflictError(
+        conflicts.length > 0
+          ? `git ${args[0]} stopped on conflicts in: ${conflicts.join(", ")}`
+          : `git ${args[0]} stopped on a conflict`,
+        conflicts,
+      );
     }
 
-    // ۳. بررسی unmerged entries در index (مطمئن‌ترین روش)
-    try {
-      const unmerged = await this.exec(["ls-files", "--unmerged"]);
-      if (unmerged.exitCode === 0 && unmerged.stdout.trim() !== "") return true;
-    } catch {
-      // نادیده بگیر
+    // ۲. اگر عملیات merge/rebase در حال انجام است یا stderr شامل "conflict" است
+    const mergeInProgress = await this.mergeInProgress();
+    const rebaseInProgress = await this.rebaseInProgress();
+    if (mergeInProgress || rebaseInProgress || result.stderr.toLowerCase().includes("conflict")) {
+      const conflicts = await this.conflictedFiles();
+      throw new ConflictError(
+        conflicts.length > 0
+          ? `git ${args[0]} stopped on conflicts in: ${conflicts.join(", ")}`
+          : `git ${args[0]} stopped on a conflict`,
+        conflicts,
+      );
     }
 
-    return false;
+    // ۳. در غیر این صورت، خطای عمومی Git
+    throw new GitError(args, result.exitCode, result.stderr.trim());
   }
 
   private async ok(args: string[]): Promise<boolean> {

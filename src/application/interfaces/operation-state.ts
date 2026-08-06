@@ -1,27 +1,41 @@
-/** Persisted progress of a multi-step operation so it can resume or roll back. */
+// ====== بخش عمومی (جدید) ======
 export interface OperationState {
-  version: 1;
-  operation: "finish";
+  /** نسخهٔ ساختار فایل */
+  version: number;
+
+  /** شناسهٔ عملیات (مثلاً 'finish'، 'start'، ...) */
+  operation: string;
+
+  /** مرحلهٔ فعلی (id مرحله) */
+  currentStep: string;
+
+  /** شناسهٔ مراحل تکمیل‌شده */
+  completedSteps: string[];
+
+  /** داده‌های اختصاصی هر Workflow (مثلاً snapshots, createdTags و ...) */
+  data: Record<string, unknown>;
+
+  /** زمان شروع عملیات (ISO string) */
+  startedAt: string;
+}
+
+// ====== بخش خاص (برای سازگاری با عقب) ======
+/** @deprecated از فیلدهای عمومی استفاده کنید */
+export interface LegacyFinishState extends OperationState {
+  // فیلدهای قدیمی که فعلاً نگهداری می‌شوند
   branch: string;
-  /** @deprecated Use branchType instead */
-  topicType?: string;
-  /** Branch type name (e.g. 'feature', 'release') */
   branchType: string;
   options: Record<string, unknown>;
   stepIndex: number;
-  startedAt: string;
   originalBranch?: string;
-  /** Branch name -> sha before the operation touched it. */
   snapshots: Record<string, string>;
   createdTags: string[];
 }
-
-export const STATE_FILE = "gitwe/operation.json";
 
 export interface OperationStateStore {
   exists(): boolean;
   read(): OperationState | undefined;
   require(): OperationState;
-  write(state: OperationState): void;
-  clear(): void;
+  write(state: OperationState): Promise<void>; // حالا async
+  clear(): Promise<void>;
 }

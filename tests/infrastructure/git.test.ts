@@ -248,7 +248,7 @@ describe("ShellGitRepository", () => {
 
   it("throws if tag already exists", async () => {
     await git.createTag("v1.0.0");
-    await expect(git.createTag("v1.0.0")).rejects.toThrow();
+    await expect(git.createTag("v1.0.0")).rejects.toThrow(GitError);
   });
 
   it("creates tag on HEAD when ref is omitted", async () => {

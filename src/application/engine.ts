@@ -2,6 +2,7 @@ import { assertValidBranchName, globToRegExp } from "../domain/branch-name.js";
 import { OperationStateError, ValidationError } from "../domain/errors.js";
 import { silentLogger, type Logger } from "./interfaces/logger.js";
 import type {
+  BaseBranch,
   BranchStatus,
   BranchType,
   ResolvedBranch,
@@ -12,7 +13,9 @@ import type { GitRepository } from "./interfaces/git-repository.js";
 import type { EngineContext } from "./context.js";
 import type { HookRunner } from "./interfaces/hook-runner.js";
 import { FinishOperation, type FinishOptions, type FinishResult } from "./use-case/finish.js";
-import type { OperationStateStore } from "./interfaces/operation-state.js";
+import type { OperationState, OperationStateStore } from "./interfaces/operation-state.js";
+import { createFinishWorkflow, EngineWorkflowContext } from "./workflows/finish-workflow.js";
+import { WorkflowEngine } from "./workflow-engine-impl.js";
 
 export interface StartOptions {
   /** Explicit start point, overriding the topic type's configured one. */
@@ -218,7 +221,62 @@ export class Engine {
         "run the command with --continue or --abort first",
       );
     }
-    return new FinishOperation(this.ctx, resolved, options).execute();
+
+    const strategy = options.squash
+      ? "squash"
+      : options.rebase
+        ? "rebase"
+        : this.workflow.mergeStrategyFor(resolved.type);
+
+    const targets = resolved.type.target;
+    const children: BaseBranch[] = [];
+    for (const target of targets) {
+      for (const child of this.ctx.workflow.childrenOf(target)) {
+        children.push(child);
+      }
+    }
+    const childNames = children.map((c) => c.name);
+
+    const initialState: OperationState = {
+      version: 1,
+      operation: "finish",
+      currentStep: "",
+      completedSteps: [],
+      data: {
+        branch: resolved.branch,
+        branchType: resolved.type.name,
+        options: { ...options },
+        strategy, // <-- ذخیره استراتژی
+        targets,
+        childBranches: childNames,
+        snapshots: {},
+        createdTags: [],
+        updatedBranches: [],
+        deletedRemote: false,
+        deletedLocal: false,
+        finalBranch: targets[0] ?? resolved.type.base,
+        tag: undefined,
+        originalBranch: undefined,
+      },
+      startedAt: new Date().toISOString(),
+    };
+
+    const workflow = createFinishWorkflow(this.ctx, resolved, options);
+    const workflowContext = new EngineWorkflowContext(this.ctx, "finish", initialState);
+    const engine = new WorkflowEngine<EngineWorkflowContext>();
+    await engine.execute(workflow, workflowContext);
+
+    const data = workflowContext.state.data;
+    return {
+      branch: data.branch as string,
+      base: (data.targets as string[])[0] ?? resolved.type.base,
+      strategy: data.strategy as "merge" | "squash" | "rebase", // <-- استفاده از data.strategy
+      tag: data.tag as string | undefined,
+      updatedBranches: data.updatedBranches as string[],
+      deletedLocal: data.deletedLocal as boolean,
+      deletedRemote: data.deletedRemote as boolean,
+      finalBranch: data.finalBranch as string,
+    };
   }
 
   async update(resolved: ResolvedBranch, options: UpdateOptions = {}): Promise<UpdateResult> {
@@ -472,45 +530,88 @@ export class Engine {
 
   /** Create any base branch that the workflow declares but the repo lacks. */
   async createMissingBaseBranches(): Promise<string[]> {
-    if (!(await this.git.hasCommits())) return [];
     const created: string[] = [];
+    const rootBranch = this.workflow.rootBranch.name;
+
+    // اگر مخزن هیچ commitی ندارد، یک commit خالی ایجاد کن
+    if (!(await this.git.hasCommits())) {
+      // اگر شاخهٔ ریشه وجود ندارد، آن را با checkout -b بساز
+      if (!(await this.git.branchExists(rootBranch))) {
+        await this.git.raw(["checkout", "-b", rootBranch]);
+      }
+      // commit خالی با پیام "Initial commit"
+      await this.git.raw(["commit", "--allow-empty", "-m", "Initial commit", "--no-verify"]);
+      created.push(rootBranch);
+    }
+
+    // حالا بقیهٔ شاخه‌های پایه را ایجاد کن
     for (const base of this.workflow.baseBranches) {
       if (await this.git.branchExists(base.name)) continue;
       const startPoint =
-        base.base !== undefined && (await this.git.branchExists(base.base)) ? base.base : "HEAD";
+        base.base !== undefined && (await this.git.branchExists(base.base))
+          ? base.base
+          : rootBranch;
       await this.git.createBranch(base.name, startPoint);
       created.push(base.name);
     }
+
     return created;
   }
 
   /**
-   * Roll a stopped finish back to the state the repository started in.
+   * بازگردانی عملیات finish متوقف‌شده به حالت اولیه (قبل از شروع finish).
    */
   async abortOperation(): Promise<void> {
     const state = this.ctx.state.require();
-    if (await this.git.rebaseInProgress()) await this.git.abortRebase();
-    if (await this.git.mergeInProgress()) await this.git.abortMerge();
 
-    for (const tag of state.createdTags) {
-      if ((await this.git.tags()).includes(tag)) await this.git.deleteTag(tag);
+    // فقط عملیات finish پشتیبانی می‌شود
+    if (state.operation !== "finish") {
+      throw new OperationStateError(
+        `unsupported operation: ${state.operation}`,
+        "only finish operations can be aborted",
+      );
     }
-    const current = await this.git.currentBranch();
-    for (const [branch, sha] of Object.entries(state.snapshots)) {
+
+    const data = state.data;
+
+    // خاتمه عملیات‌های در حال اجرای git (merge یا rebase)
+    if (await this.git.rebaseInProgress()) {
+      await this.git.abortRebase();
+    }
+    if (await this.git.mergeInProgress()) {
+      await this.git.abortMerge();
+    }
+
+    // حذف تگ‌های ایجاد شده
+    const createdTags = (data.createdTags as string[]) || [];
+    for (const tag of createdTags) {
+      if ((await this.git.tags()).includes(tag)) {
+        await this.git.deleteTag(tag);
+      }
+    }
+
+    // بازگردانی شاخه‌ها به snapshotهای قبلی
+    const currentBranch = await this.git.currentBranch();
+    const snapshots = (data.snapshots as Record<string, string>) || {};
+    for (const [branch, sha] of Object.entries(snapshots)) {
       if (!(await this.git.branchExists(branch))) continue;
-      if (branch === current) await this.git.resetHard(sha);
-      else await this.git.raw(["update-ref", `refs/heads/${branch}`, sha]);
+      if (branch === currentBranch) {
+        await this.git.resetHard(sha);
+      } else {
+        await this.git.raw(["update-ref", `refs/heads/${branch}`, sha]);
+      }
     }
-    if (state.originalBranch !== undefined && (await this.git.branchExists(state.originalBranch))) {
-      await this.git.checkout(state.originalBranch);
+
+    // بازگشت به شاخهٔ اصلی (قبل از شروع finish)
+    const originalBranch = data.originalBranch as string | undefined;
+    if (originalBranch !== undefined && (await this.git.branchExists(originalBranch))) {
+      await this.git.checkout(originalBranch);
     }
-    this.ctx.state.clear();
+
+    // پاک کردن state
+    await this.ctx.state.clear();
   }
 
-  /**
-   * Continue a previously interrupted finish operation.
-   * Requires an existing operation state (created by a previous finish that stopped on conflict).
-   */
   async continueOperation(): Promise<FinishResult> {
     const state = this.ctx.state.require();
     if (state.operation !== "finish") {
@@ -519,15 +620,38 @@ export class Engine {
         "only finish operations can be continued",
       );
     }
-    const branchType = this.workflow.requireBranchType(state.branchType);
+
+    const data = state.data;
+    const branchName = data.branch as string;
+    const branchTypeName = data.branchType as string;
+    const branchType = this.workflow.requireBranchType(branchTypeName);
     const resolved: ResolvedBranch = {
-      branch: state.branch,
-      shortName: state.branch.slice(branchType.prefix.length),
+      branch: branchName,
+      shortName: branchName.slice(branchType.prefix.length),
       type: branchType,
     };
-    const options = state.options as FinishOptions;
-    const finishOp = new FinishOperation(this.ctx, resolved, options, state);
-    return finishOp.execute();
+    const options = data.options as FinishOptions;
+    const strategy = (data.strategy as string) || "merge";
+
+    // ساخت workflow و context با state موجود
+    const workflow = createFinishWorkflow(this.ctx, resolved, options);
+    const workflowContext = new EngineWorkflowContext(this.ctx, "finish", state);
+    const engine = new WorkflowEngine<EngineWorkflowContext>();
+
+    // استفاده از resume برای ادامه
+    await engine.resume(workflow, workflowContext);
+
+    const resultData = workflowContext.state.data;
+    return {
+      branch: resultData.branch as string,
+      base: (resultData.targets as string[])[0] ?? resolved.type.base,
+      strategy: strategy as "merge" | "squash" | "rebase",
+      tag: resultData.tag as string | undefined,
+      updatedBranches: resultData.updatedBranches as string[],
+      deletedLocal: resultData.deletedLocal as boolean,
+      deletedRemote: resultData.deletedRemote as boolean,
+      finalBranch: resultData.finalBranch as string,
+    };
   }
 }
 

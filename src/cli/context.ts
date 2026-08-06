@@ -1,3 +1,4 @@
+// src/cli/context.ts
 import { GitweError } from "../domain/errors.js";
 import { loadConfig, type LoadedConfig } from "../infrastructure/config/loader.js";
 import { createConsoleLogger } from "../infrastructure/logger/console-logger.js";
@@ -5,13 +6,24 @@ import { Engine } from "../application/engine.js";
 import { createEngine as wireEngine } from "../di/create-engine.js";
 import { ShellGitRepository } from "../infrastructure/git/shell-git-repository.js";
 import type { GlobalOptions } from "./options.js";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
 
 export async function repositoryRoot(cwd: string): Promise<string> {
-  const git = new ShellGitRepository({ cwd });
-  try {
-    return await git.root();
-  } catch {
-    throw new GitweError("NOT_A_REPOSITORY", `${cwd} is not a git repository`);
+  let current = resolve(cwd);
+  while (true) {
+    if (existsSync(`${current}/.git`)) {
+      return current;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      throw new GitweError(
+        "NOT_A_REPOSITORY",
+        `${cwd} is not a git repository`,
+        "Run `git init` to initialize a repository.",
+      );
+    }
+    current = parent;
   }
 }
 

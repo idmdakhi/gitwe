@@ -3,7 +3,7 @@ import { createInterface } from "node:readline/promises";
 import { Command } from "commander";
 import { resolvePath } from "../../application/path-resolver.js";
 
-import { ConfigError } from "../../domain/errors.js";
+import { ConfigError, GitweError } from "../../domain/errors.js";
 import {
   DEFAULT_CONFIG_FILE,
   findConfigFile,
@@ -111,7 +111,21 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
     .action(async (options: InitOptions) => {
       const globalOptions = globals();
       const cwd = globalOptions.cwd ?? process.cwd();
-      const root = await repositoryRoot(cwd);
+      // ===== بررسی وجود مخزن Git =====
+      let root: string;
+      try {
+        root = await repositoryRoot(cwd);
+        // ادامهٔ کار
+      } catch (error) {
+        if (error instanceof GitweError && error.code === "NOT_A_REPOSITORY") {
+          console.error(style.red(`✗ ${error.message}`));
+          console.error(style.dim(`  ${error.hint}`));
+          process.exitCode = 1;
+          return;
+        }
+        throw error;
+      }
+      root = await repositoryRoot(cwd);
       const dryRun = globalOptions.dryRun === true;
       const format = globalOptions.format;
 

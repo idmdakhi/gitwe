@@ -1,3 +1,5 @@
+// tests/unit/operation-state.test.ts
+
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,7 +16,6 @@ describe("FileOperationStateStore", () => {
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), "gitwe-state-"));
     gitDir = join(tempDir, ".git");
-    // Simulate git dir
     store = new FileOperationStateStore(gitDir);
   });
 
@@ -27,68 +28,83 @@ describe("FileOperationStateStore", () => {
     expect(store.read()).toBeUndefined();
   });
 
-  it("should write and read state", () => {
+  it("should write and read state", async () => {
     const state: OperationState = {
       version: 1,
       operation: "finish",
-      branch: "feature/test",
-      topicType: "feature",
-      options: { squash: true },
-      stepIndex: 2,
+      currentStep: "merge-into-base",
+      completedSteps: ["preflight", "fetch"],
+      data: {
+        branch: "feature/test",
+        branchType: "feature",
+        options: { squash: true },
+        strategy: "squash",
+        targets: ["develop"],
+        childBranches: [],
+        snapshots: { develop: "abc123" },
+        createdTags: ["v1.0.0"],
+        originalBranch: "develop",
+      },
       startedAt: new Date().toISOString(),
-      originalBranch: "develop",
-      snapshots: { develop: "abc123" },
-      createdTags: ["v1.0.0"],
-      branchType: "",
     };
-    store.write(state);
+    await store.write(state);
     expect(store.exists()).toBe(true);
     const read = store.read();
     expect(read).toEqual(state);
   });
 
-  it("should require state or throw", () => {
+  it("should require state or throw", async () => {
     expect(() => store.require()).toThrow(OperationStateError);
     const state: OperationState = {
       version: 1,
       operation: "finish",
-      branch: "feature/test",
-      topicType: "feature",
-      options: {},
-      stepIndex: 0,
+      currentStep: "",
+      completedSteps: [],
+      data: {
+        branch: "feature/test",
+        branchType: "feature",
+        options: {},
+        strategy: "merge",
+        targets: ["develop"],
+        childBranches: [],
+        snapshots: {},
+        createdTags: [],
+        originalBranch: undefined,
+      },
       startedAt: new Date().toISOString(),
-      snapshots: {},
-      createdTags: [],
-      branchType: "",
     };
-    store.write(state);
+    await store.write(state);
     expect(store.require()).toEqual(state);
   });
 
-  it("should clear state", () => {
+  it("should clear state", async () => {
     const state: OperationState = {
       version: 1,
       operation: "finish",
-      branch: "feature/test",
-      topicType: "feature",
-      options: {},
-      stepIndex: 0,
+      currentStep: "",
+      completedSteps: [],
+      data: {
+        branch: "feature/test",
+        branchType: "feature",
+        options: {},
+        strategy: "merge",
+        targets: ["develop"],
+        childBranches: [],
+        snapshots: {},
+        createdTags: [],
+        originalBranch: undefined,
+      },
       startedAt: new Date().toISOString(),
-      snapshots: {},
-      createdTags: [],
-      branchType: "",
     };
-    store.write(state);
+    await store.write(state);
     expect(store.exists()).toBe(true);
-    store.clear();
+    await store.clear();
     expect(store.exists()).toBe(false);
     expect(store.read()).toBeUndefined();
   });
 
-  it("should throw on malformed JSON", () => {
-    // Write invalid JSON
+  it("should throw on malformed JSON", async () => {
     const file = join(gitDir, "gitwe/operation.json");
-    // Create directory
     mkdirSync(join(gitDir, "gitwe"), { recursive: true });
     writeFileSync(file, "{ invalid }", "utf8");
     expect(() => store.read()).toThrow(OperationStateError);
