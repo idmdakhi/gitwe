@@ -228,12 +228,15 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
 
         // ۵. پرسش‌وجو برای tag prefix (اگر از خط فرمان نیامده باشد)
         if (options.tag === undefined) {
-          overrides.tagPrefix = await prompt("Version tag prefix?", draft.versioning.tagPrefix);
+          overrides.tagPrefix = await prompt(
+            "Version tag prefix?",
+            draft.versioning?.tagPrefix ?? "v",
+          );
         }
 
         // ۶. پرسش‌وجو برای remote (اگر از خط فرمان نیامده باشد)
         if (options.remote === undefined) {
-          const remoteNameAnswer = await prompt("Remote name?", draft.remote.name);
+          const remoteNameAnswer = await prompt("Remote name?", draft.remote?.name ?? "origin");
           overrides.remoteName = remoteNameAnswer;
         }
 

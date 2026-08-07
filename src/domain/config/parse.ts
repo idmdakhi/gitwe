@@ -91,12 +91,19 @@ function parseBaseBranch(value: unknown, index: number): BaseBranch {
     throw new ConfigError(`baseBranches[${index}] must be an object`);
   }
   const path = `baseBranches[${index}]`;
-  return {
+  const result: BaseBranch = {
     name: requireString(value.name, `${path}.name`),
-    aliases: Array.isArray(value.aliases) ? value.aliases.map(String) : undefined,
-    base: optionalString(value.base, `${path}.base`),
     protected: booleanValue(value.protected, `${path}.protected`, false),
   };
+
+  if (value.aliases !== undefined && Array.isArray(value.aliases)) {
+    result.aliases = value.aliases.map(String);
+  }
+  if (value.base !== undefined && value.base !== null && value.base !== "") {
+    result.base = optionalString(value.base, `${path}.base`);
+  }
+
+  return result;
 }
 
 function parseBranchType(value: unknown, index: number): BranchType {
@@ -105,16 +112,24 @@ function parseBranchType(value: unknown, index: number): BranchType {
   }
   const path = `branchTypes[${index}]`;
   const name = requireString(value.name, `${path}.name`);
-  return {
+  const result: BranchType = {
     name,
-    aliases: Array.isArray(value.aliases) ? value.aliases.map(String) : undefined,
     base: requireString(value.base, `${path}.base`),
     target: parseStringArray(value.target, `${path}.target`),
     prefix: requireString(value.prefix, `${path}.prefix`, `${name}/`),
   };
+
+  if (value.aliases !== undefined && Array.isArray(value.aliases)) {
+    result.aliases = value.aliases.map(String);
+  }
+
+  return result;
 }
 
 function parseHooks(value: unknown): HookConfig {
+  if (value === undefined || value === null) {
+    return { enabled: true, path: ".gitwe/hooks" };
+  }
   if (!isRecord(value)) {
     return { enabled: true, path: ".gitwe/hooks" };
   }
@@ -132,7 +147,6 @@ function parseRemote(value: unknown): RemoteConfig {
       autoFetch: booleanValue(value.autoFetch, "remote.autoFetch", true),
     };
   }
-  // اگر string باشد، به object تبدیل کن
   if (typeof value === "string") {
     return { name: value };
   }
@@ -146,10 +160,15 @@ function parseVersion(value: unknown): VersioningConfig {
       tagPrefix: "v",
       tag: [],
       branchTypes: {},
+      autoCommit: true,
+      path: ".gitwe/VERSION.yaml",
+      bumpRules: {},
+      commitMessage: "chore: bump version to {{version}}",
+      initialVersion: "0.1.0",
     };
   }
   return {
-    enabled: booleanValue(value.enabled, "versioning.enabled", true),
+    enabled: booleanValue(value.enabled, "versioning.enabled", false),
     tagPrefix: requireString(value.tagPrefix, "versioning.tagPrefix", "v"),
     format: optionalString(value.format, "versioning.format") ?? "{{tagPrefix}}{{version}}",
     tag: parseStringArray(value.tag, "versioning.tag"),
@@ -168,6 +187,31 @@ function parseVersion(value: unknown): VersioningConfig {
       ? {
           enabled: booleanValue(value.changelog.enabled, "versioning.changelog.enabled", false),
           path: optionalString(value.changelog.path, "versioning.changelog.path") ?? "CHANGELOG.md",
+        }
+      : undefined,
+    autoCommit: booleanValue(value.autoCommit, "versioning.autoCommit", true),
+    path: optionalString(value.path, "versioning.path") ?? ".gitwe/VERSION.yaml",
+    bumpRules: isRecord(value.bumpRules)
+      ? Object.fromEntries(
+          Object.entries(value.bumpRules).map(([key, val]) => [
+            key,
+            Array.isArray(val) ? val.map(String) : [],
+          ]),
+        )
+      : {},
+    commitMessage:
+      optionalString(value.commitMessage, "versioning.commitMessage") ??
+      "chore: bump version to {{version}}",
+    initialVersion: optionalString(value.initialVersion, "versioning.initialVersion") ?? "0.1.0",
+    prerelease: isRecord(value.prerelease)
+      ? {
+          enabled: booleanValue(value.prerelease.enabled, "versioning.prerelease.enabled", false),
+          format:
+            optionalString(value.prerelease.format, "versioning.prerelease.format") ??
+            "{{type}}.{{number}}",
+          types: Array.isArray(value.prerelease.types)
+            ? value.prerelease.types.map(String)
+            : ["alpha", "beta", "rc"],
         }
       : undefined,
   };
@@ -300,53 +344,69 @@ function validateWorkflow(config: WorkflowConfig): void {
   }
 
   // Validate merge.deleteOnFinish
-  for (const name of config.merge.deleteOnFinish) {
-    if (!names.has(name)) {
-      throw new ConfigError(`merge.deleteOnFinish references unknown branch type "${name}"`);
-    }
-  }
-
-  // Validate merge.branchTypes keys
-  for (const [key] of Object.entries(config.merge.branchTypes)) {
-    if (!names.has(key)) {
-      throw new ConfigError(`merge.branchTypes references unknown branch type "${key}"`);
-    }
-  }
-
-  // Validate merge.squash.branchTypes
-  if (config.merge.squash) {
-    for (const name of config.merge.squash.branchTypes) {
+  const merge = config.merge;
+  if (merge) {
+    for (const name of merge.deleteOnFinish || []) {
       if (!names.has(name)) {
-        throw new ConfigError(`merge.squash.branchTypes references unknown branch type "${name}"`);
+        throw new ConfigError(`merge.deleteOnFinish references unknown branch type "${name}"`);
       }
     }
-  }
 
-  // Validate versioning.tag
-  for (const name of config.versioning.tag) {
-    if (!names.has(name)) {
-      throw new ConfigError(`versioning.tag references unknown branch type "${name}"`);
+    // Validate merge.branchTypes keys
+    for (const [key] of Object.entries(merge.branchTypes || {})) {
+      if (!names.has(key)) {
+        throw new ConfigError(`merge.branchTypes references unknown branch type "${key}"`);
+      }
     }
-  }
 
-  // Validate versioning.branchTypes
-  //
-  // FIX: the old code special-cased `name !== ""` here because
-  // parseStringArray used to be able to hand back `[""]`. Now that
-  // parseStringArray always normalizes blank strings to `[]`, an empty
-  // string can never reach this point — so the exception was dead code
-  // that only masked the real bug. Removed for a single, consistent rule.
-  if (config.versioning.branchTypes) {
-    for (const [key, arr] of Object.entries(config.versioning.branchTypes)) {
-      for (const name of arr) {
+    // Validate merge.squash.branchTypes
+    if (merge.squash) {
+      for (const name of merge.squash.branchTypes || []) {
         if (!names.has(name)) {
           throw new ConfigError(
-            `versioning.branchTypes.${key} references unknown branch type "${name}"`,
+            `merge.squash.branchTypes references unknown branch type "${name}"`,
           );
         }
       }
     }
   }
+
+  // Validate versioning.tag
+  const versioning = config.versioning;
+  if (versioning) {
+    for (const name of versioning.tag || []) {
+      if (!names.has(name)) {
+        throw new ConfigError(`versioning.tag references unknown branch type "${name}"`);
+      }
+    }
+
+    // Validate versioning.branchTypes
+    if (versioning.branchTypes) {
+      for (const [key, arr] of Object.entries(versioning.branchTypes)) {
+        for (const name of arr || []) {
+          if (!names.has(name)) {
+            throw new ConfigError(
+              `versioning.branchTypes.${key} references unknown branch type "${name}"`,
+            );
+          }
+        }
+      }
+    }
+  }
+}
+
+function stripUndefined(obj: any): any {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(stripUndefined);
+  }
+  const result: any = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = stripUndefined(value);
+    }
+  }
+  return result;
 }
 
 export function parseWorkflowConfig(input: unknown): WorkflowConfig {
@@ -378,5 +438,5 @@ export function parseWorkflowConfig(input: unknown): WorkflowConfig {
   };
 
   validateWorkflow(config);
-  return config;
+  return stripUndefined(config) as WorkflowConfig;
 }

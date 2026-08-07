@@ -25,6 +25,11 @@ interface FinishCliOptions {
   updateMessage?: string;
   noVerify?: boolean;
   push?: boolean;
+  interactive?: boolean;
+  "no-interactive"?: boolean;
+  major?: boolean;
+  minor?: boolean;
+  patch?: boolean;
 }
 
 function reportFinish(result: FinishResult, format?: "text" | "json" | "yaml" | "table"): void {
@@ -66,6 +71,10 @@ export function registerFinish(program: Command, globals: () => GlobalOptions): 
     .option("--update-message <message>", "message for parent → child updates (%b, %p)")
     .option("--no-verify", "bypass git hooks during merges")
     .option("--push", "push the updated base branches when finished")
+    .option("--no-interactive", "disable interactive prompts (use defaults)")
+    .option("--major", "force major version bump")
+    .option("--minor", "force minor version bump")
+    .option("--patch", "force patch version bump")
     .action(async (name: string | undefined, opts: FinishCliOptions) => {
       const engine = await createEngine(globals());
       const format = globals().format;
@@ -99,6 +108,10 @@ export function registerFinish(program: Command, globals: () => GlobalOptions): 
           updateMessage: opts.updateMessage,
           noVerify: opts.noVerify,
           push: opts.push,
+          interactive: opts.interactive !== false && !opts["no-interactive"],
+          major: opts.major,
+          minor: opts.minor,
+          patch: opts.patch,
         });
       }
       reportFinish(result, format);

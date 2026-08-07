@@ -245,7 +245,9 @@ export class Engine {
       data: {
         branch: resolved.branch,
         branchType: resolved.type.name,
-        options: { ...options },
+        options: {
+          ...options,
+        },
         strategy, // <-- ذخیره استراتژی
         targets,
         childBranches: childNames,
@@ -532,6 +534,7 @@ export class Engine {
   async createMissingBaseBranches(): Promise<string[]> {
     const created: string[] = [];
     const rootBranch = this.workflow.rootBranch.name;
+    // const remote = this.workflow.config.remote?.name ?? "origin";
 
     // اگر مخزن هیچ commitی ندارد، یک commit خالی ایجاد کن
     if (!(await this.git.hasCommits())) {

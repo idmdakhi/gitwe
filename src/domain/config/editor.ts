@@ -142,24 +142,33 @@ export function renameBranchType(config: WorkflowConfig, from: string, to: strin
 
   // Update references in merge config
   const merge = next.merge;
-  if (merge.branchTypes[from] !== undefined) {
-    merge.branchTypes[to] = merge.branchTypes[from];
-    delete merge.branchTypes[from];
-  }
-  merge.deleteOnFinish = merge.deleteOnFinish.map((n: string) => (n === from ? to : n));
-  if (merge.squash) {
-    merge.squash.branchTypes = merge.squash.branchTypes.map((n: string) => (n === from ? to : n));
+  if (merge) {
+    if (merge.branchTypes?.[from] !== undefined) {
+      if (!merge.branchTypes) merge.branchTypes = {};
+      merge.branchTypes[to] = merge.branchTypes[from];
+      delete merge.branchTypes[from];
+    }
+    if (merge.deleteOnFinish) {
+      merge.deleteOnFinish = merge.deleteOnFinish.map((n: string) => (n === from ? to : n));
+    }
+    if (merge.squash?.branchTypes) {
+      merge.squash.branchTypes = merge.squash.branchTypes.map((n: string) => (n === from ? to : n));
+    }
   }
 
   // Update references in versioning
   const versioning = next.versioning;
-  versioning.tag = versioning.tag.map((n) => (n === from ? to : n));
-  if (versioning.branchTypes) {
-    for (const key of ["version", "major", "minor", "patch", "metadata"] as const) {
-      if (versioning.branchTypes[key]) {
-        versioning.branchTypes[key] = versioning.branchTypes[key]!.map((n) =>
-          n === from ? to : n,
-        );
+  if (versioning) {
+    if (versioning.tag) {
+      versioning.tag = versioning.tag.map((n) => (n === from ? to : n));
+    }
+    if (versioning.branchTypes) {
+      for (const key of ["version", "major", "minor", "patch", "metadata"] as const) {
+        if (versioning.branchTypes[key]) {
+          versioning.branchTypes[key] = versioning.branchTypes[key]!.map((n) =>
+            n === from ? to : n,
+          );
+        }
       }
     }
   }
@@ -174,20 +183,30 @@ export function deleteBranchType(config: WorkflowConfig, name: string): Workflow
   next.branchTypes = next.branchTypes.filter((bt) => bt.name !== name);
 
   // Remove from merge config
-  delete next.merge.branchTypes[name];
-  next.merge.deleteOnFinish = next.merge.deleteOnFinish.filter((n) => n !== name);
-  if (next.merge.squash) {
-    next.merge.squash.branchTypes = next.merge.squash.branchTypes.filter((n) => n !== name);
+  const merge = next.merge;
+  if (merge) {
+    if (merge.branchTypes) {
+      delete merge.branchTypes[name];
+    }
+    if (merge.deleteOnFinish) {
+      merge.deleteOnFinish = merge.deleteOnFinish.filter((n) => n !== name);
+    }
+    if (merge.squash?.branchTypes) {
+      merge.squash.branchTypes = merge.squash.branchTypes.filter((n) => n !== name);
+    }
   }
 
   // Remove from versioning
-  next.versioning.tag = next.versioning.tag.filter((n) => n !== name);
-  if (next.versioning.branchTypes) {
-    for (const key of ["version", "major", "minor", "patch", "metadata"] as const) {
-      if (next.versioning.branchTypes[key]) {
-        next.versioning.branchTypes[key] = next.versioning.branchTypes[key]!.filter(
-          (n) => n !== name,
-        );
+  const versioning = next.versioning;
+  if (versioning) {
+    if (versioning.tag) {
+      versioning.tag = versioning.tag.filter((n) => n !== name);
+    }
+    if (versioning.branchTypes) {
+      for (const key of ["version", "major", "minor", "patch", "metadata"] as const) {
+        if (versioning.branchTypes[key]) {
+          versioning.branchTypes[key] = versioning.branchTypes[key]!.filter((n) => n !== name);
+        }
       }
     }
   }

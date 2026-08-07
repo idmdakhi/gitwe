@@ -78,8 +78,20 @@ export class TestRepo {
     return out === "" ? [] : out.split("\n");
   }
 
-  async engine(config?: WorkflowConfig): Promise<Engine> {
+  async engine(config?: WorkflowConfig, enableVersioning = false): Promise<Engine> {
     const workflow = config ?? this.preset("classic");
+    // اگر enableVersioning فعال باشد، versioning.enabled را true کن
+    if (enableVersioning && workflow.versioning) {
+      workflow.versioning.enabled = true;
+      // همچنین اطمینان از وجود bumpRules پیش‌فرض
+      if (!workflow.versioning.bumpRules) {
+        workflow.versioning.bumpRules = {
+          major: [],
+          minor: ["feature"],
+          patch: ["hotfix"],
+        };
+      }
+    }
     await this.createBaseBranches(workflow);
     return createEngine({
       root: this.path,
@@ -102,11 +114,15 @@ export class TestRepo {
 
   destroy(): void {
     try {
-      rmSync(this.path, { recursive: true, force: true });
+      rmSync(this.path, { recursive: true, force: true, maxRetries: 3 });
     } catch {
       // در Windows ممکن است خطا بدهد، صبر کنید و دوباره تلاش کنید
       setTimeout(() => {
-        rmSync(this.path, { recursive: true, force: true });
+        try {
+          rmSync(this.path, { recursive: true, force: true, maxRetries: 3 });
+        } catch {
+          // نادیده گرفته شود
+        }
       }, 100);
     }
   }

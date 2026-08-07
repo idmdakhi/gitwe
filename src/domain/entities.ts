@@ -40,9 +40,7 @@ export interface VersioningConfig {
   enabled: boolean;
   tagPrefix: string;
   format?: string;
-  /** Array of branch type names that should be tagged */
   tag: string[];
-  /** Mapping of version bump types to branch type names */
   branchTypes?: {
     version?: string[];
     major?: string[];
@@ -55,6 +53,17 @@ export interface VersioningConfig {
   changelog?: {
     enabled: boolean;
     path?: string;
+  };
+  // فیلدهای جدید
+  autoCommit?: boolean;
+  path?: string;
+  bumpRules?: Record<string, string[]>;
+  commitMessage?: string;
+  initialVersion?: string;
+  prerelease?: {
+    enabled: boolean;
+    format?: string;
+    types?: string[];
   };
 }
 
@@ -82,13 +91,13 @@ export interface CliConfig {
 export interface WorkflowConfig {
   version: 1;
   name: string;
-  remote: RemoteConfig;
   baseBranches: BaseBranch[];
   branchTypes: BranchType[];
-  hooks: HookConfig;
+  hooks?: HookConfig;
   cli?: CliConfig;
-  merge: MergeConfig;
-  versioning: VersioningConfig;
+  merge?: MergeConfig;
+  versioning?: VersioningConfig;
+  remote?: RemoteConfig;
 }
 
 /** A topic branch resolved against the workflow definition. */

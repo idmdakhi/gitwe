@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 
 import { ConflictError, GitError } from "../../domain/errors.js";
 import type {
@@ -10,6 +10,7 @@ import type {
   TagOptions,
 } from "../../application/interfaces/git-repository.js";
 import { runProcess } from "./process-runner.js";
+import yaml from "js-yaml";
 
 export interface ShellGitOptions {
   cwd: string;
@@ -294,5 +295,164 @@ export class ShellGitRepository implements GitRepository {
   async remoteExists(remote: string): Promise<boolean> {
     const out = await this.run(["remote"]);
     return out.split("\n").includes(remote);
+  }
+
+  /**
+   * خواندن نسخه از package.json
+   */
+  async getPackageVersion(): Promise<string> {
+    const pkgPath = resolve(this.cwd, "package.json");
+    if (!existsSync(pkgPath)) {
+      return "0.0.0";
+    }
+    try {
+      const content = readFileSync(pkgPath, "utf8");
+      const pkg = JSON.parse(content);
+      return pkg.version || "0.0.0";
+    } catch {
+      return "0.0.0";
+    }
+  }
+
+  /**
+   * خواندن نسخه از VERSION.yaml
+   */
+  async getVersionFromYaml(yamlPath: string): Promise<string> {
+    if (!existsSync(yamlPath)) {
+      return "0.0.0";
+    }
+    try {
+      const content = readFileSync(yamlPath, "utf8");
+      const data = yaml.load(content) as { version?: string };
+      return data?.version || "0.0.0";
+    } catch {
+      return "0.0.0";
+    }
+  }
+
+  /**
+   * بروزرسانی نسخه در VERSION.yaml
+   */
+  async setVersionInYaml(yamlPath: string, newVersion: string): Promise<void> {
+    try {
+      // اطمینان از وجود دایرکتوری
+      const dir = dirname(yamlPath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+
+      // اگر فایل وجود ندارد، یک فایل پیش‌فرض ایجاد کن
+      if (!existsSync(yamlPath)) {
+        const defaultContent = {
+          version: "0.1.0",
+          tagPrefix: "v",
+          format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}",
+          tag: ["main"],
+          bumpRules: {
+            major: [],
+            minor: ["feature"],
+            patch: ["hotfix"],
+          },
+          autoCommit: true,
+          commitMessage: "chore: bump version to {{version}}",
+        };
+        writeFileSync(yamlPath, yaml.dump(defaultContent), "utf8");
+      }
+
+      // خواندن و به‌روزرسانی
+      const content = readFileSync(yamlPath, "utf8");
+      const data = yaml.load(content) as Record<string, unknown>;
+      data.version = newVersion;
+      writeFileSync(yamlPath, yaml.dump(data, { lineWidth: 100, noRefs: true }), "utf8");
+    } catch (error) {
+      throw new Error(`Failed to update version in ${yamlPath}: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * پارس کردن نسخه به اجزاء
+   */
+  parseVersion(
+    version: string,
+  ): { major: number; minor: number; patch: number; prerelease?: string } | null {
+    const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-(.+))?$/);
+    if (!match) return null;
+    return {
+      major: parseInt(match[1], 10),
+      minor: parseInt(match[2], 10),
+      patch: parseInt(match[3], 10),
+      prerelease: match[4],
+    };
+  }
+
+  /**
+   * افزایش نسخه بر اساس نوع bump
+   */
+  bumpVersion(version: string, bumpType: "major" | "minor" | "patch" | "prerelease"): string {
+    const parsed = this.parseVersion(version);
+    if (!parsed) return "0.1.0";
+
+    let { major, minor, patch, prerelease } = parsed;
+
+    if (bumpType === "major") {
+      major += 1;
+      minor = 0;
+      patch = 0;
+      prerelease = undefined;
+    } else if (bumpType === "minor") {
+      minor += 1;
+      patch = 0;
+      prerelease = undefined;
+    } else if (bumpType === "patch") {
+      patch += 1;
+      prerelease = undefined;
+    } else if (bumpType === "prerelease") {
+      const parts = prerelease ? prerelease.split(".") : [];
+      const type = parts[0] || "alpha";
+      const number = parts.length > 1 ? parseInt(parts[1], 10) + 1 : 1;
+      prerelease = `${type}.${number}`;
+    }
+
+    const base = `${major}.${minor}.${patch}`;
+    return prerelease ? `${base}-${prerelease}` : base;
+  }
+
+  /**
+   * تولید نام تگ با استفاده از قالب
+   */
+  renderTagName(
+    format: string,
+    versionObj: {
+      tagPrefix: string;
+      major: number;
+      minor: number;
+      patch: number;
+      prerelease?: string;
+    },
+  ): string {
+    let result = format;
+    result = result.replace(/\{\{tagPrefix\}\}/g, versionObj.tagPrefix);
+    result = result.replace(/\{\{major\}\}/g, String(versionObj.major));
+    result = result.replace(/\{\{minor\}\}/g, String(versionObj.minor));
+    result = result.replace(/\{\{patch\}\}/g, String(versionObj.patch));
+    if (versionObj.prerelease) {
+      result = result.replace(/\{\{prerelease\}\}/g, versionObj.prerelease);
+      result = result.replace(
+        /{{#if prerelease}}-{{prerelease}}\{\{\/if\}\}/g,
+        `-${versionObj.prerelease}`,
+      );
+    } else {
+      result = result.replace(/{{#if prerelease}}-{{prerelease}}\{\{\/if\}\}/g, "");
+      result = result.replace(/\{\{prerelease\}\}/g, "");
+    }
+    return result;
+  }
+
+  /**
+   * بررسی وجود تگ
+   */
+  async tagExists(tagName: string): Promise<boolean> {
+    const tags = await this.tags();
+    return tags.includes(tagName);
   }
 }

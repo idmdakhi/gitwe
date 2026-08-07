@@ -1,13 +1,32 @@
 // src/application/workflows/finish-workflow.ts
 
-import type { Workflow, WorkflowStep, WorkflowContext } from "../interfaces/index.js";
-import type { EngineContext } from "../context.js";
+import type {
+  Workflow,
+  WorkflowStep,
+  WorkflowContext,
+  OperationState,
+} from "../interfaces/index.js";
 import type { ResolvedBranch, BaseBranch } from "../../domain/entities.js";
 import type { FinishOptions, FinishResult } from "../use-case/finish.js";
-import type { OperationState } from "../interfaces/operation-state.js";
 import { ConflictError, ValidationError } from "../../domain/errors.js";
-import { expandMessage } from "../context.js";
+import { expandMessage, type EngineContext } from "../context.js";
+import { style } from "../../cli/output.js";
+import { dirname, resolve } from "node:path";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import yaml from "js-yaml";
+import { createInterface } from "node:readline/promises";
+import { strict } from "node:assert";
 
+interface VersionBumpData {
+  current: string;
+  new: string;
+  type: string;
+  tagName?: string;
+  message: string;
+  shouldTag: boolean;
+  committed?: boolean;
+  tagCreated?: boolean;
+}
 // ============================================================================
 //  پیاده‌سازی WorkflowContext برای موتور
 // ============================================================================
@@ -359,6 +378,10 @@ class TagStep implements WorkflowStep<EngineWorkflowContext> {
   readonly title = "Create tag";
 
   async canExecute(context: EngineWorkflowContext): Promise<boolean> {
+    // اگر نسخه‌گذاری فعال باشد و تگ ایجاد شده باشد، نیازی به TagStep نیست
+    const versionData = context.state.data.versionBump as any;
+    if (versionData?.tagCreated) return false;
+
     const options = context.state.data.options as FinishOptions;
     const shouldTag =
       options.tag ??
@@ -366,39 +389,52 @@ class TagStep implements WorkflowStep<EngineWorkflowContext> {
         context.engineContext.workflow.requireBranchType(context.state.data.branchType as string),
       );
     if (!shouldTag) return false;
+
+    // بررسی target شامل main
     const targets = context.state.data.targets as string[];
-    if (targets.length === 0) return false;
-    const name =
-      options.tagName ??
-      `${context.engineContext.workflow.tagPrefixFor(
-        context.engineContext.workflow.requireBranchType(context.state.data.branchType as string),
-      )}${(context.state.data.branch as string).split("/").pop()}`;
-    const tags = await context.engineContext.git.tags();
-    return !tags.includes(name);
+    return context.engineContext.workflow.shouldCreateTag(targets);
   }
 
   async execute(context: EngineWorkflowContext): Promise<void> {
     const { git } = context.engineContext;
     const options = context.state.data.options as FinishOptions;
-    const name =
-      options.tagName ??
-      `${context.engineContext.workflow.tagPrefixFor(
-        context.engineContext.workflow.requireBranchType(context.state.data.branchType as string),
-      )}${(context.state.data.branch as string).split("/").pop()}`;
+    const branchType = context.engineContext.workflow.requireBranchType(
+      context.state.data.branchType as string,
+    );
 
-    await git.createTag(name, {
-      message: options.message ?? name,
+    // از نسخه جدید استفاده کن
+    const versionData = context.state.data.versionBump as any;
+    let tagName: string;
+
+    if (versionData?.tagName) {
+      tagName = versionData.tagName;
+    } else {
+      // حالت fallback
+      const prefix = context.engineContext.workflow.tagPrefixFor(branchType);
+      tagName =
+        options.tagName ?? `${prefix}${(context.state.data.branch as string).split("/").pop()}`;
+    }
+
+    // بررسی وجود تگ
+    if ((await git.tags()).includes(tagName)) {
+      context.engineContext.logger.debug(`tag ${tagName} already exists`);
+      context.state.data.tag = tagName;
+      return;
+    }
+
+    // ایجاد تگ
+    await git.createTag(tagName, {
+      message: options.message ?? versionData?.message ?? tagName,
       sign: options.sign,
       signingKey: options.signingKey,
     });
 
-    const createdTags = (context.state.data.createdTags as string[]) || [];
-    createdTags.push(name);
-    context.state.data.createdTags = createdTags;
-    context.state.data.tag = name; // برای نتیجه نهایی
+    context.state.data.tag = tagName;
+    context.engineContext.logger.info(`✅ Tag created: ${tagName}`);
   }
 
   async resume(_context: EngineWorkflowContext): Promise<void> {}
+
   async rollback(context: EngineWorkflowContext): Promise<void> {
     // در صورت abort، تگ ایجادشده حذف می‌شود
     const { git } = context.engineContext;
@@ -409,6 +445,7 @@ class TagStep implements WorkflowStep<EngineWorkflowContext> {
       }
     }
   }
+
   async isCompleted(_context: EngineWorkflowContext): Promise<boolean> {
     return true;
   }
@@ -607,6 +644,258 @@ class DeleteLocalStep implements WorkflowStep<EngineWorkflowContext> {
   }
 }
 
+// ============================================================================
+//  Step: Version Bump با تعامل کامل
+// ============================================================================
+
+class VersionBumpStep implements WorkflowStep<EngineWorkflowContext> {
+  readonly id = "version-bump";
+  readonly title = "Version management";
+
+  async canExecute(context: EngineWorkflowContext): Promise<boolean> {
+    const versioning = context.engineContext.workflow.config.versioning;
+    if (!versioning?.enabled) return false;
+
+    const branch: string = context.state.data.branch as string;
+    const bumpType = context.engineContext.workflow.getVersionBumpForBranch(branch);
+    return bumpType !== "none";
+  }
+
+  async execute(context: EngineWorkflowContext): Promise<void> {
+    const { git, workflow, logger } = context.engineContext;
+    const root = await git.root();
+    const versioning = workflow.config.versioning;
+    if (!versioning?.enabled) {
+      logger.debug("Versioning is disabled, skipping version bump");
+      return;
+    }
+    const versionPath = resolve(root, versioning.path ?? ".gitwe/VERSION.yaml");
+    const versionDir = dirname(versionPath);
+    if (!existsSync(versionDir)) {
+      mkdirSync(versionDir, { recursive: true });
+    }
+    if (!existsSync(versionPath)) {
+      const defaultContent = {
+        version: "0.1.0",
+        tagPrefix: "v",
+        format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}",
+        tag: ["main"],
+        bumpRules: {
+          major: [],
+          minor: ["feature"],
+          patch: ["hotfix"],
+        },
+        autoCommit: true,
+        commitMessage: "chore: bump version to {{version}}",
+      };
+      writeFileSync(versionPath, yaml.dump(defaultContent), "utf8");
+    }
+    // ===== 1. خواندن نسخه از هر دو منبع =====
+    const pkgVersion = await git.getPackageVersion();
+    const yamlVersion = await git.getVersionFromYaml(versionPath);
+
+    // ===== 2. بررسی هم‌خوانی =====
+    if (pkgVersion !== yamlVersion) {
+      throw new Error(
+        `Version mismatch!\n` +
+          `  package.json:   ${pkgVersion}\n` +
+          `  ${versionPath}: ${yamlVersion}\n` +
+          `Please sync them manually before continuing.`,
+      );
+    }
+
+    const currentVersion = pkgVersion; // هر دو برابر هستند
+
+    // ===== 3. تعیین نوع bump =====
+    const branch = context.state.data.branch as string;
+    let bumpType = context.engineContext.workflow.getVersionBumpForBranch(branch);
+
+    // ===== 4. اعمال override از خط فرمان =====
+    const options = context.state.data.options as FinishOptions;
+    if (bumpType !== "none") {
+      if (options.major) bumpType = "major";
+      else if (options.minor) bumpType = "minor";
+      else if (options.patch) bumpType = "patch";
+    }
+    // ===== 5. محاسبه نسخه جدید =====
+    if (bumpType === "none") {
+      logger.debug("No version bump needed for this branch");
+      context.state.data.versionBump = undefined;
+      return;
+    }
+    const newVersion: string = git.bumpVersion(currentVersion, bumpType);
+
+    // ===== 6. تولید نام تگ و پیام commit =====
+    const tagPrefix = workflow.tagPrefixFor(
+      workflow.requireBranchType(context.state.data.branchType as string),
+    );
+    const versionObj = git.parseVersion(newVersion) as {
+      major: number;
+      minor: number;
+      patch: number;
+      prerelease?: string;
+    } | null;
+    const format = versioning.format || "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}";
+    const tagName = git.renderTagName(format, {
+      tagPrefix,
+      major: versionObj?.major || 0,
+      minor: versionObj?.minor || 0,
+      patch: versionObj?.patch || 0,
+      prerelease: versionObj?.prerelease || "",
+    });
+
+    const commitTemplate = versioning.commitMessage ?? "chore: bump version to {{version}}";
+    const commitMessage = commitTemplate.replace(/\{\{version\}\}/g, String(newVersion));
+
+    // ===== 7. بررسی شرط تگ‌زنی =====
+    const targets = context.state.data.targets as string[];
+    const shouldTag = workflow.shouldCreateTag(targets);
+
+    // ===== 8. تعامل با کاربر =====
+    const interactive =
+      options.interactive !== false &&
+      process.stdin.isTTY &&
+      process.stdout.isTTY &&
+      !process.env.CI; // غیرفعال در محیط CI
+    let finalVersion: string = newVersion;
+    let finalMessage: string = commitMessage;
+    let skipVersion = false;
+
+    if (interactive) {
+      const rl = createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        console.log("\n" + style.bold("📦 Version Management"));
+        console.log(`  ${style.dim("package.json:")}   ${style.green(String(currentVersion))}`);
+        console.log(
+          `  ${style.dim("VERSION.yaml:")}   ${style.green(String(yamlVersion))}  ✅ (synced)`,
+        );
+        console.log(`  ${style.dim("Bump type:")}      ${style.cyan(bumpType)}`);
+        console.log(`  ${style.dim("New version:")}    ${style.yellow(String(newVersion))}`);
+        console.log(`  ${style.dim("Tag name:")}       ${style.magenta(tagName)}`);
+        console.log(`  ${style.dim("Target:")}         ${targets.join(", ")}`);
+        if (shouldTag) {
+          console.log(
+            `  ${style.dim("Tag condition:")}  ${style.green("✅ target includes tag target")}`,
+          );
+        } else {
+          console.log(
+            `  ${style.dim("Tag condition:")}  ${style.yellow("ℹ️  target does not include tag target")}`,
+          );
+        }
+        console.log(`  ${style.dim("Commit message:")} ${style.magenta(commitMessage)}`);
+        console.log();
+
+        // سؤال برای نسخه
+        console.log(style.dim('Enter new version (or press Enter to accept, "skip" to skip):'));
+        const versionAnswer = await rl.question("  Version: ");
+        const trimmedVersion = versionAnswer.trim();
+
+        if (trimmedVersion.toLowerCase() === "skip" || trimmedVersion.toLowerCase() === "s") {
+          skipVersion = true;
+          logger.info("Version bump skipped by user");
+          return;
+        }
+
+        if (trimmedVersion !== "") {
+          const parsedNew = git.parseVersion(trimmedVersion);
+          if (parsedNew) {
+            finalVersion = trimmedVersion;
+          } else {
+            console.log(
+              style.yellow(`⚠️  "${trimmedVersion}" is not a valid version. Using ${newVersion}`),
+            );
+            finalVersion = newVersion;
+          }
+        }
+
+        // سؤال برای پیام commit
+        console.log("\n" + style.dim("Enter commit message (or press Enter to accept):"));
+        const messageAnswer = await rl.question("  Message: ");
+        if (messageAnswer.trim() !== "") {
+          finalMessage = messageAnswer.trim();
+        }
+      } finally {
+        rl.close();
+      }
+    } else {
+      logger.info(`Version bump: ${currentVersion} → ${newVersion} (${bumpType})`);
+    }
+
+    if (skipVersion) {
+      context.state.data.versionBump = undefined;
+      return;
+    }
+
+    // ===== 9. بررسی وجود تگ =====
+    if (shouldTag) {
+      const tagExists = await git.tagExists(tagName);
+      if (tagExists) {
+        throw new Error(
+          `Tag "${tagName}" already exists!\n` +
+            `Please delete it manually or choose a different version.`,
+        );
+      }
+    }
+
+    // ===== 10. ذخیره در state =====
+    context.state.data.versionBump = {
+      current: currentVersion,
+      new: finalVersion,
+      type: bumpType,
+      tagName: shouldTag ? tagName : undefined,
+      message: finalMessage,
+      shouldTag,
+    };
+
+    // ===== 11. ذخیره در VERSION.yaml =====
+    if (finalVersion !== currentVersion) {
+      await git.setVersionInYaml(versionPath, finalVersion);
+
+      // ===== 12. commit خودکار =====
+      if (versioning.autoCommit !== false) {
+        await git.raw(["add", versionPath]);
+        await git.commit(finalMessage, { noVerify: true });
+        const versionBump = context.state.data.versionBump as VersionBumpData | undefined;
+        if (versionBump) {
+          versionBump.committed = true;
+        }
+        logger.info(`✅ Version bumped to ${finalVersion} and committed`);
+      } else {
+        logger.info(`✅ Version bumped to ${finalVersion} (saved in ${versionPath})`);
+        logger.warn(`⚠️  autoCommit is disabled. Please commit manually:`);
+        logger.warn(`    git add ${versionPath}`);
+        logger.warn(`    git commit -m "${finalMessage}"`);
+      }
+
+      // ===== 13. ایجاد تگ (اگر شرط برقرار باشد) =====
+      if (shouldTag) {
+        await git.createTag(String(tagName), {
+          message: finalMessage,
+          sign: versioning.annotated !== false,
+        });
+        const versionBump = context.state.data.versionBump as VersionBumpData | undefined;
+        if (versionBump) {
+          versionBump.tagCreated = true;
+        }
+        logger.info(`✅ Tag ${tagName} created`);
+      } else {
+        logger.info(`ℹ️  No tag created (target "${targets.join(", ")}" not in tag list)`);
+      }
+    }
+  }
+
+  async resume(_context: EngineWorkflowContext): Promise<void> {}
+
+  async rollback(_context: EngineWorkflowContext): Promise<void> {
+    // در صورت abort، نیازی به بازگردانی نیست چون commit انجام شده است
+  }
+
+  async isCompleted(context: EngineWorkflowContext): Promise<boolean> {
+    const data = context.state.data.versionBump as any;
+    return data?.committed === true || data === undefined;
+  }
+}
+
 /**
  * بازگشت به شاخهٔ نهایی و اجرای hook post-finish
  */
@@ -711,6 +1000,7 @@ export function createFinishWorkflow(
     new RemoteSyncCheckStep(),
     new RebaseBranchStep(),
     new MergeIntoBaseStep(),
+    new VersionBumpStep(),
     new TagStep(),
     new UpdateChildrenStep(),
     new PushStep(),

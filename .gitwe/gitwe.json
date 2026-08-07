@@ -19,7 +19,7 @@
   "branchTypes": [
     {
       "name": "feature",
-      "aliases": ["feat", "ftr"],
+      "aliases": ["feat", "ftr", "major"],
       "base": "develop",
       "target": "develop",
       "prefix": "feature/"
@@ -93,22 +93,11 @@
   },
 
   "versioning": {
-    "enabled": true,
-    "tagPrefix": "v",
-    "format": "{{tagPrefix}}{{version}}",
-    "tag": ["release", "hotfix"],
-    "branchTypes": {
-      "version": ["release"],
-      "major": [],
-      "minor": ["feature"],
-      "patch": ["hotfix"],
-      "metadata ": []
-    },
-    "annotated": true,
-    "pushTags": false,
+    "enabled": false,
+    "path": ".gitwe/VERSION.yaml",
     "changelog": {
       "enabled": false,
-      "path": "CHANGELOG.md"
+      "path": ".gitwe/CHANGELOG.yaml"
     }
   }
 }

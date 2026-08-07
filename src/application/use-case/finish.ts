@@ -31,6 +31,11 @@ export interface FinishOptions {
   /** Push the updated base branches (and tags) when finished. */
   push?: boolean;
   updateMessage?: string;
+
+  interactive?: boolean;
+  major?: boolean;
+  minor?: boolean;
+  patch?: boolean;
 }
 
 export interface FinishResult {

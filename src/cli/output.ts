@@ -18,6 +18,7 @@ export const style = {
   yellow: (text: string) => paint(33, text),
   blue: (text: string) => paint(34, text),
   cyan: (text: string) => paint(36, text),
+  magenta: (text: string) => paint(35, text),
 };
 
 export function print(message = ""): void {

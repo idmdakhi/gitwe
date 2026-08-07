@@ -16,11 +16,11 @@ export class Workflow {
   }
 
   get remoteName(): string {
-    return this.config.remote.name;
+    return this.config.remote?.name ?? "origin";
   }
 
   get remoteConfig(): RemoteConfig {
-    return this.config.remote;
+    return this.config.remote ?? { name: "origin" };
   }
 
   get baseBranches(): BaseBranch[] {
@@ -83,32 +83,35 @@ export class Workflow {
   }
 
   shouldTag(type: BranchType): boolean {
-    return this.config.versioning.tag.includes(type.name);
+    return this.config.versioning?.tag?.includes(type.name) ?? false;
   }
 
   mergeStrategyFor(type: BranchType): MergeStrategy {
-    const configured = this.config.merge.branchTypes[type.name];
-    if (configured === undefined) return this.config.merge.strategy;
+    const merge = this.config.merge;
+    if (!merge) return "merge";
+    const configured = merge.branchTypes?.[type.name];
+    if (configured === undefined) return merge.strategy ?? "merge";
     if (typeof configured === "string") return configured as MergeStrategy;
     for (const s of configured) {
       if (s === "merge" || s === "squash" || s === "rebase") {
         return s as MergeStrategy;
       }
     }
-    return this.config.merge.strategy;
+    return merge.strategy ?? "merge";
   }
 
   shouldDeleteOnFinish(type: BranchType): boolean {
-    return this.config.merge.deleteOnFinish.includes(type.name);
+    return this.config.merge?.deleteOnFinish?.includes(type.name) ?? false;
   }
 
   allowSquash(type: BranchType): boolean {
-    if (!this.config.merge.squash) return false;
-    return this.config.merge.squash.branchTypes.includes(type.name);
+    const squash = this.config.merge?.squash;
+    if (!squash) return false;
+    return squash.branchTypes?.includes(type.name) ?? false;
   }
 
   versionBumpFor(type: BranchType): "major" | "minor" | "patch" | "none" {
-    const vt = this.config.versioning.branchTypes;
+    const vt = this.config.versioning?.branchTypes;
     if (!vt) return "none";
     if (vt.major?.includes(type.name)) return "major";
     if (vt.minor?.includes(type.name)) return "minor";
@@ -117,7 +120,7 @@ export class Workflow {
   }
 
   tagPrefixFor(_type: BranchType): string {
-    return this.config.versioning.tagPrefix;
+    return this.config.versioning?.tagPrefix ?? "v";
   }
 
   branchName(type: BranchType, shortName: string): string {
@@ -148,5 +151,38 @@ export class Workflow {
 
   isBaseBranch(branch: string): boolean {
     return this.findBase(branch) !== undefined;
+  }
+
+  /**
+   * دریافت نوع افزایش نسخه برای یک شاخه خاص
+   */
+  getVersionBumpForBranch(branchName: string): "major" | "minor" | "patch" | "prerelease" | "none" {
+    const resolved = this.resolveBranch(branchName);
+    if (!resolved) return "none";
+
+    const branchType = resolved.type;
+    const bumpRules = this.config.versioning?.bumpRules;
+    if (!bumpRules) return "none";
+
+    if (bumpRules.major?.includes(branchType.name)) return "major";
+    if (bumpRules.minor?.includes(branchType.name)) return "minor";
+    if (bumpRules.patch?.includes(branchType.name)) return "patch";
+    if (bumpRules.prerelease?.includes(branchType.name)) return "prerelease";
+    return "none";
+  }
+
+  /**
+   * دریافت لیست base branch‌هایی که تگ می‌خورند
+   */
+  getTagTargets(): string[] {
+    return this.config.versioning?.tag ?? [];
+  }
+
+  /**
+   * بررسی اینکه آیا شاخه به یکی از tag targets ادغام می‌شود
+   */
+  shouldCreateTag(targets: string[]): boolean {
+    const tagTargets = this.getTagTargets();
+    return targets.some((target) => tagTargets.includes(target));
   }
 }

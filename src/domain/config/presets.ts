@@ -49,11 +49,6 @@ function classic(overrides: PresetOverrides): WorkflowConfig {
   return {
     version: 1,
     name: "classic",
-    remote: {
-      name: overrides.remoteName ?? "origin",
-      autoPush: overrides.remoteAutoPush ?? false,
-      autoFetch: overrides.remoteAutoFetch ?? true,
-    },
     baseBranches: [
       {
         name: main,
@@ -70,74 +65,39 @@ function classic(overrides: PresetOverrides): WorkflowConfig {
     branchTypes: [
       {
         name: "feature",
-        aliases: ["feat", "ftr"],
+        aliases: ["feat"],
         base: getBase("feature", develop),
         target: getTargets("feature", [develop]),
         prefix: overrides.prefixes?.feature ?? "feature/",
       },
       {
-        name: "bugfix",
-        aliases: ["fix", "bug"],
-        base: getBase("bugfix", develop),
-        target: getTargets("bugfix", [develop]),
-        prefix: overrides.prefixes?.bugfix ?? "bugfix/",
-      },
-      {
         name: "release",
-        aliases: ["rls", "rels"],
         base: getBase("release", develop),
         target: getTargets("release", [main, develop]),
         prefix: overrides.prefixes?.release ?? "release/",
       },
       {
         name: "hotfix",
-        aliases: ["hot", "hfix"],
+        aliases: ["fix", "bug", "patch"],
         base: getBase("hotfix", main),
         target: getTargets("hotfix", [main, develop]),
         prefix: overrides.prefixes?.hotfix ?? "hotfix/",
       },
       {
         name: "support",
-        aliases: ["lts"],
         base: getBase("support", main),
         target: getTargets("support", [main]),
         prefix: overrides.prefixes?.support ?? "support/",
       },
     ],
-    hooks: { enabled: true, path: ".gitwe/hooks" },
     merge: {
       strategy: "merge",
-      branchTypes: {
-        feature: "merge",
-        bugfix: "merge",
-        release: ["merge", "rebase"],
-        hotfix: "merge",
-        support: ["merge"],
-      },
-      deleteOnFinish: ["feature", "release", "hotfix", "bugfix"],
+      branchTypes: {},
+      deleteOnFinish: ["feature", "release", "hotfix"],
       squash: {
         branchTypes: ["feature"],
         enabled: true,
         default: false,
-      },
-    },
-    versioning: {
-      enabled: overrides.versionEnabled ?? true,
-      tagPrefix: overrides.tagPrefix ?? "v",
-      format: "{{tagPrefix}}{{version}}",
-      tag: overrides.versionTag ?? ["release", "hotfix"],
-      branchTypes: overrides.versionBranchTypes ?? {
-        version: ["release"],
-        major: [],
-        minor: ["feature"],
-        patch: ["hotfix"],
-        metadata: [],
-      },
-      annotated: true,
-      pushTags: false,
-      changelog: {
-        enabled: false,
-        path: "CHANGELOG.md",
       },
     },
     cli: {
@@ -151,6 +111,11 @@ function classic(overrides: PresetOverrides): WorkflowConfig {
         st: "status",
       },
     },
+    remote: {
+      name: overrides.remoteName ?? "origin",
+      autoPush: overrides.remoteAutoPush ?? false,
+      autoFetch: overrides.remoteAutoFetch ?? true,
+    },
   };
 }
 
@@ -159,12 +124,6 @@ function github(overrides: PresetOverrides): WorkflowConfig {
   return {
     version: 1,
     name: "github",
-    remote: {
-      name: overrides.remoteName ?? "origin",
-      autoPush: overrides.remoteAutoPush ?? false,
-      autoFetch: overrides.remoteAutoFetch ?? true,
-    },
-    hooks: { enabled: true, path: ".gitwe/hooks" },
     baseBranches: [
       {
         name: main,
@@ -182,7 +141,7 @@ function github(overrides: PresetOverrides): WorkflowConfig {
       },
       {
         name: "bugfix",
-        aliases: ["fix"],
+        aliases: ["fix", "bug"],
         base: main,
         target: [main],
         prefix: overrides.prefixes?.bugfix ?? "bugfix/",
@@ -190,10 +149,7 @@ function github(overrides: PresetOverrides): WorkflowConfig {
     ],
     merge: {
       strategy: "merge",
-      branchTypes: {
-        feature: ["merge", "merge"],
-        bugfix: "merge",
-      },
+      branchTypes: {},
       deleteOnFinish: ["feature", "bugfix"],
       squash: {
         branchTypes: ["feature"],
@@ -201,14 +157,10 @@ function github(overrides: PresetOverrides): WorkflowConfig {
         default: false,
       },
     },
-    versioning: {
-      enabled: false,
-      tagPrefix: overrides.tagPrefix ?? "v",
-      tag: [],
-      branchTypes: {},
-      annotated: true,
-      pushTags: false,
-      changelog: { enabled: false },
+    remote: {
+      name: overrides.remoteName ?? "origin",
+      autoPush: overrides.remoteAutoPush ?? false,
+      autoFetch: overrides.remoteAutoFetch ?? true,
     },
   };
 }
@@ -220,12 +172,6 @@ function gitlab(overrides: PresetOverrides): WorkflowConfig {
   return {
     version: 1,
     name: "gitlab",
-    remote: {
-      name: overrides.remoteName ?? "origin",
-      autoPush: overrides.remoteAutoPush ?? false,
-      autoFetch: overrides.remoteAutoFetch ?? true,
-    },
-    hooks: { enabled: true, path: ".gitwe/hooks" },
     baseBranches: [
       {
         name: main,
@@ -262,10 +208,7 @@ function gitlab(overrides: PresetOverrides): WorkflowConfig {
     ],
     merge: {
       strategy: "merge",
-      branchTypes: {
-        feature: ["merge", "merge"],
-        hotfix: "merge",
-      },
+      branchTypes: {},
       deleteOnFinish: ["feature", "hotfix"],
       squash: {
         branchTypes: ["feature"],
@@ -273,24 +216,10 @@ function gitlab(overrides: PresetOverrides): WorkflowConfig {
         default: false,
       },
     },
-    versioning: {
-      enabled: true,
-      tagPrefix: overrides.tagPrefix ?? "v",
-      format: "{{tagPrefix}}{{version}}",
-      tag: ["hotfix"],
-      branchTypes: {
-        version: [],
-        major: [],
-        minor: [],
-        patch: ["hotfix"],
-        metadata: [],
-      },
-      annotated: true,
-      pushTags: false,
-      changelog: {
-        enabled: false,
-        path: "CHANGELOG.md",
-      },
+    remote: {
+      name: overrides.remoteName ?? "origin",
+      autoPush: overrides.remoteAutoPush ?? false,
+      autoFetch: overrides.remoteAutoFetch ?? true,
     },
   };
 }

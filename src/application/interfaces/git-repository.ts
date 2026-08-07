@@ -74,4 +74,23 @@ export interface GitRepository {
   remoteExists(remote: string): Promise<boolean>;
 
   raw(args: string[]): Promise<string>;
+
+  renderTagName(
+    format: string,
+    versionObj: {
+      tagPrefix: string;
+      major: number;
+      minor: number;
+      patch: number;
+      prerelease?: string;
+    },
+  ): string;
+  parseVersion(
+    newVersion: string,
+  ): { major: number; minor: number; patch: number; prerelease?: string } | null;
+  bumpVersion(currentVersion: string, bumpType: "major" | "minor" | "patch" | "prerelease"): string;
+  getVersionFromYaml(versionPath: string): Promise<string>;
+  getPackageVersion(): Promise<string>;
+  setVersionInYaml(versionPath: string, newVersion: string): Promise<void>;
+  tagExists(tagName: string): Promise<boolean>;
 }

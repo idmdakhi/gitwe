@@ -18,7 +18,11 @@ export interface CreateEngineOptions {
 export async function createEngine(options: CreateEngineOptions): Promise<Engine> {
   const logger = options.logger ?? silentLogger;
   const git = options.git ?? new ShellGitRepository({ cwd: options.root });
-  const hooks = new HookRunner(options.root, options.config.hooks, logger);
+
+  // مقدار پیش‌فرض برای hooks
+  const hooksConfig = options.config.hooks ?? { enabled: true, path: ".gitwe/hooks" };
+  const hooks = new HookRunner(options.root, hooksConfig, logger);
+
   const state = new FileOperationStateStore(await git.gitDir());
   return Engine.create({
     root: options.root,
