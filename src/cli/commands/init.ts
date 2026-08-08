@@ -11,6 +11,7 @@ import {
 } from "../../infrastructure/config/loader.js";
 import {
   createPreset,
+  getAvailablePresets,
   isPresetName,
   PRESET_NAMES,
   type PresetName,
@@ -163,19 +164,18 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
       }
       const dryRun = globalOptions.dryRun === true;
       const format = globalOptions.format;
-
       // --- برسی وجود فایل تنظیمات ---
       const existing = findConfigFile(root, root);
       if (existing !== undefined && options.force !== true) {
         throw new ConfigError(`${existing} already exists`, "pass --force to overwrite it");
       }
 
-      // --- تعیین preset (از خط فرمان یا تعاملی) ---
-      let presetName: PresetName = (options.preset ?? "classic") as PresetName;
-      if (!isPresetName(presetName)) {
+      const availablePresets = getAvailablePresets(root);
+      let presetName = options.preset ?? "classic";
+      if (!isPresetName(presetName, root)) {
         throw new ConfigError(
           `unknown preset "${presetName}"`,
-          `available presets: ${PRESET_NAMES.join(", ")}`,
+          `available presets: ${availablePresets.join(", ")}`,
         );
       }
       const branchOverrides = parseKeyValue(options.branch || []);
@@ -200,7 +200,11 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
 
       if (interactive) {
         // ۱. انتخاب preset
-        const chosen = await selectFromList("Select workflow preset:", PRESET_NAMES, presetName);
+        const chosen = await selectFromList(
+          "Select workflow preset:",
+          availablePresets,
+          presetName,
+        );
         presetName = chosen as PresetName;
 
         // ۲. ساخت draft برای preset انتخاب‌شده
@@ -258,7 +262,7 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
       }
 
       // --- ساخت config نهایی با overrideهای نهایی ---
-      const config = createPreset(presetName, overrides);
+      const config = createPreset(presetName, overrides, root);
 
       if (overrides.versionEnabled !== undefined || overrides.tagPrefix !== undefined) {
         if (!config.versioning) {

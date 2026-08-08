@@ -1,0 +1,77 @@
+# .gitwe/preset/classic.yaml
+version: 1
+name: classic
+remote:
+  name: origin
+  autoPush: false
+  autoFetch: true
+hooks:
+  enabled: true
+  path: .gitwe/hooks
+baseBranches:
+  - name: main
+    aliases: [master]
+    protected: true
+  - name: develop
+    aliases: [dev]
+    base: main
+    protected: true
+branchTypes:
+  - name: feature
+    aliases: [feat]
+    base: develop
+    target: [develop]
+    prefix: feature/
+  - name: bugfix
+    aliases: [fix, bug]
+    base: develop
+    target: [develop]
+    prefix: bugfix/
+  - name: release
+    aliases: [rls, rels]
+    base: develop
+    target: [main, develop]
+    prefix: release/
+  - name: hotfix
+    aliases: [hot, hfix, patch]
+    base: main
+    target: [main, develop]
+    prefix: hotfix/
+  - name: support
+    aliases: [lts]
+    base: main
+    target: [main]
+    prefix: support/
+merge:
+  strategy: merge
+  branchTypes: {}
+  deleteOnFinish: [feature, release, hotfix]
+  squash:
+    branchTypes: [feature]
+    enabled: true
+    default: false
+versioning:
+  enabled: false
+  tagPrefix: v
+  format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}"
+  tag: [main]
+  bumpRules:
+    major: []
+    minor: [feature, release]
+    patch: [hotfix, bugfix]
+  branchTypes: {}
+  annotated: true
+  pushTags: false
+  autoCommit: true
+  path: .gitwe/VERSION.yaml
+  commitMessage: "chore: bump version to {{version}}"
+  initialVersion: 0.1.0
+cli:
+  enabled: true
+  interactive: true
+  color: true
+  aliases:
+    fs: finish feature
+    rs: release start
+    hf: hotfix start
+    st: status
