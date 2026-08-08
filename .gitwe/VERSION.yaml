@@ -1,22 +1,22 @@
 # .gitwe/VERSION.yaml
 version: 1.0.0
 tagPrefix: v
-format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}{{#if prerelease}}-{{prerelease}}{{/if}}"
+format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}" # {{#if prerelease}}-{{prerelease}}{{/if}}"
 
 # لیست base branch‌هایی که ادغام به آنها باعث ایجاد تگ می‌شود
 tag: ["main"]
 
 bumpRules:
   major: []
-  minor: ["feature"]
+  minor: ["release"]
   patch: ["hotfix"]
-  prerelease: ["release"]
+  # prerelease: []
 
 annotated: true
 pushTags: false
 autoCommit: true
 commitMessage: "chore: bump version to {{version}}"
-prerelease:
-  enabled: false
-  format: "{{type}}.{{number}}"
-  types: ["alpha", "beta", "rc"]
+# prerelease:
+#   enabled: false
+#   format: "{{type}}.{{number}}"
+#   types: ["alpha", "beta", "rc"]
