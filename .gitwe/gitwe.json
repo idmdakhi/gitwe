@@ -62,12 +62,10 @@
   "merge": {
     "strategy": "merge",
     "branchTypes": {
-      "main": "merge",
-      "develop": "merge",
       "hotfix": "default",
       "support": ["default", "merge"]
     },
-    "deleteOnFinish": ["feature", "release", "hotfix", "bugfix"],
+    "deleteOnFinish": ["feature", "release", "hotfix"],
     "squash": { "branchTypes": ["feature"], "enabled": true, "default": false }
   },
 

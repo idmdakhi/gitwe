@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
 import yaml from "js-yaml";
 
@@ -27,10 +27,17 @@ export interface LoadedConfig {
 export function findConfigFile(startDir: string, stopDir?: string): string | undefined {
   let dir = resolve(startDir);
   const stop = stopDir === undefined ? undefined : resolve(stopDir);
-  for (;;) {
+  while (true) {
     for (const name of CONFIG_FILE_NAMES) {
       const candidate = join(dir, name);
       if (existsSync(candidate)) return candidate;
+    }
+    const gitweDir = join(dir, ".gitwe");
+    if (existsSync(gitweDir) && statSync(gitweDir).isDirectory()) {
+      for (const name of CONFIG_FILE_NAMES) {
+        const candidate = join(gitweDir, name);
+        if (existsSync(candidate)) return candidate;
+      }
     }
     if (stop !== undefined && dir === stop) return undefined;
     const parent = dirname(dir);
