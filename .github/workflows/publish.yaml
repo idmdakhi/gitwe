@@ -64,7 +64,7 @@ jobs:
       matrix:
         include:
           - registry: https://registry.npmjs.org
-            package_name: "gitwe"
+            package_name: "git-we"
             token_secret: NPM_TOKEN
             provenance: true
 

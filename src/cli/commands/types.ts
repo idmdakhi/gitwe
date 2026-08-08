@@ -1,31 +1,37 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import { createEngine } from "../context.js";
+import type { GlobalOptions } from "../options.js";
+import { print, style, printStructured } from "../output.js";
 
-export function registerTypesCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+/** Register `gitwe types` — list configured topic types from the workflow definition. */
+export function registerTypes(program: Command, globals: () => GlobalOptions): void {
   program
     .command("types")
-    .description("List the branch types defined by the active workflow")
-    .action(() => {
-      const container = getContainer();
-      const rules = container.workflow.branchTypes.map((rule) => ({
-        name: rule.name,
-        prefix: rule.prefix,
-        baseBranch: rule.baseBranch,
-        mergeTargets: rule.mergeTargets,
-        autoTag: Boolean(rule.autoTag),
+    .description("list topic types defined in the active workflow")
+    .action(async () => {
+      const format = globals().format;
+      const engine = await createEngine(globals());
+      const types = engine.workflow.branchTypes.map((t) => ({
+        name: t.name,
+        prefix: t.prefix,
+        base: t.base,
       }));
-      printResult(getJson(), rules, (list) => {
-        for (const rule of list) {
-          const tag = rule.autoTag ? " (auto-tags)" : "";
-          console.log(
-            `${rule.name.padEnd(12)} prefix="${rule.prefix}"  base="${rule.baseBranch}"  merges into: ${rule.mergeTargets.join(", ")}${tag}`,
-          );
-        }
-      });
+
+      if (format === "json" || format === "yaml") {
+        printStructured({ types }, format);
+        return;
+      }
+
+      if (types.length === 0) {
+        print(style.dim("no topic types defined"));
+        return;
+      }
+
+      for (const t of types) {
+        const marks: string[] = [`parent=${t.base}`, `prefix=${t.prefix}`];
+        // if (t.tag) marks.push("tag");
+        // if (!t.deleteOnFinish) marks.push("keep");
+        print(`${style.bold(t.name)}  ${style.dim(marks.join("  "))}`);
+      }
     });
 }

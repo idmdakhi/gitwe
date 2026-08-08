@@ -1,30 +1,12 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import { reportError } from "#gitwe/cli/reportError";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import { print, style } from "../output.js";
+import type { GlobalOptions } from "../options.js";
 
-export function registerLogCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+export function registerLog(program: Command, globals: () => GlobalOptions): void {
   program
-    .command("log [ref]")
-    .description("Show recent commit history for a branch/ref (default: HEAD)")
-    .option("-n, --limit <count>", "number of commits to show", "10")
-    .action(async (ref: string | undefined, opts: { limit: string }) => {
-      const container = getContainer();
-      try {
-        const commits = await container.git.getRecentCommits(ref ?? "HEAD", Number(opts.limit));
-        printResult(getJson(), commits, (list) => {
-          for (const commit of list) {
-            console.log(
-              `${commit.hash.slice(0, 8)}  ${commit.date.toISOString().slice(0, 10)}  ${commit.author}  ${commit.message}`,
-            );
-          }
-        });
-      } catch (error) {
-        process.exitCode = reportError(error, getJson());
-      }
+    .command("log")
+    .description("show git log with workflow context (placeholder)")
+    .action(() => {
+      print(style.yellow("log command is not yet implemented"));
     });
 }

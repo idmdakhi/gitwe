@@ -1,9 +1,0 @@
-
-# <type>(<scope>): <subject>
-# 
-# <body>
-# 
-# <footer>
-# 
-# انواع مجاز: feat, fix, docs, style, refactor, test, chore
-# مثال: feat(auth): add password reset

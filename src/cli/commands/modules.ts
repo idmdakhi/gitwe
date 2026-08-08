@@ -1,22 +1,17 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import type { GlobalOptions } from "../options.js";
+import { print, style } from "../output.js";
 
-export function registerModulesCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+/**
+ * Placeholder for monorepo / path-based workflow modules (planned for 1.3).
+ */
+export function registerModules(program: Command, _globals: () => GlobalOptions): void {
   program
     .command("modules")
-    .description("List the capabilities currently registered with the kernel")
+    .description("list path-based workflow modules (planned for 1.3)")
     .action(() => {
-      const container = getContainer();
-      const modules = container.kernel.list();
-      printResult(getJson(), modules, (list) => {
-        for (const m of list) {
-          console.log(`${m.name.padEnd(10)} ${m.description}`);
-        }
-      });
+      print(style.yellow("modules is planned for phase 1.3 (monorepo support)."));
+      print(style.dim("See docs/development/ROADMAP.md"));
+      process.exitCode = 1;
     });
 }

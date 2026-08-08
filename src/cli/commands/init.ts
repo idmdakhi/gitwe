@@ -1,217 +1,333 @@
-import type { Command } from "commander";
-import fs from "node:fs";
-import path from "node:path";
-import { dump as yaml_dump } from "js-yaml";
+import { existsSync } from "node:fs";
+import { createInterface } from "node:readline/promises";
+import { Command } from "commander";
+import { resolvePath } from "../../application/path-resolver.js";
 
-type ConfigTemplate = Record<string, unknown>;
-
-const CONFIG_TEMPLATES: Record<string, ConfigTemplate> = {
-  "git-flow": {
-    version: 1,
-    workflow: "git-flow",
-    branches: { main: { protected: true }, develop: { protected: true } },
-    types: {
-      feature: { prefix: "feature/", base: "develop", target: "develop", deleteAfterFinish: true },
-      release: { prefix: "release/", base: "develop", target: ["main", "develop"], tag: true },
-      hotfix: { prefix: "hotfix/", base: "main", target: ["main", "develop"] },
-    },
-    merge: { strategy: "merge", deleteSource: true },
-    tag: { enabled: true, prefix: "v" },
-    commit: { conventional: { enabled: false } },
-    branchNaming: { case: "kebab-case", maxLength: 80 },
-  },
-  "github-flow": {
-    version: 1,
-    workflow: "github-flow",
-    branches: { main: { protected: true } },
-    types: {
-      feature: { prefix: "feature/", base: "main", target: "main", deleteAfterFinish: true },
-    },
-    merge: { strategy: "merge", deleteSource: true },
-    tag: { enabled: false },
-    branchNaming: { case: "kebab-case", maxLength: 80 },
-  },
-  "trunk-based": {
-    version: 1,
-    workflow: "trunk-based",
-    branches: { main: { protected: true } },
-    types: {
-      feat: { prefix: "feat/", base: "main", target: "main", deleteAfterFinish: true },
-      fix: { prefix: "fix/", base: "main", target: "main", deleteAfterFinish: true },
-    },
-    merge: { strategy: "squash", deleteSource: true },
-    tag: { enabled: false },
-    branchNaming: { case: "kebab-case", maxLength: 60 },
-  },
-};
-
-const DEFAULT_COMMIT_TEMPLATE = `# <type>(<scope>): <subject>
-#
-# <body>
-#
-# <footer>
-#
-# Allowed types: feat, fix, docs, style, refactor, test, chore
-# Example: feat(auth): add password reset
-`;
-
-const DEFAULT_BRANCH_DESCRIPTION_TEMPLATE = `# Branch: {{branchName}}
-
-## Type: {{branchType}}
-
-## Base: {{baseBranch}}
-
-## Created: {{createdAt}}
-
-## Description:
-
-{{description}}
-`;
-
-const DEFAULT_REVIEW_POLICY = `# Review policies for protected branches.
-# Add one entry per branch that needs required reviews or status checks.
-policies:
-  - branch: main
-    requiredReviews: 2
-    requireStatusChecks: true
-    statusCheckContexts:
-      - ci/build
-      - ci/test
-  - branch: develop
-    requiredReviews: 1
-    requireStatusChecks: true
-`;
-
-const DEFAULT_STATE = { branches: {} };
+import { ConfigError, GitweError } from "../../domain/errors.js";
+import {
+  DEFAULT_CONFIG_FILE,
+  findConfigFile,
+  writeConfigFile,
+} from "../../infrastructure/config/loader.js";
+import {
+  createPreset,
+  getAvailablePresets,
+  isPresetName,
+  PRESET_NAMES,
+  type PresetName,
+  type PresetOverrides,
+} from "../../domain/config/presets.js";
+import { createConsoleLogger } from "../../infrastructure/logger/console-logger.js";
+import { createEngine as wireEngine } from "../../di/create-engine.js";
+import { print, style, success, printStructured } from "../output.js";
+import { repositoryRoot } from "../context.js";
+import type { GlobalOptions } from "../options.js";
 
 interface InitOptions {
-  template: string;
-  format: string;
-  dir: string;
-  output?: string;
   force?: boolean;
-  minimal?: boolean;
+  preset?: string;
+  defaults?: boolean;
+  file?: string;
+  createBranches?: boolean;
+  branch?: string[];
+  prefix?: string[];
+  // tag?: string;
+  remote?: string;
+  versioningEnabled?: boolean;
+  tagPrefix?: string;
+  versioningPath?: string;
+  changelogEnabled?: boolean;
+  changelogPath?: string;
 }
 
-interface ScaffoldResult {
-  created: string[];
-  skipped: string[];
-}
-
-/** Writes `content` to `filePath` unless it already exists and `force` is false. Tracks the outcome in `result`. */
-function writeScaffoldFile(
-  filePath: string,
-  content: string,
-  force: boolean,
-  result: ScaffoldResult,
-): void {
-  if (fs.existsSync(filePath) && !force) {
-    result.skipped.push(filePath);
-    return;
+async function prompt(question: string, fallback: string): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${question} [${fallback}] `);
+    return answer.trim() === "" ? fallback : answer.trim();
+  } finally {
+    rl.close();
   }
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
-  fs.writeFileSync(filePath, content, "utf-8");
-  result.created.push(filePath);
 }
 
-/** Ensures an (otherwise-empty) directory exists and is kept by git via a `.gitkeep` file. */
-function ensureScaffoldDir(dirPath: string, force: boolean, result: ScaffoldResult): void {
-  fs.mkdirSync(dirPath, { recursive: true });
-  writeScaffoldFile(path.join(dirPath, ".gitkeep"), "", force, result);
+async function promptYesNo(question: string, fallback: boolean): Promise<boolean> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${question} (y/n) [${fallback ? "y" : "n"}] `);
+    const trimmed = answer.trim().toLowerCase();
+    if (trimmed === "" || trimmed === "y" || trimmed === "yes") return true;
+    if (trimmed === "n" || trimmed === "no") return false;
+    return fallback;
+  } finally {
+    rl.close();
+  }
 }
 
-export function registerInitCommand(program: Command): void {
+function parseKeyValue(pairs: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const pair of pairs) {
+    const [key, ...rest] = pair.split("=");
+    if (key && rest.length > 0) {
+      result[key.trim()] = rest.join("=").trim();
+    }
+  }
+  return result;
+}
+
+/**
+ * نمایش لیست گزینه‌ها و دریافت انتخاب کاربر
+ * @param question سوالی که پرسیده می‌شود
+ * @param options آرایه‌ای از گزینه‌ها (مثلاً ['classic', 'github', 'gitlab'])
+ * @param defaultOption گزینه پیش‌فرض
+ * @returns گزینه انتخاب‌شده
+ */
+async function selectFromList(
+  question: string,
+  options: string[],
+  defaultOption: string,
+): Promise<string> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    print();
+    print(style.bold(question));
+    for (let i = 0; i < options.length; i++) {
+      const label = options[i] === defaultOption ? `${style.green("●")}` : "○";
+      print(`  ${label} ${i + 1}) ${options[i]}`);
+    }
+    const promptText = `Enter number or name [${defaultOption}]: `;
+    const answer = await rl.question(promptText);
+    const trimmed = answer.trim();
+    if (trimmed === "") return defaultOption;
+    const num = Number.parseInt(trimmed, 10);
+    if (!isNaN(num) && num >= 1 && num <= options.length) {
+      return options[num - 1];
+    }
+    const matched = options.find((opt) => opt.toLowerCase() === trimmed.toLowerCase());
+    if (matched !== undefined) return matched;
+    print(style.yellow(`"${trimmed}" is not a valid option. Using default "${defaultOption}".`));
+    return defaultOption;
+  } finally {
+    rl.close();
+  }
+}
+
+export function registerInit(program: Command, globals: () => GlobalOptions): void {
   program
     .command("init")
-    .description(
-      "Scaffold a full .gitwe/ project directory: config, workflows, templates, and policies",
+    .description("create a gitwe workflow definition in the current repository")
+    .option("-f, --force", "overwrite an existing workflow definition")
+    .option("-n, --preset <preset>", `workflow preset (${PRESET_NAMES.join(", ")})`, "classic")
+    .option("-d, --defaults", "accept the preset defaults without prompting")
+    .option("--file <path>", `definition file to write (default: ${DEFAULT_CONFIG_FILE})`)
+    .option("--no-create-branches", "do not create missing base branches")
+    .option(
+      "-b, --branch <name=value>",
+      "set a branch name (can be repeated, e.g. --branch main=trunk)",
+      collect,
+      [],
     )
     .option(
-      "-t, --template <name>",
-      "workflow template to start from: git-flow | github-flow | trunk-based",
-      "git-flow",
+      "-p, --prefix <name=value>",
+      "set a branch type prefix (can be repeated, e.g. --prefix feature=feat/)",
+      collect,
+      [],
     )
-    .option("-f, --format <format>", "main config file format: json | yaml", "json")
-    .option("-d, --dir <path>", "directory to scaffold", ".gitwe")
-    .option(
-      "-o, --output <path>",
-      "override the main config file's path (default: <dir>/gitwe.json)",
-    )
-    .option("--force", "overwrite files that already exist")
-    .option("--minimal", "only write the main config file — skip templates/policies/example dirs")
-    .action((opts: InitOptions) => {
-      const configTemplate = CONFIG_TEMPLATES[opts.template];
-      if (!configTemplate) {
-        console.error(
-          `❌ Unknown template "${opts.template}". Choices: ${Object.keys(CONFIG_TEMPLATES).join(", ")}`,
-        );
-        process.exitCode = 1;
-        return;
+    // ===== گزینه‌های عمومی =====
+    .option("-r, --remote <name>", "remote name")
+    .option("-tp, --tag-prefix", "version tag prefix", "v")
+    // ===== گزینه‌های versioning =====
+    // .option("--versioning-enabled", "enable versioning (default: false)")
+    // .option("--tag-prefix <prefix>", "version tag prefix (default: v)")
+    // .option(
+    //   "--versioning-path <path>",
+    //   "path to versioning config file (default: .gitwe/VERSION.yaml)",
+    // )
+    // ===== گزینه‌های changelog =====
+    // .option("--changelog-enabled", "enable changelog generation (default: false)")
+    // .option("--changelog-path <path>", "path to changelog file (default: CHANGELOG.md)")
+    .action(async (options: InitOptions) => {
+      const globalOptions = globals();
+      const cwd = globalOptions.cwd ?? process.cwd();
+      // ===== بررسی وجود مخزن Git =====
+      let root: string;
+      try {
+        root = await repositoryRoot(cwd);
+        // ادامهٔ کار
+      } catch (error) {
+        if (error instanceof GitweError && error.code === "NOT_A_REPOSITORY") {
+          console.error(style.red(`✗ ${error.message}`));
+          console.error(style.dim(`  ${error.hint}`));
+          process.exitCode = 1;
+          return;
+        }
+        throw error;
+      }
+      const dryRun = globalOptions.dryRun === true;
+      const format = globalOptions.format;
+      // --- برسی وجود فایل تنظیمات ---
+      const existing = findConfigFile(root, root);
+      if (existing !== undefined && options.force !== true) {
+        throw new ConfigError(`${existing} already exists`, "pass --force to overwrite it");
       }
 
-      const isYaml = opts.format === "yaml" || opts.format === "yml";
-      // const gitweDir = path.resolve(opts.dir);
-      const rootDir = process.cwd();
-      const gitweDir = path.resolve(rootDir, opts.dir);
-      const configPath = path.resolve(
-        opts.output ?? path.join(gitweDir, isYaml ? "gitwe.yaml" : "gitwe.json"),
-      );
-
-      const result: ScaffoldResult = { created: [], skipped: [] };
-
-      // Main workflow config.
-      const configContent = isYaml
-        ? yaml_dump(configTemplate)
-        : JSON.stringify(configTemplate, null, 2) + "\n";
-      writeScaffoldFile(configPath, configContent, Boolean(opts.force), result);
-
-      if (!opts.minimal) {
-        // Example subdirectories a project can drop custom files into.
-        ensureScaffoldDir(path.join(gitweDir, "workflows"), Boolean(opts.force), result);
-        ensureScaffoldDir(path.join(gitweDir, "hooks"), Boolean(opts.force), result);
-
-        // Ready-to-use templates and policy, so `renderTemplate`/`getPolicies` work out of the box.
-        writeScaffoldFile(
-          path.join(gitweDir, "templates", "commit-template.txt"),
-          DEFAULT_COMMIT_TEMPLATE,
-          Boolean(opts.force),
-          result,
-        );
-        writeScaffoldFile(
-          path.join(gitweDir, "templates", "branch-description.md"),
-          DEFAULT_BRANCH_DESCRIPTION_TEMPLATE,
-          Boolean(opts.force),
-          result,
-        );
-        writeScaffoldFile(
-          path.join(gitweDir, "policies", "review-policy.yaml"),
-          DEFAULT_REVIEW_POLICY,
-          Boolean(opts.force),
-          result,
-        );
-
-        // Empty state file so tools that read it don't need to special-case "not found".
-        writeScaffoldFile(
-          path.join(gitweDir, "state", "branches-state.json"),
-          JSON.stringify(DEFAULT_STATE, null, 2) + "\n",
-          Boolean(opts.force),
-          result,
+      const availablePresets = getAvailablePresets(root);
+      if (availablePresets.length === 0) {
+        throw new ConfigError(
+          "No presets found!",
+          "Please create a preset file in .gitwe/preset/ or reinstall gitwe with default presets.",
         );
       }
 
-      if (result.created.length) {
-        console.log(`✅ Scaffolded ${gitweDir}:`);
-        for (const file of result.created)
-          console.log(`   + ${path.relative(process.cwd(), file)}`);
+      let presetName = options.preset ?? "classic";
+      if (!isPresetName(presetName, root)) {
+        throw new ConfigError(
+          `unknown preset "${presetName}"`,
+          `available presets: ${availablePresets.join(", ")}`,
+        );
       }
-      if (result.skipped.length) {
-        console.log(`⚠️  Skipped (already exist — rerun with --force to overwrite):`);
-        for (const file of result.skipped)
-          console.log(`   - ${path.relative(process.cwd(), file)}`);
+      const branchOverrides = parseKeyValue(options.branch || []);
+      const prefixOverrides = parseKeyValue(options.prefix || []);
+
+      // --- جمع‌آوری overrideها از خط فرمان ---
+      const cliOverrides: PresetOverrides = {
+        remoteName: options.remote,
+        tagPrefix: options.tagPrefix,
+        // branch overrides - فقط برای branch name‌ها
+        ...branchOverrides,
+        // prefix overrides
+        prefixes: prefixOverrides,
+        changelogEnabled: false,
+      };
+
+      // --- حالت تعاملی ---
+      const interactive =
+        options.defaults !== true && process.stdin.isTTY === true && process.stdout.isTTY === true;
+
+      const overrides: PresetOverrides = { ...cliOverrides };
+
+      if (interactive) {
+        // ۱. انتخاب preset
+        const chosen = await selectFromList(
+          "Select workflow preset:",
+          availablePresets,
+          presetName,
+        );
+        presetName = chosen as PresetName;
+
+        // ۲. ساخت draft برای preset انتخاب‌شده
+        const draft = createPreset(presetName, overrides);
+
+        print(style.bold(`\nConfiguring the "${presetName}" workflow`));
+
+        // ۳. پرسش‌وجو برای base branches
+        for (const base of draft.baseBranches) {
+          const hasCliOverride = branchOverrides[base.name] !== undefined;
+          if (hasCliOverride) continue;
+
+          const answer = await prompt(`Branch name for "${base.name}"?`, base.name);
+          // ذخیره در overrides با نام شاخه
+          (overrides as any)[base.name] = answer;
+        }
+
+        // ۴. پرسش‌وجو برای پیشوندها (یکپارچه)
+        if (!overrides.prefixes) overrides.prefixes = {};
+        for (const bt of draft.branchTypes) {
+          const hasCliOverride = prefixOverrides[bt.name] !== undefined;
+          if (hasCliOverride) continue;
+
+          const answer = await prompt(`Prefix for ${bt.name} branches?`, bt.prefix);
+          overrides.prefixes[bt.name] = answer;
+        }
+
+        // ۵. پرسش‌وجو برای remote و tag prefix
+        if (options.remote === undefined) {
+          const remoteNameAnswer = await prompt("Remote name?", draft.remote?.name ?? "origin");
+          overrides.remoteName = remoteNameAnswer;
+        }
+
+        if (options.tagPrefix === undefined) {
+          const tagPrefixAnswer = await prompt(
+            "Version tag prefix?",
+            draft.versioning?.tagPrefix ?? "v",
+          );
+          overrides.tagPrefix = tagPrefixAnswer;
+        }
+
+        // ۶. پرسش‌وجو برای versioning
+        if (options.versioningEnabled === undefined) {
+          const enabled = await promptYesNo("Enable versioning?", false);
+          overrides.versionEnabled = enabled;
+        }
+
+        // ۷. پرسش‌وجو برای changelog
+        if (options.changelogEnabled === undefined) {
+          const enabled = await promptYesNo("Enable changelog generation?", false);
+          overrides.changelogEnabled = enabled;
+        }
+
+        print();
       }
-      console.log(
-        `\nRun "gitwe validate ${path.relative(process.cwd(), configPath)}" to check it, ` +
-          `or "gitwe status" to use it (gitwe auto-discovers .gitwe/ in the current directory).`,
-      );
+
+      // --- ساخت config نهایی با overrideهای نهایی ---
+      const config = createPreset(presetName, overrides, root);
+
+      const target = options.file
+        ? resolvePath(root, options.file)
+        : resolvePath(root, DEFAULT_CONFIG_FILE);
+      const path = existsSync(target) || target.includes("/") ? target : resolvePath(root, target);
+
+      // --- خروجی JSON/YAML اگر درخواست شده باشد ---
+      if (format === "json" || format === "yaml") {
+        printStructured(
+          {
+            action: dryRun ? "dry-run" : "write",
+            preset: presetName,
+            path,
+            config,
+            branchesCreated: options.createBranches !== false ? [] : undefined,
+          },
+          format,
+        );
+        if (dryRun) return;
+      }
+
+      // --- نوشتن فایل ---
+      if (!dryRun) {
+        writeConfigFile(path, config);
+        success(`wrote ${path}`);
+      } else {
+        print(style.dim(`[dry-run] would write to ${path}`));
+      }
+
+      // --- ایجاد شاخه‌های پایه ---
+      if (options.createBranches !== false && !dryRun) {
+        const logger = createConsoleLogger(globalOptions.verbose === true);
+        const engine = await wireEngine({
+          root,
+          config,
+          configPath: path,
+          logger,
+        });
+        const created = await engine.createMissingBaseBranches();
+        for (const branch of created) success(`created branch ${branch}`);
+      } else if (options.createBranches !== false && dryRun) {
+        print(style.dim("[dry-run] would create missing base branches"));
+      }
+
+      if (!dryRun) {
+        print();
+        print(`Workflow ${style.cyan(config.name)} is ready. Try:`);
+        const firstTopic = config.branchTypes[0]?.name ?? "feature";
+        print(`  gitwe start ${firstTopic} my-first-${firstTopic}`);
+        print(`  gitwe overview`);
+        if (config.versioning?.enabled) {
+          print(`  gitwe finish <branch>  # version will be bumped automatically`);
+        }
+      }
     });
+
+  // ===== Helper برای جمع‌آوری گزینه‌های قابل تکرار =====
+  function collect(value: string, previous: string[]): string[] {
+    return [...previous, value];
+  }
 }

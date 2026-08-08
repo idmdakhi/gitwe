@@ -1,47 +1,49 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import { reportError } from "#gitwe/cli/reportError";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import { createEngine } from "../context.js";
+import type { GlobalOptions } from "../options.js";
+import { print, style, printStructured, success } from "../output.js";
 
-export interface TagInput {
-  tag: string;
-  message?: string;
-  push?: boolean;
-  remote?: string;
-}
-
-export interface TagOutput {
-  tag: string;
-  created: boolean;
-  pushed?: boolean;
-}
-
-export function registerTagCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+/** Register `gitwe tag` — list tags, or create an annotated tag. */
+export function registerTag(program: Command, globals: () => GlobalOptions): void {
   program
-    .command("tag <name>")
-    .description("Create a git tag")
-    .option("--message <msg>", "Tag message")
-    .option("--push", "Push tag to remote")
-    .option("--remote <name>", "Remote to push to (default: origin)", "origin")
-    .action(async (name: string, opts: { message?: string; push?: boolean; remote?: string }) => {
-      const container = getContainer();
-      const json = getJson();
-      try {
-        const result = await container.kernel.run<TagInput, TagOutput>("tag", {
-          tag: name,
-          message: opts.message,
-          push: opts.push,
-          remote: opts.remote,
-        });
-        printResult(json, result, (r) => {
-          console.log(`✅ Tag ${r.tag} created${r.pushed ? " and pushed" : ""}`);
-        });
-      } catch (error) {
-        process.exitCode = reportError(error, json);
+    .command("tag")
+    .description("list tags, or create an annotated tag")
+    .argument("[name]", "tag name to create (omit to list)")
+    .option("-m, --message <message>", "annotated tag message")
+    .option("-d, --delete", "delete the named tag")
+    .action(async (name: string | undefined, opts: { message?: string; delete?: boolean }) => {
+      const format = globals().format;
+      const engine = await createEngine(globals());
+
+      if (name === undefined) {
+        const tags = await engine.git.tags();
+        if (format === "json" || format === "yaml") {
+          printStructured({ tags }, format);
+          return;
+        }
+        if (tags.length === 0) {
+          print(style.dim("no tags"));
+          return;
+        }
+        for (const t of tags) print(t);
+        return;
+      }
+
+      if (opts.delete === true) {
+        await engine.git.deleteTag(name);
+        if (format === "json" || format === "yaml") {
+          printStructured({ deleted: name }, format);
+        } else {
+          success(`deleted tag ${name}`);
+        }
+        return;
+      }
+
+      await engine.git.createTag(name, { message: opts.message ?? name });
+      if (format === "json" || format === "yaml") {
+        printStructured({ tag: name }, format);
+      } else {
+        success(`created tag ${name}`);
       }
     });
 }

@@ -1,10 +1,10 @@
 {
   "name": "gitwe",
-  "version": "1.0.0",
-  "description": "git workflow engine — git-flow is just one example workflow.",
+  "version": "0.20.17",
+  "description": "gitwe — a configurable git workflow engine; git-flow is just one of its workflows.",
   "license": "MIT",
   "author": "Mohammad Amanalikhani <idmdakhi@gmail.com>",
-  "type": "commonjs",
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
@@ -13,23 +13,22 @@
   "keywords": [
     "git",
     "workflow",
+    "workflow-engine",
     "branching",
+    "git-we",
     "git-flow",
-    "cli",
-    "automation"
+    "gitflow",
+    "github-flow",
+    "gitlab-flow",
+    "cli"
   ],
   "engines": {
     "node": ">=20"
   },
-  "man": [
-    "docs/README.md",
-    "docs/01-vision.md",
-    "docs/02-core.md"
-  ],
   "scripts": {
     "dev": "tsx src/cli/index.ts",
     "start": "node dist/cli/index.js",
-    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\"",
     "lint": "eslint . --ext .ts",
     "lint:fix": "eslint . --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
@@ -38,56 +37,22 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "build:ts": "tsc -p tsconfig.build.json && tsc-alias -p tsconfig.build.json",
-    "build:copy-config": "copyfiles -u 2 \"src/config/**/*.{json,yaml,yml,js,sh}\" dist/config",
-    "build": "npm run clean && npm run build:ts && npm run build:copy-config"
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
-    "./*": {
-      "types": "./dist/*.d.ts",
-      "import": "./dist/*.js",
-      "require": "./dist/*.js",
-      "default": "./dist/*.js"
-    },
-    "./config/*": {
-      "types": "./dist/config/*.d.ts",
-      "import": "./dist/config/*.js",
-      "require": "./dist/config/*.js",
-      "default": "./dist/config/*.js"
-    },
-    "./config/*.yaml": {
-      "import": "./dist/config/*.yaml",
-      "require": "./dist/config/*.yaml",
-      "default": "./dist/config/*.yaml"
-    },
-    "./config/*.json": {
-      "import": "./dist/config/*.json",
-      "require": "./dist/config/*.json",
-      "default": "./dist/config/*.json"
-    },
     "./package.json": "./package.json"
-  },
-  "imports": {
-    "#gitwe/*": "./src/*.js",
-    "#tests/*": "./tests/*.js"
   },
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
-  "directories": {
-    "docs": "docs",
-    "examples": "examples",
-    "src": "src",
-    "tests": "tests"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/idmdakhi/gitwe.git"
@@ -102,20 +67,15 @@
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vitest/coverage-v8": "^2.1.9",
-    "copyfiles": "^2.4.1",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.2",
     "prettier": "^3.3.2",
-    "tsc-alias": "^1.9.1",
     "tsx": "^4.23.1",
     "typescript": "^5.9.3",
-    "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^2.1.9"
   },
   "dependencies": {
     "commander": "^12.1.0",
-    "js-yaml": "^5.2.2",
-    "simple-git": "^3.36.0",
-    "zod": "^4.4.3"
+    "js-yaml": "^4.3.0"
   }
 }

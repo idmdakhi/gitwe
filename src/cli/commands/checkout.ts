@@ -1,25 +1,24 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import { reportError } from "#gitwe/cli/reportError";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import { createEngine } from "../context.js";
+import { success, printStructured } from "../output.js";
+import type { GlobalOptions } from "../options.js";
 
-export function registerCheckoutCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+export function registerCheckout(program: Command, globals: () => GlobalOptions): void {
   program
-    .command("checkout <branchName>")
-    .description("Check out an existing branch")
-    .action(async (branchName: string) => {
-      const container = getContainer();
-      try {
-        await container.git.checkout(branchName);
-        printResult(getJson(), { branch: branchName }, (r) =>
-          console.log(`✅ Switched to ${r.branch}.`),
-        );
-      } catch (error) {
-        process.exitCode = reportError(error, getJson());
+    .command("checkout")
+    .description("switch to a topic branch (partial names allowed)")
+    .argument("<type>", "topic type (e.g. feature, release)")
+    .argument("<name>", "branch name or unique prefix")
+    .action(async (type: string, name: string) => {
+      const format = globals().format;
+      const engine = await createEngine(globals());
+      const topicType = engine.workflow.requireBranchType(type);
+      const branch = await engine.checkout(topicType, name);
+      const data = { branch };
+      if (format === "json" || format === "yaml") {
+        printStructured(data, format!);
+      } else {
+        success(`switched to ${branch}`);
       }
     });
 }
