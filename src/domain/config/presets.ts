@@ -4,6 +4,7 @@ export type PresetName = "classic" | "github" | "gitlab";
 export const PRESET_NAMES: PresetName[] = ["classic", "github", "gitlab"];
 
 export interface PresetOverrides {
+  changelogEnabled: boolean;
   main?: string;
   develop?: string;
   production?: string;
@@ -234,6 +235,43 @@ export function isPresetName(value: string): value is PresetName {
   return PRESET_NAMES.includes(value as PresetName);
 }
 
-export function createPreset(name: PresetName, overrides: PresetOverrides = {}): WorkflowConfig {
+export function createPreset(
+  name: PresetName,
+  overrides: PresetOverrides = {
+    changelogEnabled: false,
+  },
+): WorkflowConfig {
   return builders[name](overrides);
 }
+
+export interface PresetInfo {
+  name: PresetName;
+  options: {
+    branchNames?: string[];
+    prefixes?: string[];
+  };
+}
+
+export const PRESET_INFO: Record<PresetName, PresetInfo> = {
+  classic: {
+    name: "classic",
+    options: {
+      branchNames: ["main", "develop"],
+      prefixes: ["feature", "release", "hotfix", "support"],
+    },
+  },
+  github: {
+    name: "github",
+    options: {
+      branchNames: ["main"],
+      prefixes: ["feature", "bugfix"],
+    },
+  },
+  gitlab: {
+    name: "gitlab",
+    options: {
+      branchNames: ["main", "staging", "production"],
+      prefixes: ["feature", "hotfix"],
+    },
+  },
+};

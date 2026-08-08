@@ -28,16 +28,15 @@ interface InitOptions {
   defaults?: boolean;
   file?: string;
   createBranches?: boolean;
-  main?: string;
-  develop?: string;
-  production?: string;
-  staging?: string;
-  feature?: string;
-  release?: string;
-  hotfix?: string;
-  support?: string;
-  tag?: string;
+  branch?: string[];
+  prefix?: string[];
+  // tag?: string;
   remote?: string;
+  versioningEnabled?: boolean;
+  tagPrefix?: string;
+  versioningPath?: string;
+  changelogEnabled?: boolean;
+  changelogPath?: string;
 }
 
 async function prompt(question: string, fallback: string): Promise<string> {
@@ -48,6 +47,30 @@ async function prompt(question: string, fallback: string): Promise<string> {
   } finally {
     rl.close();
   }
+}
+
+async function promptYesNo(question: string, fallback: boolean): Promise<boolean> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(`${question} (y/n) [${fallback ? "y" : "n"}] `);
+    const trimmed = answer.trim().toLowerCase();
+    if (trimmed === "" || trimmed === "y" || trimmed === "yes") return true;
+    if (trimmed === "n" || trimmed === "no") return false;
+    return fallback;
+  } finally {
+    rl.close();
+  }
+}
+
+function parseKeyValue(pairs: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const pair of pairs) {
+    const [key, ...rest] = pair.split("=");
+    if (key && rest.length > 0) {
+      result[key.trim()] = rest.join("=").trim();
+    }
+  }
+  return result;
 }
 
 /**
@@ -92,20 +115,35 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
     .command("init")
     .description("create a gitwe workflow definition in the current repository")
     .option("-f, --force", "overwrite an existing workflow definition")
-    .option("-p, --preset <preset>", `workflow preset (${PRESET_NAMES.join(", ")})`, "classic")
+    .option("-n, --preset <preset>", `workflow preset (${PRESET_NAMES.join(", ")})`, "classic")
     .option("-d, --defaults", "accept the preset defaults without prompting")
     .option("--file <path>", `definition file to write (default: ${DEFAULT_CONFIG_FILE})`)
     .option("--no-create-branches", "do not create missing base branches")
-    .option("-m, --main <name>", "main branch name")
-    .option("--develop <name>", "develop branch name")
-    .option("--production <name>", "production branch name (gitlab preset)")
-    .option("--staging <name>", "staging branch name (gitlab preset)")
-    .option("--feature <prefix>", "feature branch prefix")
-    .option("-r, --release <prefix>", "release branch prefix")
-    .option("-x, --hotfix <prefix>", "hotfix branch prefix")
-    .option("-s, --support <prefix>", "support branch prefix")
-    .option("-t, --tag <prefix>", "version tag prefix")
-    .option("--remote <name>", "remote name")
+    .option(
+      "-b, --branch <name=value>",
+      "set a branch name (can be repeated, e.g. --branch main=trunk)",
+      collect,
+      [],
+    )
+    .option(
+      "-p, --prefix <name=value>",
+      "set a branch type prefix (can be repeated, e.g. --prefix feature=feat/)",
+      collect,
+      [],
+    )
+    // ===== گزینه‌های عمومی =====
+    .option("-r, --remote <name>", "remote name")
+    .option("-tp, --tag-prefix", "version tag prefix", "v")
+    // ===== گزینه‌های versioning =====
+    // .option("--versioning-enabled", "enable versioning (default: false)")
+    // .option("--tag-prefix <prefix>", "version tag prefix (default: v)")
+    // .option(
+    //   "--versioning-path <path>",
+    //   "path to versioning config file (default: .gitwe/VERSION.yaml)",
+    // )
+    // ===== گزینه‌های changelog =====
+    // .option("--changelog-enabled", "enable changelog generation (default: false)")
+    // .option("--changelog-path <path>", "path to changelog file (default: CHANGELOG.md)")
     .action(async (options: InitOptions) => {
       const globalOptions = globals();
       const cwd = globalOptions.cwd ?? process.cwd();
@@ -123,7 +161,6 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         }
         throw error;
       }
-      root = await repositoryRoot(cwd);
       const dryRun = globalOptions.dryRun === true;
       const format = globalOptions.format;
 
@@ -141,21 +178,18 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
           `available presets: ${PRESET_NAMES.join(", ")}`,
         );
       }
+      const branchOverrides = parseKeyValue(options.branch || []);
+      const prefixOverrides = parseKeyValue(options.prefix || []);
 
       // --- جمع‌آوری overrideها از خط فرمان ---
       const cliOverrides: PresetOverrides = {
-        main: options.main,
-        develop: options.develop,
-        production: options.production,
-        staging: options.staging,
-        tagPrefix: options.tag,
         remoteName: options.remote,
-        prefixes: {
-          ...(options.feature !== undefined ? { feature: options.feature } : {}),
-          ...(options.release !== undefined ? { release: options.release } : {}),
-          ...(options.hotfix !== undefined ? { hotfix: options.hotfix } : {}),
-          ...(options.support !== undefined ? { support: options.support } : {}),
-        },
+        tagPrefix: options.tagPrefix,
+        // branch overrides - فقط برای branch name‌ها
+        ...branchOverrides,
+        // prefix overrides
+        prefixes: prefixOverrides,
+        changelogEnabled: false,
       };
 
       // --- حالت تعاملی ---
@@ -176,72 +210,115 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
 
         // ۳. پرسش‌وجو برای base branches
         for (const base of draft.baseBranches) {
-          // بررسی override از خط فرمان
-          const hasCliOverride =
-            (base.name === "main" && options.main !== undefined) ||
-            (base.name === "develop" && options.develop !== undefined) ||
-            (base.name === "staging" && options.staging !== undefined) ||
-            (base.name === "production" && options.production !== undefined);
-
+          const hasCliOverride = branchOverrides[base.name] !== undefined;
           if (hasCliOverride) continue;
 
-          const answer = await prompt(`Base branch name for "${base.name}"?`, base.name);
-          if (base.name === draft.baseBranches[0].name) overrides.main = answer;
-          else if (base.name === "develop") overrides.develop = answer;
-          else if (base.name === "staging") overrides.staging = answer;
-          else if (base.name === "production") overrides.production = answer;
+          const answer = await prompt(`Branch name for "${base.name}"?`, base.name);
+          // ذخیره در overrides با نام شاخه
+          (overrides as any)[base.name] = answer;
         }
 
-        // ۴. پرسش‌وجو برای branch types
-        // ابتدا overrides.prefixes, overrides.bases, overrides.targets را مقداردهی اولیه می‌کنیم
+        // ۴. پرسش‌وجو برای پیشوندها (یکپارچه)
         if (!overrides.prefixes) overrides.prefixes = {};
-        if (!overrides.bases) overrides.bases = {};
-        if (!overrides.targets) overrides.targets = {};
-
         for (const bt of draft.branchTypes) {
-          // بررسی override از خط فرمان (برای prefix)
-          const hasCliOverride = options[bt.name as keyof InitOptions] !== undefined;
+          const hasCliOverride = prefixOverrides[bt.name] !== undefined;
+          if (hasCliOverride) continue;
 
-          // سوال برای base (مبدأ)
-          const baseAnswer = await prompt(
-            `Base branch for "${bt.name}" branches? (where they start from)`,
-            bt.base,
-          );
-          overrides.bases[bt.name] = baseAnswer;
-
-          // سوال برای target (هدف) – می‌تواند آرایه باشد
-          const targetAnswer = await prompt(
-            `Target branch(es) for "${bt.name}" branches? (comma-separated)`,
-            bt.target.join(","),
-          );
-          overrides.targets[bt.name] = targetAnswer;
-
-          // سوال برای prefix (فقط اگر از خط فرمان نیامده باشد)
-          if (!hasCliOverride) {
-            const prefixAnswer = await prompt(`Prefix for ${bt.name} branches?`, bt.prefix);
-            overrides.prefixes[bt.name] = prefixAnswer;
-          }
+          const answer = await prompt(`Prefix for ${bt.name} branches?`, bt.prefix);
+          overrides.prefixes[bt.name] = answer;
         }
 
-        // ۵. پرسش‌وجو برای tag prefix (اگر از خط فرمان نیامده باشد)
-        if (options.tag === undefined) {
-          overrides.tagPrefix = await prompt(
-            "Version tag prefix?",
-            draft.versioning?.tagPrefix ?? "v",
-          );
-        }
-
-        // ۶. پرسش‌وجو برای remote (اگر از خط فرمان نیامده باشد)
+        // ۵. پرسش‌وجو برای remote و tag prefix
         if (options.remote === undefined) {
           const remoteNameAnswer = await prompt("Remote name?", draft.remote?.name ?? "origin");
           overrides.remoteName = remoteNameAnswer;
         }
 
-        print(); // یک خط خالی
+        if (options.tagPrefix === undefined) {
+          const tagPrefixAnswer = await prompt(
+            "Version tag prefix?",
+            draft.versioning?.tagPrefix ?? "v",
+          );
+          overrides.tagPrefix = tagPrefixAnswer;
+        }
+
+        // ۶. پرسش‌وجو برای versioning
+        if (options.versioningEnabled === undefined) {
+          const enabled = await promptYesNo("Enable versioning?", false);
+          overrides.versionEnabled = enabled;
+        }
+
+        // ۷. پرسش‌وجو برای changelog
+        if (options.changelogEnabled === undefined) {
+          const enabled = await promptYesNo("Enable changelog generation?", false);
+          overrides.changelogEnabled = enabled;
+        }
+
+        print();
       }
 
       // --- ساخت config نهایی با overrideهای نهایی ---
       const config = createPreset(presetName, overrides);
+
+      if (overrides.versionEnabled !== undefined || overrides.tagPrefix !== undefined) {
+        if (!config.versioning) {
+          config.versioning = {
+            enabled: false,
+            tagPrefix: "v",
+            format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}",
+            tag: [],
+            branchTypes: {},
+            annotated: true,
+            pushTags: false,
+            autoCommit: true,
+            path: ".gitwe/VERSION.yaml",
+            bumpRules: {},
+            commitMessage: "chore: bump version to {{version}}",
+            initialVersion: "0.1.0",
+          };
+        }
+        if (overrides.versionEnabled !== undefined) {
+          config.versioning.enabled = overrides.versionEnabled;
+        }
+        if (overrides.tagPrefix !== undefined) {
+          config.versioning.tagPrefix = overrides.tagPrefix;
+        }
+        if (options.versioningPath !== undefined) {
+          config.versioning.path = options.versioningPath;
+        }
+      }
+
+      if (overrides.changelogEnabled !== undefined || options.changelogPath !== undefined) {
+        if (!config.versioning) {
+          config.versioning = {
+            enabled: false,
+            tagPrefix: "v",
+            format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}",
+            tag: [],
+            branchTypes: {},
+            annotated: true,
+            pushTags: false,
+            autoCommit: true,
+            path: ".gitwe/VERSION.yaml",
+            bumpRules: {},
+            commitMessage: "chore: bump version to {{version}}",
+            initialVersion: "0.1.0",
+          };
+        }
+        if (!config.versioning.changelog) {
+          config.versioning.changelog = {
+            enabled: false,
+            path: "CHANGELOG.md",
+          };
+        }
+        if (overrides.changelogEnabled !== undefined) {
+          config.versioning.changelog.enabled = overrides.changelogEnabled;
+        }
+        if (options.changelogPath !== undefined) {
+          config.versioning.changelog.path = options.changelogPath;
+        }
+      }
+
       const target = options.file
         ? resolvePath(root, options.file)
         : resolvePath(root, DEFAULT_CONFIG_FILE);
@@ -291,6 +368,14 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         const firstTopic = config.branchTypes[0]?.name ?? "feature";
         print(`  gitwe start ${firstTopic} my-first-${firstTopic}`);
         print(`  gitwe overview`);
+        if (config.versioning?.enabled) {
+          print(`  gitwe finish <branch>  # version will be bumped automatically`);
+        }
       }
     });
+
+  // ===== Helper برای جمع‌آوری گزینه‌های قابل تکرار =====
+  function collect(value: string, previous: string[]): string[] {
+    return [...previous, value];
+  }
 }

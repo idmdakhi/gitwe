@@ -1,3 +1,5 @@
+// tests/core/domain.test.ts
+
 import { describe, expect, it } from "vitest";
 import {
   parseWorkflowConfig,
@@ -122,7 +124,8 @@ describe("Domain Layer", () => {
       expect(config.name).toBe("classic");
       expect(config.baseBranches).toHaveLength(2);
       expect(config.baseBranches.map((b) => b.name)).toEqual(["main", "develop"]);
-      expect(config.branchTypes).toHaveLength(3);
+      // classic preset: feature, release, hotfix, support (4 types)
+      expect(config.branchTypes).toHaveLength(4);
       expect(config.branchTypes.map((t) => t.name)).toEqual([
         "feature",
         "release",
@@ -135,7 +138,9 @@ describe("Domain Layer", () => {
       const config = createPreset("github");
       expect(config.name).toBe("github");
       expect(config.baseBranches).toHaveLength(1);
+      // github preset: feature, bugfix (2 types)
       expect(config.branchTypes).toHaveLength(2);
+      expect(config.branchTypes.map((t) => t.name)).toEqual(["feature", "bugfix"]);
     });
 
     it("should create gitlab preset", () => {
@@ -143,7 +148,9 @@ describe("Domain Layer", () => {
       expect(config.name).toBe("gitlab");
       expect(config.baseBranches).toHaveLength(3);
       expect(config.baseBranches.map((b) => b.name)).toEqual(["main", "staging", "production"]);
+      // gitlab preset: feature, hotfix (2 types)
       expect(config.branchTypes).toHaveLength(2);
+      expect(config.branchTypes.map((t) => t.name)).toEqual(["feature", "hotfix"]);
     });
 
     it("should apply overrides correctly", () => {
@@ -156,6 +163,7 @@ describe("Domain Layer", () => {
           feature: "feat/",
           release: "rel/",
         },
+        changelogEnabled: false,
       });
       expect(config.baseBranches[0].name).toBe("trunk");
       expect(config.baseBranches[1].name).toBe("dev");
@@ -327,7 +335,8 @@ describe("Domain Layer", () => {
     it("should expose config properties", () => {
       expect(workflow.remoteName).toBe("origin");
       expect(workflow.baseBranches).toHaveLength(2);
-      expect(workflow.branchTypes).toHaveLength(5);
+      // classic preset: feature, release, hotfix, support (4 types)
+      expect(workflow.branchTypes).toHaveLength(4);
     });
 
     it("should find root branch", () => {
@@ -365,10 +374,9 @@ describe("Domain Layer", () => {
       expect(workflow.baseOf(workflow.requireBranchType("hotfix"))).toBe("main");
     });
 
-    // it("should get tag prefix", () => {
-    // const engine = await repo.engine(undefined, true);
-    //   expect(workflow.tagPrefixFor(workflow.requireBranchType("release"))).toBe("v");
-    // });
+    it("should get tag prefix", () => {
+      expect(workflow.tagPrefixFor(workflow.requireBranchType("release"))).toBe("v");
+    });
 
     it("should build branch name", () => {
       expect(workflow.branchName(workflow.requireBranchType("feature"), "login")).toBe(

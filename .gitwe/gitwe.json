@@ -64,10 +64,7 @@
     "branchTypes": {
       "main": "merge",
       "develop": "merge",
-      "feature": "squash",
-      "release": ["merge", "rebase"],
       "hotfix": "default",
-      "bugfix": "merge",
       "support": ["default", "merge"]
     },
     "deleteOnFinish": ["feature", "release", "hotfix", "bugfix"],
