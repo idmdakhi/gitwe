@@ -1,31 +1,48 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import type { DoctorReport } from "#gitwe/application/handlers/DoctorHandler";
-import { reportError } from "#gitwe/cli/reportError";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import { createEngine } from "../context.js";
+import type { GlobalOptions } from "../options.js";
+import { print, style, printStructured } from "../output.js";
+import type { OverviewReport } from "../../application/engine.js";
 
-export function registerDoctorCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+export function registerDoctor(program: Command, globals: () => GlobalOptions): void {
   program
     .command("doctor")
-    .description("Run sanity checks against the repo and the active workflow")
-    .action(async () => {
-      const container = getContainer();
-      try {
-        const report = await container.kernel.run<void, DoctorReport>("doctor", undefined);
-        printResult(getJson(), report, (r) => {
-          for (const check of r.checks) {
-            const icon = check.passed ? "✅" : "❌";
-            const detail = check.detail ? ` — ${check.detail}` : "";
-            console.log(`${icon} ${check.name}${detail}`);
-          }
-        });
-        if (!report.healthy) process.exitCode = 1;
-      } catch (error) {
-        process.exitCode = reportError(error, getJson());
+    .description("check repository health and optionally repair issues")
+    .option("--fix", "attempt to automatically fix problems")
+    .option("--yes", "non-interactive mode for --fix")
+    .action(async (options: { fix?: boolean; yes?: boolean }) => {
+      const engine = await createEngine(globals());
+      // TODO: Replace with engine.doctor() once implemented (RFC-0003)
+      // Currently using overview as a temporary solution.
+      const report: OverviewReport = await engine.overview();
+      const issues = report.health.filter((h) => h.level !== "ok");
+
+      const format = globals().format;
+      if (format === "json" || format === "yaml") {
+        printStructured({ issues, fixed: false }, format);
+        return;
+      }
+
+      if (issues.length === 0) {
+        print(style.green("✓ Repository is healthy."));
+        return;
+      }
+
+      print(style.bold("Issues found:"));
+      for (const issue of issues) {
+        const icon = issue.level === "error" ? style.red("✗") : style.yellow("!");
+        print(`  ${icon} ${issue.message}`);
+      }
+
+      if (options.fix) {
+        if (!options.yes) {
+          print(style.dim("\n--fix requires --yes to proceed (non-interactive)."));
+          print(style.dim("  Use: gitwe doctor --fix --yes"));
+          return;
+        }
+        // TODO: 실제 복구 로직 (Engine.doctor({ fix: true, yes: true }))
+        print(style.yellow("\n⚠️  --fix is not yet fully implemented (see RFC-0003)."));
+        print(style.dim("  This is a placeholder. Coming soon."));
       }
     });
 }

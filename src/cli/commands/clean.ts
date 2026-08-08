@@ -1,40 +1,50 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import type { CleanupInput } from "#gitwe/kernel/modules/CleanupModule";
-import type { CleanupResult } from "#gitwe/application/handlers/CleanupHandler";
-import { reportError } from "#gitwe/cli/reportError";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import { createEngine } from "../context.js";
+import type { GlobalOptions } from "../options.js";
+import { print, style, printStructured } from "../output.js";
 
-export function registerCleanCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+/**
+ * Register `gitwe clean` — report (or remove) a stale finish operation state file.
+ * Does not delete branches or worktree files.
+ */
+export function registerClean(program: Command, globals: () => GlobalOptions): void {
   program
     .command("clean")
-    .description("Delete local branches that are fully merged into their configured targets")
-    .option("--dry-run", "list what would be deleted without deleting anything")
-    .action(async (opts: { dryRun?: boolean }) => {
-      const container = getContainer();
-      const json = getJson();
-      try {
-        const result = await container.kernel.run<CleanupInput, CleanupResult>("cleanup", {
-          dryRun: opts.dryRun,
-        });
-        printResult(json, result, (r) => {
-          if (r.candidates.length === 0) {
-            console.log("Nothing to clean up.");
-            return;
-          }
-          for (const candidate of r.candidates) {
-            const verb = r.dryRun ? "would delete" : "deleted";
-            console.log(
-              `${r.dryRun ? "🔎" : "🗑️ "} ${verb}: ${candidate.branchName} (merged into ${candidate.mergedInto.join(", ")})`,
-            );
-          }
-        });
-      } catch (error) {
-        process.exitCode = reportError(error, json);
+    .description("remove a stale gitwe operation state file (does not touch branches)")
+    .option("-f, --force", "actually delete the state file")
+    .action(async (opts: { force?: boolean }) => {
+      const format = globals().format;
+      const engine = await createEngine(globals());
+      const exists = engine.context.state.exists();
+
+      if (!exists) {
+        if (format === "json" || format === "yaml") {
+          printStructured({ staleOperation: false }, format);
+        } else {
+          print(style.dim("no stale operation state"));
+        }
+        return;
+      }
+
+      if (opts.force === true) {
+        engine.context.state.clear();
+        if (format === "json" || format === "yaml") {
+          printStructured({ staleOperation: true, cleared: true }, format);
+        } else {
+          print(style.green("✓ cleared stale operation state"));
+        }
+        return;
+      }
+
+      if (format === "json" || format === "yaml") {
+        printStructured({ staleOperation: true, cleared: false }, format);
+      } else {
+        print(style.yellow("! stale operation state present"));
+        print(
+          style.dim(
+            "  run `gitwe clean --force` to remove it, or `gitwe finish --continue` / `--abort`",
+          ),
+        );
       }
     });
 }

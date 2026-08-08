@@ -1,25 +1,34 @@
 # Changelog
 
-## [1.0.0] - 2025-07-25
+All notable changes to this project are documented in this file.
+
+## [1.0.0] - 2026-07-31
+
+First stable release. gitwe was rewritten from scratch as a focused git workflow
+engine; the pre-1.0 code base is not carried over and no upgrade path is provided.
 
 ### Added
 
-- **`gitwe sync`**: Update all topic branches at once (`--rebase`, `--push`, `--all`).
-- **Config Schema Validation**: Zod schema for rigorous workflow config checking.
-- **GitHub Action**: New `dry-run` and `strategy` inputs for fine-grained CI control.
-- **Result Pattern**: Introduced `Result<T, E>` for better error handling in core handlers.
-- **ConfigService**: Centralized CLI settings (emoji, color, quiet, json).
+- **Workflow definition (v1)** — base branches with a parent tree, ``
+  back-merges, and topic types with prefix, start point, merge/update strategies,
+  tagging and retention. Strict validation of parents, prefixes, strategies and cycles.
+- **Presets** — `classic` (git-flow), `github` and `gitlab`, written by `gitwe init`.
+- **Engine** — `start`, `finish`, `update`, `publish`, `track`, `list`, `checkout`,
+  `rename`, `delete` and `overview`, usable as a typed library API.
+- **Resumable finish** — the finish state machine persists its progress in
+  `.git/gitwe/operation.json`, so `--continue` resumes after conflicts and `--abort`
+  restores every touched branch and tag.
+- **Remote safety** — `finish` fetches and refuses to run when the topic branch is
+  behind its remote tracking branch unless `--force` is given.
+- **Generated CLI** — every topic type in the definition gets its own command group,
+  plus git-flow style shorthands (`gitwe finish`, `gitwe update`, `gitwe rebase`, …).
+- **Hooks** — `pre-/post-` scripts for start, finish, update, publish and delete.
+- **`gitwe overview --format json|yaml`** for CI and tooling.
 
-### Changed
+### Removed
 
-- **Internal Architecture**: Kernel modules now leverage `Result` for predictable error propagation.
-- **Domain Events**: Enriched with `correlationId` and `causationId` for traceability.
-
-### Fixed
-
-- Edge case in `update` where rebasing on dirty working tree now throws a clear error.
-- `ShellGitRepository` now captures `stdout` on failure for better conflict diagnostics.
-
-### Deprecated
-
-- Direct usage of `Container` handlers is deprecated in favor of `kernel.run()`.
+- Plugin system, Slack notifier, GitHub Action, changelog/version-bump automation,
+  conventional-commit policies and the update checker — out of scope for a workflow
+  engine.
+- The `simple-git` and `zod` dependencies; gitwe now drives the `git` binary directly
+  and validates definitions itself. The package is ESM and requires Node.js >= 20.

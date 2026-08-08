@@ -1,25 +1,22 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import { reportError } from "#gitwe/cli/reportError";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import { createEngine } from "../context.js";
+import type { GlobalOptions } from "../options.js";
+import { printStructured, success } from "../output.js";
 
-export function registerPullCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+/** Register `gitwe pull` — fetch and integrate the current branch from its upstream. */
+export function registerPull(program: Command, globals: () => GlobalOptions): void {
   program
     .command("pull")
-    .description("Pull the current branch from the configured remote")
-    .option("--remote <name>", "remote to pull from (overrides the workflow's configured remote)")
-    .action(async (opts: { remote?: string }) => {
-      const container = getContainer();
-      try {
-        const remote = opts.remote ?? container.workflow.remote.remote;
-        await container.git.pull(remote);
-        printResult(getJson(), { remote }, (r) => console.log(`✅ Pulled from ${r.remote}.`));
-      } catch (error) {
-        process.exitCode = reportError(error, getJson());
+    .description("fetch the configured remote (use git pull for merge/rebase integration)")
+    .action(async () => {
+      const format = globals().format;
+      const engine = await createEngine(globals());
+      const remote = engine.workflow.remoteName;
+      await engine.git.fetch(remote);
+      if (format === "json" || format === "yaml") {
+        printStructured({ remote, fetched: true }, format);
+      } else {
+        success(`fetched ${remote}`);
       }
     });
 }

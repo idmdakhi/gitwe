@@ -1,25 +1,24 @@
-import type { Command } from "commander";
-import type { Container } from "#gitwe/cli/container";
-import { reportError } from "#gitwe/cli/reportError";
-import { printResult } from "#gitwe/cli/output";
+import { Command } from "commander";
+import { createEngine } from "../context.js";
+import type { GlobalOptions } from "../options.js";
+import { printStructured, success } from "../output.js";
 
-export function registerAbortCommand(
-  program: Command,
-  getContainer: () => Container,
-  getJson: () => boolean,
-): void {
+/**
+ * Register `gitwe abort` — roll back an in-progress finish operation.
+ * Equivalent to `gitwe finish --abort`.
+ */
+export function registerAbort(program: Command, globals: () => GlobalOptions): void {
   program
     .command("abort")
-    .description("Abort an in-progress merge (git merge --abort)")
+    .description("abort an in-progress finish and restore the previous state")
     .action(async () => {
-      const container = getContainer();
-      try {
-        await container.git.runRaw(["merge", "--abort"]);
-        printResult(getJson(), { aborted: true }, () =>
-          console.log("✅ Merge aborted; working tree restored."),
-        );
-      } catch (error) {
-        process.exitCode = reportError(error, getJson());
+      const format = globals().format;
+      const engine = await createEngine(globals());
+      await engine.abortOperation();
+      if (format === "json" || format === "yaml") {
+        printStructured({ ok: true, action: "abort" }, format);
+      } else {
+        success("aborted; the repository is back to its previous state");
       }
     });
 }

@@ -1,0 +1,114 @@
+name: RFC proposal
+description: Propose a larger design change (new strategy, multi-remote, extensibility, …)
+title: "[RFC] "
+labels: ["rfc", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for **substantial** changes that need design discussion before implementation.
+
+        Smaller ideas belong in a [Feature request](https://github.com/idmdakhi/gitwe/issues/new?template=feature_request.yml).
+
+        After the issue is opened, a maintainer may ask you to turn it into a full document under `docs/rfcs/`.
+
+  - type: input
+    id: title
+    attributes:
+      label: Short title
+      description: One-line summary of the proposal.
+      placeholder: Multi-remote push strategy
+    validations:
+      required: true
+
+  - type: dropdown
+    id: target
+    attributes:
+      label: Target release (approximate)
+      options:
+        - 1.1
+        - 1.2
+        - 1.3
+        - 2.0
+        - undecided
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Suggested priority
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+        - undecided
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: 2–4 sentences describing the change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: Why is this needed? What problem does it solve that cannot be solved cleanly today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: design
+    attributes:
+      label: Detailed design (sketch)
+      description: |
+        Configuration shape, CLI surface, behaviour changes, edge cases.
+        You do not need a full RFC yet — a clear sketch is enough to start the discussion.
+      placeholder: |
+        ```yaml
+        # example config change
+        ```
+        ```
+        # example CLI
+        gitwe finish --push --push-to origin,mirror
+        ```
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: layers
+    attributes:
+      label: Layers affected
+      options:
+        - label: domain
+        - label: application
+        - label: infrastructure
+        - label: cli
+        - label: docs / tests only
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you reject and why?
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks & open questions
+      description: Backward compatibility, complexity, security, etc.
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Suggested acceptance criteria
+      description: How will we know the work is done?
+      placeholder: |
+        - [ ] …
+        - [ ] …
