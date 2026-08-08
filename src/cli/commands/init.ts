@@ -171,6 +171,13 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
       }
 
       const availablePresets = getAvailablePresets(root);
+      if (availablePresets.length === 0) {
+        throw new ConfigError(
+          "No presets found!",
+          "Please create a preset file in .gitwe/preset/ or reinstall gitwe with default presets.",
+        );
+      }
+
       let presetName = options.preset ?? "classic";
       if (!isPresetName(presetName, root)) {
         throw new ConfigError(
@@ -263,65 +270,6 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
 
       // --- ساخت config نهایی با overrideهای نهایی ---
       const config = createPreset(presetName, overrides, root);
-
-      if (overrides.versionEnabled !== undefined || overrides.tagPrefix !== undefined) {
-        if (!config.versioning) {
-          config.versioning = {
-            enabled: false,
-            tagPrefix: "v",
-            format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}",
-            tag: [],
-            branchTypes: {},
-            annotated: true,
-            pushTags: false,
-            autoCommit: true,
-            path: ".gitwe/VERSION.yaml",
-            bumpRules: {},
-            commitMessage: "chore: bump version to {{version}}",
-            initialVersion: "0.1.0",
-          };
-        }
-        if (overrides.versionEnabled !== undefined) {
-          config.versioning.enabled = overrides.versionEnabled;
-        }
-        if (overrides.tagPrefix !== undefined) {
-          config.versioning.tagPrefix = overrides.tagPrefix;
-        }
-        if (options.versioningPath !== undefined) {
-          config.versioning.path = options.versioningPath;
-        }
-      }
-
-      if (overrides.changelogEnabled !== undefined || options.changelogPath !== undefined) {
-        if (!config.versioning) {
-          config.versioning = {
-            enabled: false,
-            tagPrefix: "v",
-            format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}",
-            tag: [],
-            branchTypes: {},
-            annotated: true,
-            pushTags: false,
-            autoCommit: true,
-            path: ".gitwe/VERSION.yaml",
-            bumpRules: {},
-            commitMessage: "chore: bump version to {{version}}",
-            initialVersion: "0.1.0",
-          };
-        }
-        if (!config.versioning.changelog) {
-          config.versioning.changelog = {
-            enabled: false,
-            path: "CHANGELOG.md",
-          };
-        }
-        if (overrides.changelogEnabled !== undefined) {
-          config.versioning.changelog.enabled = overrides.changelogEnabled;
-        }
-        if (options.changelogPath !== undefined) {
-          config.versioning.changelog.path = options.changelogPath;
-        }
-      }
 
       const target = options.file
         ? resolvePath(root, options.file)
