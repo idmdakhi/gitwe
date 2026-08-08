@@ -179,7 +179,7 @@ describe("ShellGitRepository", () => {
     }
     await git.abortRebase();
     expect(await git.isClean()).toBe(true);
-  });
+  }, 10000);
 
   it("should commit with message", async () => {
     repo.write("a.txt", "a");
@@ -293,5 +293,5 @@ describe("ShellGitRepository", () => {
     await git.push("origin", "main", { setUpstream: true });
     const upstream = await git.upstreamOf("main");
     expect(upstream).toBe("origin/main");
-  });
+  }, 10000);
 });

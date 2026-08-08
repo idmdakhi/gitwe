@@ -33,7 +33,6 @@ interface InitOptions {
   production?: string;
   staging?: string;
   feature?: string;
-  bugfix?: string;
   release?: string;
   hotfix?: string;
   support?: string;
@@ -102,7 +101,6 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
     .option("--production <name>", "production branch name (gitlab preset)")
     .option("--staging <name>", "staging branch name (gitlab preset)")
     .option("--feature <prefix>", "feature branch prefix")
-    .option("-b, --bugfix <prefix>", "bugfix branch prefix")
     .option("-r, --release <prefix>", "release branch prefix")
     .option("-x, --hotfix <prefix>", "hotfix branch prefix")
     .option("-s, --support <prefix>", "support branch prefix")
@@ -154,7 +152,6 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
         remoteName: options.remote,
         prefixes: {
           ...(options.feature !== undefined ? { feature: options.feature } : {}),
-          ...(options.bugfix !== undefined ? { bugfix: options.bugfix } : {}),
           ...(options.release !== undefined ? { release: options.release } : {}),
           ...(options.hotfix !== undefined ? { hotfix: options.hotfix } : {}),
           ...(options.support !== undefined ? { support: options.support } : {}),

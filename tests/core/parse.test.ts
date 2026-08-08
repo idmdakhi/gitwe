@@ -13,8 +13,8 @@ describe("parseWorkflowConfig", () => {
   it("applies defaults", () => {
     const config = parseWorkflowConfig(minimal);
     expect(config.version).toBe(1);
-    expect(config.remote.name).toBe("origin");
-    expect(config.versioning.tagPrefix).toBe("v");
+    expect(config.remote?.name).toBe("origin");
+    expect(config.versioning?.tagPrefix).toBe("v");
     expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
     expect(config.baseBranches[0]).toMatchObject({ name: "main" });
     expect(config.branchTypes[0]).toMatchObject({
@@ -22,7 +22,7 @@ describe("parseWorkflowConfig", () => {
       base: "main",
       target: ["main"],
     });
-    expect(config.merge.strategy).toBe("merge");
+    expect(config.merge?.strategy).toBe("merge");
   });
 
   it("rejects unsupported versions", () => {

@@ -39,13 +39,6 @@
       "prefix": "hotfix/"
     },
     {
-      "name": "bugfix",
-      "aliases": ["bug", "bfix"],
-      "base": "main",
-      "target": ["develop"],
-      "prefix": "bugfix/"
-    },
-    {
       "name": "support",
       "aliases": ["lts"],
       "base": "main",

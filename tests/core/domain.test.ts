@@ -29,8 +29,8 @@ describe("Domain Layer", () => {
       const config = parseWorkflowConfig(input);
       expect(config.version).toBe(1);
       expect(config.name).toBe("test");
-      expect(config.remote.name).toBe("origin");
-      expect(config.versioning.tagPrefix).toBe("v");
+      expect(config.remote?.name).toBe("origin");
+      expect(config.versioning?.tagPrefix).toBe("v");
       expect(config.baseBranches).toHaveLength(1);
       expect(config.branchTypes).toHaveLength(1);
     });
@@ -109,8 +109,8 @@ describe("Domain Layer", () => {
         branchTypes: [{ name: "feature", base: "main", target: ["main"] }],
       });
       expect(config.hooks).toEqual({ enabled: true, path: ".gitwe/hooks" });
-      expect(config.merge.strategy).toBe("merge");
-      expect(config.remote.name).toBe("origin");
+      expect(config.merge?.strategy).toBe("merge");
+      expect(config.remote?.name).toBe("origin");
       expect(config.branchTypes[0].prefix).toBe("feature/");
       expect(config.branchTypes[0].target).toEqual(["main"]);
     });
@@ -122,10 +122,9 @@ describe("Domain Layer", () => {
       expect(config.name).toBe("classic");
       expect(config.baseBranches).toHaveLength(2);
       expect(config.baseBranches.map((b) => b.name)).toEqual(["main", "develop"]);
-      expect(config.branchTypes).toHaveLength(5);
+      expect(config.branchTypes).toHaveLength(3);
       expect(config.branchTypes.map((t) => t.name)).toEqual([
         "feature",
-        "bugfix",
         "release",
         "hotfix",
         "support",
@@ -160,8 +159,8 @@ describe("Domain Layer", () => {
       });
       expect(config.baseBranches[0].name).toBe("trunk");
       expect(config.baseBranches[1].name).toBe("dev");
-      expect(config.versioning.tagPrefix).toBe("release-");
-      expect(config.remote.name).toBe("upstream");
+      expect(config.versioning?.tagPrefix).toBe("release-");
+      expect(config.remote?.name).toBe("upstream");
       expect(config.branchTypes.find((t) => t.name === "feature")?.prefix).toBe("feat/");
       expect(config.branchTypes.find((t) => t.name === "release")?.prefix).toBe("rel/");
     });

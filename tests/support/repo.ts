@@ -28,6 +28,7 @@ export class TestRepo {
     repo.git("config", "commit.gpgsign", "false");
     repo.git("config", "tag.gpgsign", "false");
     repo.git("config", "user.signingkey", "");
+    repo.git("config", "core.editor", "true");
     repo.write("README.md", "# test\n");
     repo.commitAll("initial commit");
     return repo;
@@ -80,18 +81,36 @@ export class TestRepo {
 
   async engine(config?: WorkflowConfig, enableVersioning = false): Promise<Engine> {
     const workflow = config ?? this.preset("classic");
-    // اگر enableVersioning فعال باشد، versioning.enabled را true کن
+
     if (enableVersioning && workflow.versioning) {
       workflow.versioning.enabled = true;
-      // همچنین اطمینان از وجود bumpRules پیش‌فرض
       if (!workflow.versioning.bumpRules) {
         workflow.versioning.bumpRules = {
           major: [],
-          minor: ["feature"],
+          minor: ["release", "feature"],
           patch: ["hotfix"],
         };
       }
+      if (!workflow.versioning.tag) {
+        workflow.versioning.tag = ["main"];
+      }
+      if (!workflow.versioning.tagPrefix) {
+        workflow.versioning.tagPrefix = "v";
+      }
+      if (!workflow.versioning.format) {
+        workflow.versioning.format = "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}";
+      }
+      if (!workflow.versioning.path) {
+        workflow.versioning.path = ".gitwe/VERSION.yaml";
+      }
+      if (!workflow.versioning.commitMessage) {
+        workflow.versioning.commitMessage = "chore: bump version to {{version}}";
+      }
+      if (!workflow.versioning.initialVersion) {
+        workflow.versioning.initialVersion = "0.1.0";
+      }
     }
+
     await this.createBaseBranches(workflow);
     return createEngine({
       root: this.path,

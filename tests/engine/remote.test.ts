@@ -43,7 +43,7 @@ describe("remote-facing operations", () => {
     const other = TestRepo.create();
     other.git("remote", "add", "origin", remote);
     other.git("fetch", "-q", "origin");
-    const otherEngine = await other.engine();
+    const otherEngine = await other.engine(undefined, false);
 
     const branch = await otherEngine.track("feature", "collab");
 
@@ -58,7 +58,10 @@ describe("remote-facing operations", () => {
     repo.commit("a.txt", "a", "published work");
     await engine.publish(engine.resolve("feature", "published"));
 
-    const result = await engine.finish(engine.resolve("feature", "published"), { push: true });
+    const result = await engine.finish(engine.resolve("feature", "published"), {
+      push: true,
+      interactive: false,
+    });
 
     expect(result.deletedRemote).toBe(true);
     expect(repo.git("ls-remote", "--heads", "origin", "feature/published")).toBe("");
