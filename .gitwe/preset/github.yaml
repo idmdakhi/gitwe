@@ -1,49 +1,26 @@
 version: 1
-name: classic
+name: github
 
 baseBranches:
   - name: main
     aliases:
       - master
     protected: true
-  - name: develop
-    aliases:
-      - dev
-    base: main
-    protected: true
 
 branchTypes:
   - name: feature
     aliases:
       - feat
-      - ftr
-    base: develop
-    target: develop
-    prefix: feature/
-  - name: release
-    aliases:
-      - rls
-      - rels
-    base: develop
-    target:
-      - main
-      - develop
-    prefix: release/
-  - name: hotfix
-    aliases:
-      - hfix
-      - patch
-    base: main
-    target:
-      - main
-      - develop
-    prefix: hotfix/
-  - name: support
-    aliases:
-      - lts
     base: main
     target: main
-    prefix: support/
+    prefix: feature/
+  - name: bugfix
+    aliases:
+      - fix
+      - bug
+    base: main
+    target: main
+    prefix: bugfix/
 
 cli:
   enabled: true
@@ -51,17 +28,13 @@ cli:
   color: true
   aliases:
     fs: finish feature
-    rs: release start
-    hf: hotfix start
-    st: status
 
 merge:
   strategy: merge
-  branchTypes:
+  branchTypes: {}
   deleteOnFinish:
     - feature
-    - release
-    - hotfix
+    - bugfix
   squash:
     branchTypes:
       - feature

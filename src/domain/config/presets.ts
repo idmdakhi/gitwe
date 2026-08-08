@@ -1,10 +1,18 @@
-import type { WorkflowConfig } from "../entities.js";
+// src/domain/config/presets.ts
 
-export type PresetName = "classic" | "github" | "gitlab";
-export const PRESET_NAMES: PresetName[] = ["classic", "github", "gitlab"];
+import type { WorkflowConfig } from "../entities.js";
+import {
+  loadPreset,
+  loadProjectConfig,
+  applyOverrides,
+  mergeConfigs,
+  getAvailablePresets as getAvailable,
+  isPresetExists,
+} from "./preset-loader.js";
+
+export type PresetName = string;
 
 export interface PresetOverrides {
-  changelogEnabled: boolean;
   main?: string;
   develop?: string;
   production?: string;
@@ -12,7 +20,6 @@ export interface PresetOverrides {
   remoteName?: string;
   remoteAutoPush?: boolean;
   remoteAutoFetch?: boolean;
-  // Version overrides
   tagPrefix?: string;
   versionEnabled?: boolean;
   versionTag?: string[];
@@ -23,255 +30,56 @@ export interface PresetOverrides {
     patch?: string[];
     metadata?: string[];
   };
-  // Prefix overrides for branch types
   prefixes?: Record<string, string>;
-  // Base branch overrides for branch types
   bases?: Record<string, string>;
-  // Target branch overrides for branch types (comma-separated string)
   targets?: Record<string, string>;
+  changelogEnabled?: boolean;
+  versioningEnabled?: boolean;
 }
 
-function classic(overrides: PresetOverrides): WorkflowConfig {
-  const main = overrides.main ?? "main";
-  const develop = overrides.develop ?? "develop";
-
-  const getBase = (name: string, fallback: string): string => {
-    return overrides.bases?.[name] ?? fallback;
-  };
-  const getTargets = (name: string, fallback: string[]): string[] => {
-    const val = overrides.targets?.[name];
-    if (val === undefined) return fallback;
-    return val
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s !== "");
-  };
-
-  return {
-    version: 1,
-    name: "classic",
-    baseBranches: [
-      {
-        name: main,
-        aliases: ["master"],
-        protected: true,
-      },
-      {
-        name: develop,
-        aliases: ["dev"],
-        base: main,
-        protected: true,
-      },
-    ],
-    branchTypes: [
-      {
-        name: "feature",
-        aliases: ["feat"],
-        base: getBase("feature", develop),
-        target: getTargets("feature", [develop]),
-        prefix: overrides.prefixes?.feature ?? "feature/",
-      },
-      {
-        name: "release",
-        base: getBase("release", develop),
-        target: getTargets("release", [main, develop]),
-        prefix: overrides.prefixes?.release ?? "release/",
-      },
-      {
-        name: "hotfix",
-        aliases: ["fix", "bug", "patch"],
-        base: getBase("hotfix", main),
-        target: getTargets("hotfix", [main, develop]),
-        prefix: overrides.prefixes?.hotfix ?? "hotfix/",
-      },
-      {
-        name: "support",
-        base: getBase("support", main),
-        target: getTargets("support", [main]),
-        prefix: overrides.prefixes?.support ?? "support/",
-      },
-    ],
-    merge: {
-      strategy: "merge",
-      branchTypes: {},
-      deleteOnFinish: ["feature", "release", "hotfix"],
-      squash: {
-        branchTypes: ["feature"],
-        enabled: true,
-        default: false,
-      },
-    },
-    cli: {
-      enabled: true,
-      interactive: true,
-      color: true,
-      aliases: {
-        fs: "finish feature",
-        rs: "release start",
-        hf: "hotfix start",
-        st: "status",
-      },
-    },
-    remote: {
-      name: overrides.remoteName ?? "origin",
-      autoPush: overrides.remoteAutoPush ?? false,
-      autoFetch: overrides.remoteAutoFetch ?? true,
-    },
-  };
+/**
+ * دریافت لیست همه presetهای موجود (از فایل‌ها)
+ */
+export function getAvailablePresets(projectRoot: string): string[] {
+  return getAvailable(projectRoot);
 }
 
-function github(overrides: PresetOverrides): WorkflowConfig {
-  const main = overrides.main ?? "main";
-  return {
-    version: 1,
-    name: "github",
-    baseBranches: [
-      {
-        name: main,
-        aliases: ["master"],
-        protected: true,
-      },
-    ],
-    branchTypes: [
-      {
-        name: "feature",
-        aliases: ["feat"],
-        base: main,
-        target: [main],
-        prefix: overrides.prefixes?.feature ?? "feature/",
-      },
-      {
-        name: "bugfix",
-        aliases: ["fix", "bug"],
-        base: main,
-        target: [main],
-        prefix: overrides.prefixes?.bugfix ?? "bugfix/",
-      },
-    ],
-    merge: {
-      strategy: "merge",
-      branchTypes: {},
-      deleteOnFinish: ["feature", "bugfix"],
-      squash: {
-        branchTypes: ["feature"],
-        enabled: true,
-        default: false,
-      },
-    },
-    remote: {
-      name: overrides.remoteName ?? "origin",
-      autoPush: overrides.remoteAutoPush ?? false,
-      autoFetch: overrides.remoteAutoFetch ?? true,
-    },
-  };
-}
+export const PRESET_NAMES = ["classic", "github", "gitlab"] as const;
 
-function gitlab(overrides: PresetOverrides): WorkflowConfig {
-  const main = overrides.main ?? "main";
-  const staging = overrides.staging ?? "staging";
-  const production = overrides.production ?? "production";
-  return {
-    version: 1,
-    name: "gitlab",
-    baseBranches: [
-      {
-        name: main,
-        protected: true,
-      },
-      {
-        name: staging,
-        aliases: ["stage", "preprod"],
-        base: main,
-        protected: true,
-      },
-      {
-        name: production,
-        aliases: ["prod", "live"],
-        base: staging,
-        protected: true,
-      },
-    ],
-    branchTypes: [
-      {
-        name: "feature",
-        aliases: ["feat"],
-        base: main,
-        target: [staging],
-        prefix: overrides.prefixes?.feature ?? "feature/",
-      },
-      {
-        name: "hotfix",
-        aliases: ["hot", "hfix"],
-        base: production,
-        target: [production, staging],
-        prefix: overrides.prefixes?.hotfix ?? "hotfix/",
-      },
-    ],
-    merge: {
-      strategy: "merge",
-      branchTypes: {},
-      deleteOnFinish: ["feature", "hotfix"],
-      squash: {
-        branchTypes: ["feature"],
-        enabled: true,
-        default: false,
-      },
-    },
-    remote: {
-      name: overrides.remoteName ?? "origin",
-      autoPush: overrides.remoteAutoPush ?? false,
-      autoFetch: overrides.remoteAutoFetch ?? true,
-    },
-  };
-}
-
-const builders: Record<PresetName, (o: PresetOverrides) => WorkflowConfig> = {
-  classic,
-  github,
-  gitlab,
-};
-
-export function isPresetName(value: string): value is PresetName {
-  return PRESET_NAMES.includes(value as PresetName);
-}
-
+/**
+ * ایجاد preset نهایی با اولویت: پروژه > بسته
+ * در صورت نبود فایل در هیچکدام، خطا پرتاب می‌کند.
+ */
 export function createPreset(
-  name: PresetName,
-  overrides: PresetOverrides = {
-    changelogEnabled: false,
-  },
+  name: string,
+  overrides: PresetOverrides = {} as PresetOverrides,
+  projectRoot: string = process.cwd(),
 ): WorkflowConfig {
-  return builders[name](overrides);
+  // ۱. بارگذاری از فایل (پروژه یا بسته)
+  const config = loadPreset(name, projectRoot);
+  if (!config) {
+    const available = getAvailablePresets(projectRoot).join(", ");
+    throw new Error(
+      `Preset "${name}" not found in .gitwe/preset/ or package preset/.\n` +
+        `Available presets: ${available || "(none)"}`,
+    );
+  }
+
+  // ۲. اعمال overrides از خط فرمان
+  let result = applyOverrides(config, overrides);
+
+  // ۳. ادغام با تنظیمات نهایی پروژه (`.gitwe/gitwe.json`)
+  const projectConfig = loadProjectConfig(projectRoot);
+  if (projectConfig) {
+    result = mergeConfigs(result, projectConfig);
+  }
+
+  return result;
 }
 
-export interface PresetInfo {
-  name: PresetName;
-  options: {
-    branchNames?: string[];
-    prefixes?: string[];
-  };
+/**
+ * بررسی وجود preset (از فایل در پروژه یا بسته)
+ */
+export function isPresetName(name: string, projectRoot: string = process.cwd()): boolean {
+  return isPresetExists(name, projectRoot);
 }
-
-export const PRESET_INFO: Record<PresetName, PresetInfo> = {
-  classic: {
-    name: "classic",
-    options: {
-      branchNames: ["main", "develop"],
-      prefixes: ["feature", "release", "hotfix", "support"],
-    },
-  },
-  github: {
-    name: "github",
-    options: {
-      branchNames: ["main"],
-      prefixes: ["feature", "bugfix"],
-    },
-  },
-  gitlab: {
-    name: "gitlab",
-    options: {
-      branchNames: ["main", "staging", "production"],
-      prefixes: ["feature", "hotfix"],
-    },
-  },
-};

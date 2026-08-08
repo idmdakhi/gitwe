@@ -1,49 +1,38 @@
 version: 1
-name: classic
+name: gitlab
 
 baseBranches:
   - name: main
-    aliases:
-      - master
     protected: true
-  - name: develop
+  - name: staging
     aliases:
-      - dev
+      - stage
+      - preprod
     base: main
+    protected: true
+  - name: production
+    aliases:
+      - prod
+      - live
+    base: staging
     protected: true
 
 branchTypes:
   - name: feature
     aliases:
       - feat
-      - ftr
-    base: develop
-    target: develop
+    base: main
+    target: staging
     prefix: feature/
-  - name: release
-    aliases:
-      - rls
-      - rels
-    base: develop
-    target:
-      - main
-      - develop
-    prefix: release/
   - name: hotfix
     aliases:
+      - hot
       - hfix
-      - patch
-    base: main
+    base: production
     target:
-      - main
-      - develop
+      - production
+      - staging
     prefix: hotfix/
-  - name: support
-    aliases:
-      - lts
-    base: main
-    target: main
-    prefix: support/
 
 cli:
   enabled: true
@@ -51,16 +40,13 @@ cli:
   color: true
   aliases:
     fs: finish feature
-    rs: release start
     hf: hotfix start
-    st: status
 
 merge:
   strategy: merge
-  branchTypes:
+  branchTypes: {}
   deleteOnFinish:
     - feature
-    - release
     - hotfix
   squash:
     branchTypes:

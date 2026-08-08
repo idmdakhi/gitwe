@@ -11,6 +11,7 @@ import {
 } from "../../infrastructure/config/loader.js";
 import {
   createPreset,
+  getAvailablePresets,
   isPresetName,
   PRESET_NAMES,
   type PresetName,
@@ -163,19 +164,25 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
       }
       const dryRun = globalOptions.dryRun === true;
       const format = globalOptions.format;
-
       // --- برسی وجود فایل تنظیمات ---
       const existing = findConfigFile(root, root);
       if (existing !== undefined && options.force !== true) {
         throw new ConfigError(`${existing} already exists`, "pass --force to overwrite it");
       }
 
-      // --- تعیین preset (از خط فرمان یا تعاملی) ---
-      let presetName: PresetName = (options.preset ?? "classic") as PresetName;
-      if (!isPresetName(presetName)) {
+      const availablePresets = getAvailablePresets(root);
+      if (availablePresets.length === 0) {
+        throw new ConfigError(
+          "No presets found!",
+          "Please create a preset file in .gitwe/preset/ or reinstall gitwe with default presets.",
+        );
+      }
+
+      let presetName = options.preset ?? "classic";
+      if (!isPresetName(presetName, root)) {
         throw new ConfigError(
           `unknown preset "${presetName}"`,
-          `available presets: ${PRESET_NAMES.join(", ")}`,
+          `available presets: ${availablePresets.join(", ")}`,
         );
       }
       const branchOverrides = parseKeyValue(options.branch || []);
@@ -200,7 +207,11 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
 
       if (interactive) {
         // ۱. انتخاب preset
-        const chosen = await selectFromList("Select workflow preset:", PRESET_NAMES, presetName);
+        const chosen = await selectFromList(
+          "Select workflow preset:",
+          availablePresets,
+          presetName,
+        );
         presetName = chosen as PresetName;
 
         // ۲. ساخت draft برای preset انتخاب‌شده
@@ -258,66 +269,7 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
       }
 
       // --- ساخت config نهایی با overrideهای نهایی ---
-      const config = createPreset(presetName, overrides);
-
-      if (overrides.versionEnabled !== undefined || overrides.tagPrefix !== undefined) {
-        if (!config.versioning) {
-          config.versioning = {
-            enabled: false,
-            tagPrefix: "v",
-            format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}",
-            tag: [],
-            branchTypes: {},
-            annotated: true,
-            pushTags: false,
-            autoCommit: true,
-            path: ".gitwe/VERSION.yaml",
-            bumpRules: {},
-            commitMessage: "chore: bump version to {{version}}",
-            initialVersion: "0.1.0",
-          };
-        }
-        if (overrides.versionEnabled !== undefined) {
-          config.versioning.enabled = overrides.versionEnabled;
-        }
-        if (overrides.tagPrefix !== undefined) {
-          config.versioning.tagPrefix = overrides.tagPrefix;
-        }
-        if (options.versioningPath !== undefined) {
-          config.versioning.path = options.versioningPath;
-        }
-      }
-
-      if (overrides.changelogEnabled !== undefined || options.changelogPath !== undefined) {
-        if (!config.versioning) {
-          config.versioning = {
-            enabled: false,
-            tagPrefix: "v",
-            format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}",
-            tag: [],
-            branchTypes: {},
-            annotated: true,
-            pushTags: false,
-            autoCommit: true,
-            path: ".gitwe/VERSION.yaml",
-            bumpRules: {},
-            commitMessage: "chore: bump version to {{version}}",
-            initialVersion: "0.1.0",
-          };
-        }
-        if (!config.versioning.changelog) {
-          config.versioning.changelog = {
-            enabled: false,
-            path: "CHANGELOG.md",
-          };
-        }
-        if (overrides.changelogEnabled !== undefined) {
-          config.versioning.changelog.enabled = overrides.changelogEnabled;
-        }
-        if (options.changelogPath !== undefined) {
-          config.versioning.changelog.path = options.changelogPath;
-        }
-      }
+      const config = createPreset(presetName, overrides, root);
 
       const target = options.file
         ? resolvePath(root, options.file)
