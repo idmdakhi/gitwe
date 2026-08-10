@@ -8,3 +8,4 @@ export * from "./workflow-context.js";
 export * from "./workflow-engine.js";
 export * from "./workflow-listener.js";
 export * from "./workflow-step.js";
+export * from "./performance-tracker.js";

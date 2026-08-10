@@ -8,6 +8,7 @@ export interface GlobalOptions {
   verbose?: boolean;
   /** Simulate the operation without making changes (`--dry-run`). */
   dryRun?: boolean;
+  performance?: boolean;
   /** Output format (`--format`). */
   format?: "text" | "json" | "yaml" | "table";
 }
@@ -20,4 +21,5 @@ export const GLOBAL_OPTION_FLAGS = [
   { flags: "--no-color", description: "disable coloured output" },
   { flags: "--dry-run", description: "simulate the operation without making changes" },
   { flags: "--format <format>", description: "output format: text, json, yaml, table" },
+  { flags: "--performance", description: "show workflow and step execution timings" },
 ] as const;
