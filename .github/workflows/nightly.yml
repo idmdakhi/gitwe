@@ -1,0 +1,48 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: "0 0 * * *" # هر شب ساعت ۰۰:۰۰ UTC
+  workflow_dispatch:
+
+jobs:
+  nightly:
+    if: false
+    name: Nightly Build & Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-fund --no-audit
+
+      - name: Set nightly version
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          TIMESTAMP=$(date +'%Y%m%d%H%M%S')
+          npm version "${VERSION}-nightly.${TIMESTAMP}" --no-git-tag-version
+
+      - name: Build
+        run: npm run build
+
+      - name: Publish to npm with nightly tag
+        run: npm publish --tag nightly --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create nightly Git tag
+        run: |
+          TAG="nightly-$(date +'%Y%m%d')"
+          git tag -f "$TAG"
+          git push -f origin "$TAG"

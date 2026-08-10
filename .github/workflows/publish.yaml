@@ -1,0 +1,115 @@
+name: Publish Package
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 24
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-fund --no-audit
+
+      - name: Lint & Typecheck
+        run: |
+          npm run lint --if-present
+          npm run typecheck --if-present
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
+      - name: Pack dry-run
+        run: npm pack --dry-run
+
+      - name: Upload package sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: package
+          retention-days: 1
+          path: |
+            dist
+            .gitwe
+            package.json
+            README.md
+            LICENSE
+
+  publish:
+    needs: build
+    # if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/publish'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - registry: https://registry.npmjs.org
+            package_name: "git-we"
+            token_secret: NPM_TOKEN
+            provenance: true
+
+          - registry: https://registry.npmjs.org
+            package_name: "@idmdakhi/gitwe"
+            token_secret: NPM_TOKEN
+            provenance: true
+
+          - registry: https://npm.pkg.github.com
+            package_name: "@idmdakhi/gitwe"
+            token_secret: GITHUB_TOKEN
+            provenance: false
+
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          registry-url: ${{ matrix.registry }}
+          # always-auth: true
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-fund --no-audit
+
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: package
+          path: .
+
+      - name: Publish
+        run: |
+          npm pkg set name="${{ matrix.package_name }}"
+          if [ "${{ matrix.provenance }}" = "true" ]; then
+            npm publish --provenance --access public
+          else
+            npm publish --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets[matrix.token_secret] }}

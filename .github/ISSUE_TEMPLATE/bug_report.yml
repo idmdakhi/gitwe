@@ -1,0 +1,103 @@
+name: Bug report
+description: Report something that isn't working as expected
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        Please fill in as much as you can — the more detail, the faster we can fix it.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: A clear, concise description of what's wrong.
+      placeholder: When I run X, Y happens instead of Z.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: To reproduce
+      description: Steps to reproduce the behaviour, ideally with the exact `gitwe` command(s) you ran.
+      placeholder: |
+        gitwe start feature login
+        gitwe finish feature/login
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened — include the full error output if there is one.
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: gitwe-version
+    attributes:
+      label: gitwe version
+      description: Run `gitwe --version` or `gitwe version`.
+      placeholder: 1.0.0
+    validations:
+      required: true
+
+  - type: input
+    id: node-version
+    attributes:
+      label: Node.js version
+      description: Run `node --version`.
+      placeholder: v22.x.x
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: e.g. Windows 11, macOS 14, Ubuntu 24.04
+    validations:
+      required: true
+
+  - type: dropdown
+    id: workflow
+    attributes:
+      label: Active workflow
+      description: Which workflow definition were you using?
+      options:
+        - classic (git-flow)
+        - github
+        - gitlab
+        - custom config file
+        - not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Workflow config (if custom)
+      description: Paste the relevant part of your workflow config.
+      render: yaml
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: |
+        Anything else that might help — logs (run with `GITWE_DEBUG=1` or `-v` for verbose git command logging), screenshots, related issues, etc.
+      placeholder: Logs, links, screenshots…

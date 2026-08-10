@@ -1,0 +1,88 @@
+name: Task (from TODO / Roadmap)
+description: Track a concrete work item already listed in TODO.md or ROADMAP.md
+title: "[Task] "
+labels: ["task"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when you want to claim or track an item that is already written in
+        [TODO.md](https://github.com/idmdakhi/gitwe/blob/main/TODO.md) or
+        [ROADMAP.md](https://github.com/idmdakhi/gitwe/blob/main/ROADMAP.md).
+
+        For brand-new ideas use a Feature request or an RFC instead.
+
+  - type: input
+    id: todo-ref
+    attributes:
+      label: Reference in TODO / ROADMAP
+      description: Copy the exact line or section title.
+      placeholder: "P1 – Implement gitwe doctor --fix (RFC-0003)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Target phase
+      options:
+        - 1.1 – Stability & DX
+        - 1.2 – Advanced capabilities
+        - 1.3 – Integration
+        - 2.0 – Extensibility
+        - continuous / unscheduled
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: layers
+    attributes:
+      label: Layers that will change
+      options:
+        - label: domain
+        - label: application
+        - label: infrastructure
+        - label: cli
+        - label: tests
+        - label: docs / CI only
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope for this issue
+      description: |
+        What exactly will be done in the PR(s) linked to this issue?
+        Keep it focused — large items can be split into several issues.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist that must be true before the issue is closed.
+      placeholder: |
+        - [ ] …
+        - [ ] Tests added/updated
+        - [ ] Docs updated
+        - [ ] TODO.md box ticked in the same PR
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / blockers
+      description: Anything a reviewer or implementer should know.
