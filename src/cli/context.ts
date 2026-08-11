@@ -11,20 +11,26 @@ import { dirname, resolve } from "node:path";
 
 export async function repositoryRoot(cwd: string): Promise<string> {
   let current = resolve(cwd);
-  while (true) {
+
+  while (current.length > 0) {
     if (existsSync(`${current}/.git`)) {
       return current;
     }
+
     const parent = dirname(current);
+
     if (parent === current) {
-      throw new GitweError(
-        "NOT_A_REPOSITORY",
-        `${cwd} is not a git repository`,
-        "Run `git init` to initialize a repository.",
-      );
+      break;
     }
+
     current = parent;
   }
+
+  throw new GitweError(
+    "NOT_A_REPOSITORY",
+    `${cwd} is not a git repository`,
+    "Run `git init` to initialize a repository.",
+  );
 }
 
 export function loadWorkflow(root: string, options: GlobalOptions): LoadedConfig {

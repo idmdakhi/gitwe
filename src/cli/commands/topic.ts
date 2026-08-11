@@ -69,7 +69,7 @@
 //     .option("-f, --force", "skip the remote sync check")
 //     .option("--no-fetch", "do not fetch the remote before finishing")
 //     .option("--keep", "keep the topic branch after finishing")
-//     .option("--keepremote", "keep the remote topic branch")
+//     .option("--keep-remote", "keep the remote topic branch")
 //     .option("--force-delete", "delete the topic branch even if it is not fully merged")
 //     .option("--tag", "create a tag for the finished branch")
 //     .option("--no-tag", "do not create a tag")

@@ -27,23 +27,42 @@ export interface LoadedConfig {
 export function findConfigFile(startDir: string, stopDir?: string): string | undefined {
   let dir = resolve(startDir);
   const stop = stopDir === undefined ? undefined : resolve(stopDir);
-  while (true) {
+
+  while (dir.length > 0) {
     for (const name of CONFIG_FILE_NAMES) {
       const candidate = join(dir, name);
-      if (existsSync(candidate)) return candidate;
+
+      if (existsSync(candidate)) {
+        return candidate;
+      }
     }
+
     const gitweDir = join(dir, ".gitwe");
+
     if (existsSync(gitweDir) && statSync(gitweDir).isDirectory()) {
       for (const name of CONFIG_FILE_NAMES) {
         const candidate = join(gitweDir, name);
-        if (existsSync(candidate)) return candidate;
+
+        if (existsSync(candidate)) {
+          return candidate;
+        }
       }
     }
-    if (stop !== undefined && dir === stop) return undefined;
+
+    if (stop !== undefined && dir === stop) {
+      return undefined;
+    }
+
     const parent = dirname(dir);
-    if (parent === dir) return undefined;
+
+    if (parent === dir) {
+      break;
+    }
+
     dir = parent;
   }
+
+  return undefined;
 }
 
 export function readConfigFile(path: string): WorkflowConfig {

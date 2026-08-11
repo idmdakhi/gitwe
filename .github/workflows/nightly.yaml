@@ -5,36 +5,34 @@ on:
     - cron: "0 0 * * *" # هر شب ساعت ۰۰:۰۰ UTC
   workflow_dispatch:
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   nightly:
-    if: false
     name: Nightly Build & Publish
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
+    timeout-minutes: 20
+    # هنوز غیرفعال — وقتی NPM_TOKEN آماده شد if را حذف کنید
+    if: false
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-node@v4
+      - name: Setup
+        uses: ./.github/actions/setup
         with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci --no-fund --no-audit
+          node-version: "24"
 
       - name: Set nightly version
         run: |
           VERSION=$(node -p "require('./package.json').version")
           TIMESTAMP=$(date +'%Y%m%d%H%M%S')
           npm version "${VERSION}-nightly.${TIMESTAMP}" --no-git-tag-version
-
-      - name: Build
-        run: npm run build
 
       - name: Publish to npm with nightly tag
         run: npm publish --tag nightly --access public
@@ -44,5 +42,7 @@ jobs:
       - name: Create nightly Git tag
         run: |
           TAG="nightly-$(date +'%Y%m%d')"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -f "$TAG"
           git push -f origin "$TAG"

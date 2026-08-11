@@ -30,7 +30,7 @@ import { registerGraph } from "./commands/graph.js";
 import { registerAbort } from "./commands/abort.js";
 import { registerClean } from "./commands/clean.js";
 // import { registerCommitLint } from "./commands/commit-lint.js";
-import { registerLog } from "./commands/log.js";
+// import { registerLog } from "./commands/log.js";
 // import { registerModules } from "./commands/modules.js";
 import { registerPull } from "./commands/pull.js";
 import { registerSync } from "./commands/sync.js";
@@ -80,7 +80,7 @@ export async function buildProgram(argv: string[]): Promise<Command> {
   registerAbort(program, globalOptions);
   registerClean(program, globalOptions);
   // registerCommitLint(program, globalOptions);
-  registerLog(program, globalOptions);
+  // registerLog(program, globalOptions);
   // registerModules(program, globalOptions);
   registerPull(program, globalOptions);
   registerSync(program, globalOptions);
