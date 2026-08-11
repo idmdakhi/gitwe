@@ -4,7 +4,7 @@ import { existsSync } from "node:fs";
 export async function repositoryRoot(cwd: string): Promise<string> {
   let current = cwd;
 
-  while (true) {
+  while (current.length > 0) {
     if (existsSync(`${current}/.git`)) {
       return current;
     }
@@ -12,9 +12,11 @@ export async function repositoryRoot(cwd: string): Promise<string> {
     const parent = dirname(current);
 
     if (parent === current) {
-      throw new Error("Not inside a git repository.");
+      break;
     }
 
     current = parent;
   }
+
+  throw new Error("Not inside a git repository.");
 }
