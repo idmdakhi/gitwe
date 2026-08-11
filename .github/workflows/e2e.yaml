@@ -60,7 +60,7 @@ jobs:
 
       - name: Finish feature (keep branch)
         working-directory: /tmp/test-repo
-        run: node "${{ github.workspace }}/dist/cli/index.js" finish feature/login --no-delete
+        run: node "${{ github.workspace }}/dist/cli/index.js" finish feature/login --keep
 
       - name: Doctor
         working-directory: /tmp/test-repo

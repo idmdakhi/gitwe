@@ -116,7 +116,7 @@ branch → check out the branch you end on.
 | `-a, --abort`                                                                                 | roll every touched branch and tag back    |
 | `-f, --force`                                                                                 | skip the remote sync check                |
 | `--no-fetch`                                                                                  | do not fetch first                        |
-| `--keep`, `--keepremote`, `--force-delete`                                                    | branch retention                          |
+| `--keep`, `--keep-remote`, `--force-delete`                                                   | branch retention                          |
 | `--tag`, `--no-tag`, `--tagname <name>`, `-m, --message <msg>`, `--sign`, `--signingkey <id>` | tagging                                   |
 | `--squash`, `--rebase`, `--no-ff`                                                             | merge strategy overrides                  |
 | `-M, --merge-message <msg>`, `--squash-message <msg>`, `--update-message <msg>`               | commit messages                           |
