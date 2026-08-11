@@ -1,0 +1,67 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: E2E (classic workflow)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          node-version: "22"
+
+      - name: Setup test repository
+        run: |
+          mkdir -p /tmp/test-repo
+          cd /tmp/test-repo
+          git init -b main
+          git config user.name "Test User"
+          git config user.email "test@example.com"
+          git config commit.gpgsign false
+          git config tag.gpgsign false
+          echo "# Test Repo" > README.md
+          git add README.md
+          git commit -m "Initial commit"
+          git checkout -b develop
+          git checkout main
+
+      - name: Init classic workflow
+        working-directory: /tmp/test-repo
+        run: node "${{ github.workspace }}/dist/cli/index.js" init --defaults --preset classic
+
+      - name: Start feature
+        working-directory: /tmp/test-repo
+        run: node "${{ github.workspace }}/dist/cli/index.js" start feature login
+
+      - name: Status
+        working-directory: /tmp/test-repo
+        run: node "${{ github.workspace }}/dist/cli/index.js" status
+
+      - name: Finish feature (keep branch)
+        working-directory: /tmp/test-repo
+        run: node "${{ github.workspace }}/dist/cli/index.js" finish feature/login --no-delete
+
+      - name: Doctor
+        working-directory: /tmp/test-repo
+        run: node "${{ github.workspace }}/dist/cli/index.js" doctor || true
