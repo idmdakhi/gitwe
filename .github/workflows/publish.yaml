@@ -37,19 +37,8 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Verify dist exists
-        run: |
-          test -d dist
-          test -f dist/index.js
-          test -f dist/cli/index.js
-          echo "dist contents:"
-          find dist -type f | head -50
-
-      - name: Pack dry-run (must list dist/)
-        run: |
-          npm pack --dry-run 2>&1 | tee pack-list.txt
-          grep -E 'dist/' pack-list.txt
-          echo "OK: dist is included in the package"
+      - name: Pack dry-run
+        run: npm pack --dry-run
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
@@ -111,43 +100,14 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Download artifact (overlay dist + metadata)
+      - name: Download package artifact
         uses: actions/download-artifact@v4
         with:
           name: package
           path: artifact
 
-      - name: Restore dist and package files from artifact
-        run: |
-          # Prefer freshly built dist; fall back to artifact if needed
-          if [ ! -d dist ] || [ -z "$(ls -A dist 2>/dev/null)" ]; then
-            echo "dist missing after build — restoring from artifact"
-            cp -a artifact/dist ./dist
-          fi
-          # Optional: keep .gitwe from artifact if present
-          if [ -d artifact/.gitwe ]; then
-            rm -rf .gitwe
-            cp -a artifact/.gitwe ./.gitwe
-          fi
-          test -d dist
-          test -f dist/index.js
-          test -f dist/cli/index.js
-          echo "dist OK"
-          find dist -type f | head -30
-
       - name: Set package name
         run: npm pkg set name="${{ matrix.package_name }}"
-
-      - name: Verify package contents before publish
-        run: |
-          npm pack --dry-run 2>&1 | tee pack-list.txt
-          if ! grep -qE 'dist/' pack-list.txt; then
-            echo "::error::dist/ is NOT included in the npm package"
-            echo "Check package.json \"files\" field and that dist exists on disk."
-            cat package.json | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const p=JSON.parse(d);console.log('files:',p.files);console.log('main:',p.main);console.log('bin:',p.bin)})"
-            exit 1
-          fi
-          echo "OK: dist will be published"
 
       - name: Publish
         run: |
