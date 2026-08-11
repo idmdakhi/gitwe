@@ -73,7 +73,7 @@ hooks:
   path: .gitwe/hooks
 
 versioning:
-  enabled: false
+  enabled: true
   path: .gitwe/VERSION.yaml
 
 changelog:
