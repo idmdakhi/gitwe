@@ -134,14 +134,13 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
     )
     // ===== گزینه‌های عمومی =====
     .option("-r, --remote <name>", "remote name")
-    .option("-tp, --tag-prefix", "version tag prefix", "v")
     // ===== گزینه‌های versioning =====
-    // .option("--versioning-enabled", "enable versioning (default: false)")
-    // .option("--tag-prefix <prefix>", "version tag prefix (default: v)")
-    // .option(
-    //   "--versioning-path <path>",
-    //   "path to versioning config file (default: .gitwe/VERSION.yaml)",
-    // )
+    .option("--versioning-enabled", "enable versioning (default: false)")
+    .option("--tag-prefix <prefix>", "version tag prefix (default: v)")
+    .option(
+      "--versioning-path <path>",
+      "path to versioning config file (default: .gitwe/VERSION.yaml)",
+    )
     // ===== گزینه‌های changelog =====
     // .option("--changelog-enabled", "enable changelog generation (default: false)")
     // .option("--changelog-path <path>", "path to changelog file (default: CHANGELOG.md)")
