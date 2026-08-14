@@ -3,7 +3,7 @@ import { createEngine } from "../context.js";
 import type { GlobalOptions } from "../options.js";
 import { success, printStructured } from "../output.js";
 
-export function registerTrack(program: Command, globals: () => GlobalOptions): void {
+export function registerTrackCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("track")
     .description("create a local topic branch tracking the remote one")

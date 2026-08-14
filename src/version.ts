@@ -9,7 +9,10 @@ import { fileURLToPath } from "node:url";
  * both live one directory below the package root, so `../package.json` always
  * resolves correctly — including inside `node_modules/gitwe/`.
  */
-const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
-const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { version: string };
 
-export const VERSION = pkg.version;
+export function getVersion(): string {
+  const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+  const pkg = JSON.parse(readFileSync(pkgPath, "utf8")) as { version: string };
+
+  return pkg.version;
+}

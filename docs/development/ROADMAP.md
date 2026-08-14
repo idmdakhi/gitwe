@@ -1,6 +1,6 @@
 # gitwe Roadmap
 
-Last updated: 2026-08-01  
+Last updated: 2026-08-13  
 Current version: **1.0.0**
 
 This document describes the planned evolution of gitwe.  
@@ -10,12 +10,12 @@ Detailed work items live in [`TODO.md`](./TODO.md); design proposals live in [`d
 
 ## Overview
 
-| Phase                           | Timeframe  | Focus                            | Key outcomes                                                                        |
-| ------------------------------- | ---------- | -------------------------------- | ----------------------------------------------------------------------------------- |
-| **1.1 – Stability & DX**        | 1–2 months | Quality and developer experience | Test coverage > 90 %, fuller docs, re-enabled CI                                    |
-| **1.2 – Advanced capabilities** | 2–3 months | More power without complexity    | Multi-remote, richer finish strategies, doctor --fix                                |
-| **1.3 – Integration**           | 3–4 months | Ecosystem                        | Official GitHub Action, basic VS Code extension, monorepo support                   |
-| **2.0 – Extensibility**         | 6+ months  | Extensibility                    | Lightweight strategy scripts, structured hooks (no return to the old plugin system) |
+| Phase                           | Timeframe  | Focus                            | Key outcomes                                                                                      |
+| ------------------------------- | ---------- | -------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **1.1 – Stability & DX**        | 1–2 months | Quality and developer experience | Test coverage > 90 %, fuller docs, re-enabled CI, complete doctor, stable machine-readable output |
+| **1.2 – Advanced capabilities** | 2–3 months | More power without complexity    | Multi-remote, richer finish strategies, better parity with git-flow / gitflow-avh / git-flow-next |
+| **1.3 – Integration**           | 3–4 months | Ecosystem                        | Official GitHub Action improvements, basic VS Code extension, monorepo support                    |
+| **2.0 – Extensibility**         | 6+ months  | Extensibility                    | Lightweight strategy scripts, structured hooks (no return to the old plugin system)               |
 
 ---
 
@@ -25,18 +25,16 @@ Detailed work items live in [`TODO.md`](./TODO.md); design proposals live in [`d
 
 ### Planned work
 
-- Re-enable and stabilise all currently disabled GitHub workflows:
-  - `ci.yaml`
-  - `e2e.yml`
-  - `nightly.yml`
-  - `release.yml`
-- Raise test coverage above 90 % on non-CLI code (especially `ShellGitRepository` edge cases).
-- Improve error messages and hints across the CLI.
-- Add `--format table` to `overview`.
-- Introduce stable machine-readable output (`schemaVersion`) for the main commands (see [RFC-0004](./docs/rfcs/0004-machine-readable-output.md)).
+- Re-enable and stabilise all currently disabled GitHub workflows (`if: false`).
+- Align Node.js versions across `action.yaml`, `package.json` engines and all workflows (prefer 20 + 22 + 24 matrix).
+- Improve caching in the composite Action and the root `action.yaml`.
+- Introduce stable machine-readable output with `schemaVersion: 1` for all major commands (see [RFC-0004](./docs/rfcs/0004-machine-readable-output.md)).
+- Make `--format text|json|yaml|table` available on every major command.
 - Implement `gitwe doctor` and a safe `--fix` mode (see [RFC-0003](./docs/rfcs/0003-doctor-auto-repair.md)).
-- Complete English documentation for custom workflows; optional community Persian translation.
-- Align Node.js versions across `action.yaml`, workflows and `package.json`.
+- Improve `overview` / `status` (remote ahead/behind, clear “operation in progress” banner, table format).
+- Raise test coverage above 90 % on non-CLI code (especially `ShellGitRepository` edge cases and conflict/abort paths).
+- Improve error messages and hints across the CLI.
+- Complete English documentation for custom workflows; add a “Using gitwe in CI” page.
 
 ### Success criteria
 
@@ -57,8 +55,14 @@ Detailed work items live in [`TODO.md`](./TODO.md); design proposals live in [`d
 - New finish strategies: `cherry-pick` and `rebase-merge` ([RFC-0002](./docs/rfcs/0002-finish-strategies.md)).
 - Richer `--dry-run` for finish (exact step list + remotes that would be touched).
 - End-to-end support for signed commits and tags.
+- Better parity with git-flow / gitflow-avh / git-flow-next:
+  - Full support-branch behaviour
+  - Richer finish flags (`--keep-remote`, `--force-delete`, `--tagname`, …)
+  - Stronger custom base support on `start`
+  - `integrate` command for base branches (merge without delete)
 - Optional simple `tagFormat` on the workflow definition.
-- `--message-file` for merge / squash / tag messages.
+- Activate and complete changelog support (aligned with `cliff.toml`).
+- Better prerelease handling.
 
 ### Success criteria
 
@@ -77,7 +81,7 @@ Detailed work items live in [`TODO.md`](./TODO.md); design proposals live in [`d
 - Official, well-documented GitHub Action with proper caching and matrix examples.
 - Basic VS Code extension (start / finish / overview / doctor).
 - Path-based / subdirectory workflow support for monorepos.
-- JSON Schema for `gitwe.json` published to the Schema Store.
+- JSON Schema for the workflow definition published to the Schema Store.
 - Reusable workflow that other repositories can call.
 
 ### Success criteria

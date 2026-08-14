@@ -1,8 +1,5 @@
-/** How a topic branch is integrated into its parent branch. */
-export type MergeStrategy = "merge" | "squash" | "rebase";
-
-/** How a branch is brought up to date with its parent branch. */
-export type UpdateStrategy = "merge" | "rebase";
+import { MergeStrategy } from "./merge-strategy.js";
+import type { RemoteConfig } from "./remote.js";
 
 /** A long-lived branch of the workflow. */
 export interface BaseBranch {
@@ -28,12 +25,6 @@ export interface BranchType {
 export interface HookConfig {
   enabled: boolean;
   path: string;
-}
-
-export interface RemoteConfig {
-  name: string;
-  autoPush?: boolean;
-  autoFetch?: boolean;
 }
 
 export interface VersioningConfig {

@@ -6,7 +6,7 @@ import { print, style } from "../output.js";
  * Placeholder for automated version bumping.
  * Removed from scope in the 1.0 rewrite (see CHANGELOG).
  */
-export function registerVersionBump(program: Command, _globals: () => GlobalOptions): void {
+export function registerVersionBumpCommand(program: Command, _globals: () => GlobalOptions): void {
   program
     .command("version-bump")
     .description("bump package version (not implemented — out of scope for 1.0)")

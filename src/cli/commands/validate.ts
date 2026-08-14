@@ -8,7 +8,7 @@ import { repositoryRoot } from "../context.js";
 import type { GlobalOptions } from "../options.js";
 import { print, style, success, printStructured } from "../output.js";
 
-export function registerValidate(program: Command, globals: () => GlobalOptions): void {
+export function registerValidateCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("validate")
     .description("validate a workflow definition file")

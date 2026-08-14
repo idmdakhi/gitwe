@@ -135,7 +135,7 @@ function printConfig(config: WorkflowConfig, path: string): void {
   }
 }
 
-export function registerConfig(program: Command, globals: () => GlobalOptions): void {
+export function registerConfigCommand(program: Command, globals: () => GlobalOptions): void {
   const configCmd = program
     .command("config")
     .description("inspect and edit the workflow definition");

@@ -1,6 +1,6 @@
 {
   "name": "gitwe",
-  "version": "0.23.3",
+  "version": "0.25.0",
   "description": "gitwe — a configurable git workflow engine; git-flow is just one of its workflows.",
   "license": "MIT",
   "author": "Mohammad Amanalikhani <idmdakhi@gmail.com>",

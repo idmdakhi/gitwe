@@ -3,7 +3,7 @@ import { createEngine } from "../context.js";
 import type { GlobalOptions } from "../options.js";
 import { print, style, printStructured } from "../output.js";
 
-export function registerCurrent(program: Command, globals: () => GlobalOptions): void {
+export function registerCurrentCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("current")
     .description("show information about the current topic branch")

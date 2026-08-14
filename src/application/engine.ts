@@ -186,8 +186,11 @@ export class Engine {
     if (await this.git.branchExists(resolved.branch)) {
       throw new ValidationError(`branch "${resolved.branch}" already exists`);
     }
-    if (options.fetch === true && (await this.git.remoteExists(this.workflow.remoteName))) {
-      await this.git.fetch(this.workflow.remoteName);
+
+    const autoFetch = this.workflow.remoteConfig.autoFetch !== false;
+    const shouldFetch = options.fetch ?? autoFetch;
+    if (shouldFetch && (await this.git.remoteExists(this.workflow.remoteName as string))) {
+      await this.git.fetch(this.workflow.remoteName as string);
     }
 
     const startPoint = options.base ?? this.workflow.baseOf(branchType);
@@ -222,11 +225,13 @@ export class Engine {
       );
     }
 
-    const strategy = options.squash
-      ? "squash"
-      : options.rebase
-        ? "rebase"
-        : this.workflow.mergeStrategyFor(resolved.type);
+    const strategy =
+      options.strategy ??
+      (options.squash
+        ? "squash"
+        : options.rebase
+          ? "rebase"
+          : this.workflow.mergeStrategyFor(resolved.type));
 
     const targets = resolved.type.target;
     const children: BaseBranch[] = [];
@@ -236,7 +241,8 @@ export class Engine {
       }
     }
     const childNames = children.map((c) => c.name);
-
+    const autoPush = this.workflow.remoteConfig.autoPush === true;
+    const shouldPush = options.push ?? autoPush;
     const initialState: OperationState = {
       version: 1,
       operation: "finish",
@@ -248,7 +254,8 @@ export class Engine {
         options: {
           ...options,
         },
-        strategy, // <-- ذخیره استراتژی
+        strategy,
+        // pushRemotes,
         targets,
         childBranches: childNames,
         snapshots: {},
@@ -259,6 +266,7 @@ export class Engine {
         finalBranch: targets[0] ?? resolved.type.base,
         tag: undefined,
         originalBranch: undefined,
+        push: shouldPush,
       },
       startedAt: new Date().toISOString(),
     };
@@ -295,8 +303,10 @@ export class Engine {
     if (!(await this.git.isClean())) {
       throw new ValidationError("the working tree has uncommitted changes");
     }
-    if (options.fetch === true && (await this.git.remoteExists(this.workflow.remoteName))) {
-      await this.git.fetch(this.workflow.remoteName);
+    const autoFetch = this.workflow.remoteConfig.autoFetch !== false;
+    const shouldFetch = options.fetch ?? autoFetch;
+    if (shouldFetch && (await this.git.remoteExists(this.workflow.remoteName as string))) {
+      await this.git.fetch(this.workflow.remoteName as string);
     }
 
     // محاسبه استراتژی: فقط "merge" یا "rebase" برای update معتبر است
@@ -336,17 +346,19 @@ export class Engine {
 
   async publish(resolved: ResolvedBranch, options: PublishOptions = {}): Promise<string> {
     const remote = this.workflow.remoteName;
+    // const remotes = options.pushRemotes ?? this.workflow.resolvePushRemotes(resolvedBranch.type);
+
     if (!(await this.git.branchExists(resolved.branch))) {
       throw new ValidationError(`branch "${resolved.branch}" does not exist`);
     }
-    if (!(await this.git.remoteExists(remote))) {
+    if (!(await this.git.remoteExists(remote as string))) {
       throw new ValidationError(`remote "${remote}" is not configured`);
     }
     await this.ctx.hooks.run("pre-publish", {
       branch: resolved.branch,
       branchType: resolved.type.name,
     });
-    await this.git.push(remote, resolved.branch, {
+    await this.git.push(remote as string, resolved.branch, {
       setUpstream: true,
       pushOptions: options.pushOptions,
     });
@@ -361,17 +373,17 @@ export class Engine {
     const branchType = this.workflow.requireBranchType(typeName);
     const resolved = this.workflow.resolveBranchType(branchType, name);
     const remote = this.workflow.remoteName;
-    if (!(await this.git.remoteExists(remote))) {
+    if (!(await this.git.remoteExists(remote as string))) {
       throw new ValidationError(`remote "${remote}" is not configured`);
     }
-    await this.git.fetch(remote);
-    if (!(await this.git.remoteBranchExists(remote, resolved.branch))) {
+    await this.git.fetch(remote as string);
+    if (!(await this.git.remoteBranchExists(remote as string, resolved.branch))) {
       throw new ValidationError(`${remote}/${resolved.branch} does not exist`);
     }
     if (await this.git.branchExists(resolved.branch)) {
-      await this.git.setUpstream(resolved.branch, remote);
+      await this.git.setUpstream(resolved.branch, remote as string);
     } else {
-      await this.git.createTrackingBranch(resolved.branch, remote);
+      await this.git.createTrackingBranch(resolved.branch, remote as string);
     }
     await this.git.checkout(resolved.branch);
     return resolved.branch;
@@ -396,8 +408,8 @@ export class Engine {
     let deletedRemote = false;
     if (options.remote === true) {
       const remote = this.workflow.remoteName;
-      if (await this.git.remoteBranchExists(remote, resolved.branch)) {
-        await this.git.push(remote, resolved.branch, { delete: true });
+      if (await this.git.remoteBranchExists(remote as string, resolved.branch)) {
+        await this.git.push(remote as string, resolved.branch, { delete: true });
         deletedRemote = true;
       }
     }
@@ -523,7 +535,7 @@ export class Engine {
       workflow: this.workflow.config.name,
       configPath: this.configPath,
       currentBranch: current,
-      remote: this.workflow.remoteName,
+      remote: this.workflow.remoteName as string,
       baseBranches,
       branchTypes,
       health,
@@ -533,7 +545,7 @@ export class Engine {
   /** Create any base branch that the workflow declares but the repo lacks. */
   async createMissingBaseBranches(): Promise<string[]> {
     const created: string[] = [];
-    const rootBranch = this.workflow.rootBranch.name;
+    const rootBranch = this.workflow.rootBranch.name ?? "main";
     // const remote = this.workflow.config.remote?.name ?? "origin";
 
     // اگر مخزن هیچ commitی ندارد، یک commit خالی ایجاد کن

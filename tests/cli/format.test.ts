@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { run } from "../../src/cli/program.js";
 import { TestRepo } from "../support/repo.js";
+import { getVersion } from "../../src/version.js";
 
 const argv = (...args: string[]): string[] => ["node", "gitwe", ...args];
 
@@ -91,14 +92,19 @@ describe("Format Output Tests", () => {
   it("doctor --format json", async () => {
     expect(await gitwe("doctor", "--format", "json")).toBe(0);
     const data = JSON.parse(stdout);
-    expect(Array.isArray(data.issues)).toBe(true);
+    expect(data.schemaVersion).toBe(1);
+    expect(data.ok).toBe(true);
+    expect(Array.isArray(data.data.findings)).toBe(true);
   });
 
   it("version --format json", async () => {
     expect(await gitwe("version", "--format", "json")).toBe(0);
-    const data = JSON.parse(stdout);
-    expect(data.version).toBeDefined();
-    expect(data.schemaVersion).toBe(1);
+    const result = JSON.parse(stdout);
+    expect(result.schemaVersion).toBe(1);
+    expect(result.command).toBe("version");
+    expect(result.ok).toBe(true);
+    expect(result.data.version).toBeDefined();
+    expect(result.data.name).toBe("gitwe");
   });
 
   it("init --dry-run", async () => {

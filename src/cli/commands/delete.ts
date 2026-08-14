@@ -3,7 +3,7 @@ import { createEngine } from "../context.js";
 import { success, printStructured } from "../output.js";
 import type { GlobalOptions } from "../options.js";
 
-export function registerDelete(program: Command, globals: () => GlobalOptions): void {
+export function registerDeleteCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("delete")
     .description("delete the current (or named) topic branch")

@@ -4,7 +4,7 @@ import type { GlobalOptions } from "../options.js";
 import { print, style, printStructured, success } from "../output.js";
 
 /** Register `gitwe tag` — list tags, or create an annotated tag. */
-export function registerTag(program: Command, globals: () => GlobalOptions): void {
+export function registerTagCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("tag")
     .description("list tags, or create an annotated tag")

@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { run } from "../../src/cli/program.js";
-import { VERSION } from "../../src/version.js";
+import { getVersion } from "../../src/version.js";
 import { TestRepo } from "../support/repo.js";
 
 const argv = (...args: string[]): string[] => ["node", "gitwe", ...args];
@@ -36,7 +36,7 @@ describe("gitwe CLI", () => {
 
   it("prints its version", async () => {
     expect(await gitwe("version")).toBe(0);
-    expect(stdout.trim()).toBe(VERSION);
+    expect(stdout.trim()).toBe(getVersion());
   });
 
   it("initialises a repository and reports its overview as JSON", async () => {

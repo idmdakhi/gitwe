@@ -83,4 +83,9 @@ changelog:
 remote:
   name: origin
   autoPush: false
+  push:
+    - origin
+    - mirror
   autoFetch: true
+  fetch:
+    - origin

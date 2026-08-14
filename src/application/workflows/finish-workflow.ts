@@ -17,6 +17,7 @@ import yaml from "js-yaml";
 import { createInterface } from "node:readline/promises";
 import { strict } from "node:assert";
 import { VersionCalculator } from "../../domain/versioning/version-calculator.js";
+import { buildPushTargets, pushToRemotes } from "../multi-remote-push.js";
 
 interface VersionBumpData {
   current: string;
@@ -157,13 +158,19 @@ class FetchStep implements WorkflowStep<EngineWorkflowContext> {
   async canExecute(context: EngineWorkflowContext): Promise<boolean> {
     const options = context.state.data.options as FinishOptions;
     if (options.fetch === false) return false;
-    const remote = context.engineContext.workflow.remoteName;
-    return await context.engineContext.git.remoteExists(remote);
+    const remoteConfig = context.engineContext.workflow.remoteConfig;
+    if (remoteConfig.autoFetch !== false) return true;
+    return options.fetch === true;
   }
 
   async execute(context: EngineWorkflowContext): Promise<void> {
-    const remote = context.engineContext.workflow.remoteName;
-    await context.engineContext.git.fetch(remote);
+    const { git, workflow } = context.engineContext;
+    const remotes = workflow.remoteConfig.fetch ?? [workflow.remoteName];
+    for (const remote of remotes) {
+      if (await git.remoteExists(remote as string)) {
+        await git.fetch(remote as string);
+      }
+    }
   }
 
   async resume(_context: EngineWorkflowContext): Promise<void> {}
@@ -188,8 +195,8 @@ class RemoteSyncCheckStep implements WorkflowStep<EngineWorkflowContext> {
     const remote = context.engineContext.workflow.remoteName;
     const branch = context.state.data.branch as string;
     return (
-      (await context.engineContext.git.remoteExists(remote)) &&
-      (await context.engineContext.git.remoteBranchExists(remote, branch))
+      (await context.engineContext.git.remoteExists(remote as string)) &&
+      (await context.engineContext.git.remoteBranchExists(remote as string, branch))
     );
   }
 
@@ -666,28 +673,35 @@ class PushStep implements WorkflowStep<EngineWorkflowContext> {
 
   async canExecute(context: EngineWorkflowContext): Promise<boolean> {
     const options = context.state.data.options as FinishOptions;
-    if (options.push !== true) return false;
-    const remote = context.engineContext.workflow.remoteName;
-    return await context.engineContext.git.remoteExists(remote);
+    if (options.push === false) return false;
+    const remoteConfig = context.engineContext.workflow.remoteConfig;
+    if (remoteConfig.autoPush === true) return true;
+    return options.push === true;
   }
 
   async execute(context: EngineWorkflowContext): Promise<void> {
-    const { git } = context.engineContext;
-    const remote = context.engineContext.workflow.remoteName;
+    const { git, workflow } = context.engineContext;
+    const options = context.state.data.options as FinishOptions;
+    const remotes = options.pushRemotes ?? workflow.resolvePushRemotes(context.resolvedBranch.type);
+    if (remotes.length === 0) return;
+
     const targets = context.state.data.targets as string[];
     const base = targets[0];
     const shouldTag = context.state.data.tag !== undefined;
 
-    if (targets.length > 0) {
-      await git.push(remote, base, { followTags: shouldTag });
-    } else {
-      const branch = context.state.data.branch as string;
-      await git.push(remote, branch, { followTags: shouldTag });
+    const refs = targets.length > 0 ? [base] : [context.state.data.branch as string];
+    for (const ref of refs) {
+      const pushTargets = buildPushTargets(remotes as string[], ref, {
+        tags: shouldTag,
+        pushOptions: options.pushOptions,
+      });
+      await pushToRemotes(git, context.engineContext.logger, pushTargets);
     }
 
     const updated = (context.state.data.updatedBranches as string[]) || [];
     for (const child of updated) {
-      await git.push(remote, child);
+      const pushTargets = buildPushTargets(remotes as string[], child, { tags: false });
+      await pushToRemotes(git, context.engineContext.logger, pushTargets);
     }
   }
 
@@ -717,8 +731,8 @@ class DeleteRemoteStep implements WorkflowStep<EngineWorkflowContext> {
     const remote = context.engineContext.workflow.remoteName;
     const branch = context.state.data.branch as string;
     return (
-      (await context.engineContext.git.remoteExists(remote)) &&
-      (await context.engineContext.git.remoteBranchExists(remote, branch))
+      (await context.engineContext.git.remoteExists(remote as string)) &&
+      (await context.engineContext.git.remoteBranchExists(remote as string, branch))
     );
   }
 
@@ -726,7 +740,7 @@ class DeleteRemoteStep implements WorkflowStep<EngineWorkflowContext> {
     const { git } = context.engineContext;
     const remote = context.engineContext.workflow.remoteName;
     const branch = context.state.data.branch as string;
-    await git.push(remote, branch, { delete: true });
+    await git.push(remote as string, branch, { delete: true });
     context.state.data.deletedRemote = true;
   }
 

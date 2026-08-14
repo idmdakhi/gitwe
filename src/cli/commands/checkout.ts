@@ -3,7 +3,7 @@ import { createEngine } from "../context.js";
 import { success, printStructured } from "../output.js";
 import type { GlobalOptions } from "../options.js";
 
-export function registerCheckout(program: Command, globals: () => GlobalOptions): void {
+export function registerCheckoutCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("checkout")
     .description("switch to a topic branch (partial names allowed)")

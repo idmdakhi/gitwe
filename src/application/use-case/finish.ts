@@ -1,9 +1,10 @@
 // src/application/use-case/finish.ts
 
 import { ConflictError, ValidationError } from "../../domain/errors.js";
-import type { BaseBranch, ResolvedBranch, MergeStrategy } from "../../domain/entities.js";
+import type { BaseBranch, ResolvedBranch } from "../../domain/entities.js";
 import { expandMessage, type EngineContext } from "../context.js";
 import type { OperationState } from "../interfaces/operation-state.js";
+import type { MergeStrategy } from "../../domain/merge-strategy.js";
 
 // ============================================================================
 //  Types
@@ -36,13 +37,17 @@ export interface FinishOptions {
   major?: boolean;
   minor?: boolean;
   patch?: boolean;
+
+  strategy?: MergeStrategy;
+  pushRemotes?: string[];
+  pushOptions?: string[];
 }
 
 export interface FinishResult {
   branch: string;
   /** The branch this topic was merged into. */
   base: string;
-  strategy: "merge" | "squash" | "rebase";
+  strategy: MergeStrategy;
   tag?: string;
   updatedBranches: string[];
   deletedLocal: boolean;
@@ -223,8 +228,8 @@ export class FinishOperation {
       name: "fetch",
       run: async () => {
         if (this.options.fetch === false) return;
-        if (!(await git.remoteExists(remote))) return;
-        await git.fetch(remote);
+        if (!(await git.remoteExists(remote as string))) return;
+        await git.fetch(remote as string);
       },
     });
 
@@ -233,7 +238,7 @@ export class FinishOperation {
       name: "remote-sync-check",
       run: async () => {
         if (this.options.force === true) return;
-        if (!(await git.remoteBranchExists(remote, branch))) return;
+        if (!(await git.remoteBranchExists(remote as string, branch))) return;
         const { behind } = await git.aheadBehind(branch, `${remote}/${branch}`);
         if (behind > 0) {
           throw new ValidationError(
@@ -357,22 +362,22 @@ export class FinishOperation {
       name: "push",
       run: async () => {
         if (this.options.push !== true) return;
-        if (!(await git.remoteExists(remote))) return;
+        if (!(await git.remoteExists(remote as string))) return;
 
         if (!hasTarget) {
           const current = (await git.currentBranch()) as string;
-          await git.push(remote, current);
+          await git.push(remote as string, current);
           return;
         }
 
         if (hasTarget) {
-          await git.push(remote, base, { followTags: this.shouldTag() });
+          await git.push(remote as string, base, { followTags: this.shouldTag() });
         } else if (this.shouldTag()) {
-          await git.push(remote, branch, { followTags: true });
+          await git.push(remote as string, branch, { followTags: true });
         }
 
         for (const child of this.result.updatedBranches) {
-          await git.push(remote, child);
+          await git.push(remote as string, child);
         }
       },
     });
@@ -384,10 +389,10 @@ export class FinishOperation {
         if (!hasTarget) return;
         if (this.options.keep === true || this.options.keepRemote === true) return;
         if (!this.ctx.workflow.shouldDeleteOnFinish(this.resolved.type)) return;
-        if (!(await git.remoteExists(remote))) return;
-        if (!(await git.remoteBranchExists(remote, branch))) return;
+        if (!(await git.remoteExists(remote as string))) return;
+        if (!(await git.remoteBranchExists(remote as string, branch))) return;
 
-        await git.push(remote, branch, { delete: true });
+        await git.push(remote as string, branch, { delete: true });
         this.result.deletedRemote = true;
       },
     });

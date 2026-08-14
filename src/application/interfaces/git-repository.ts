@@ -94,4 +94,7 @@ export interface GitRepository {
   setVersionInYaml(versionPath: string, newVersion: string): Promise<void>;
   setPackageVersion(version: string): Promise<void>;
   tagExists(tagName: string): Promise<boolean>;
+
+  cherryPickRange(base: string, topic: string): Promise<void>;
+  cherryPickAbort(): Promise<void>;
 }

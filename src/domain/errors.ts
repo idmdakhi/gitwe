@@ -1,17 +1,15 @@
-// src/domain/errors.ts
-// لایهٔ دامنه: خطاها بخشی از زبان کسب‌وکار هستند.
-
 /**
- * کلاس پایه برای تمام خطاهای گزارش‌شده به کاربر.
- * کد خطا (code) به ما امکان می‌دهد در لایه‌های بالاتر (مثل CLI) تصمیمات خاص بگیریم.
+ * Domain error hierarchy for gitwe.
+ * All errors carry a stable `code` and an optional user-facing `hint`.
  */
+
 export class GitweError extends Error {
   readonly code: string;
   readonly hint?: string;
 
   constructor(code: string, message: string, hint?: string) {
     super(message);
-    this.name = new.target.name;
+    this.name = "GitweError";
     this.code = code;
     this.hint = hint;
   }
@@ -19,62 +17,63 @@ export class GitweError extends Error {
 
 export class ConfigError extends GitweError {
   constructor(message: string, hint?: string) {
-    super("CONFIG", message, hint);
-  }
-}
-
-export class NotInitializedError extends GitweError {
-  constructor(cwd: string) {
     super(
-      "NOT_INITIALIZED",
-      `no gitwe workflow found for ${cwd}`,
-      "run `gitwe init` to create one",
+      "CONFIG",
+      message,
+      hint ?? "Check your workflow definition file (gitwe.yaml / gitwe.json).",
     );
+    this.name = "ConfigError";
   }
 }
 
 export class ValidationError extends GitweError {
   constructor(message: string, hint?: string) {
     super("VALIDATION", message, hint);
+    this.name = "ValidationError";
   }
 }
 
-/**
- * خطای مرتبط با اجرای مستقیم دستورات Git.
- * حاوی جزئیات خام برای دیباگ است.
- */
-export class GitError extends GitweError {
-  readonly args: string[];
-  readonly exitCode: number;
-  readonly stderr: string;
-
-  constructor(args: string[], exitCode: number, stderr: string) {
-    super("GIT", `git ${args.join(" ")} failed with exit code ${exitCode}`);
-    this.args = args;
-    this.exitCode = exitCode;
-    this.stderr = stderr;
-  }
-}
-
-/**
- * خطای تعارض (Conflict) که نیاز به دخالت کاربر دارد.
- * این خطا کد خروج ۲ را در CLI ایجاد می‌کند.
- */
 export class ConflictError extends GitweError {
   readonly files: string[];
 
-  constructor(message: string, files: string[]) {
+  constructor(message: string, files: string[] = [], hint?: string) {
     super(
       "CONFLICT",
       message,
-      "resolve the conflicts, then run the same command with --continue (or --abort to roll back)",
+      hint ??
+        "Resolve the conflicts, stage the files, then run `gitwe finish --continue`. To cancel, run `gitwe finish --abort`.",
     );
+    this.name = "ConflictError";
     this.files = files;
+  }
+}
+
+export class NotInitializedError extends GitweError {
+  constructor(message = "Repository is not initialised with gitwe") {
+    super(
+      "NOT_INITIALIZED",
+      message,
+      "Run `gitwe init` (or `gitwe init --defaults`) to create a workflow definition.",
+    );
+    this.name = "NotInitializedError";
   }
 }
 
 export class OperationStateError extends GitweError {
   constructor(message: string, hint?: string) {
-    super("OPERATION_STATE", message, hint);
+    super(
+      "OPERATION_STATE",
+      message,
+      hint ??
+        "An operation may be in progress. Use `gitwe finish --continue` or `gitwe finish --abort`, or run `gitwe doctor`.",
+    );
+    this.name = "OperationStateError";
+  }
+}
+
+export class GitError extends GitweError {
+  constructor(message: string, hint?: string) {
+    super("GIT", message, hint);
+    this.name = "GitError";
   }
 }

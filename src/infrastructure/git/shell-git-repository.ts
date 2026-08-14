@@ -69,7 +69,7 @@ export class ShellGitRepository implements GitRepository {
     }
 
     // ۳. در غیر این صورت، خطای عمومی Git
-    throw new GitError(args, result.exitCode, result.stderr.trim());
+    throw new GitError(`git ${args.join(" ")} failed`, result.stderr.trim() || undefined);
   }
 
   private async ok(args: string[]): Promise<boolean> {
@@ -240,7 +240,7 @@ export class ShellGitRepository implements GitRepository {
       env: { ...process.env, GIT_EDITOR: "true" },
     });
     if (result.exitCode !== 0) {
-      throw new GitError(["rebase", "--continue"], result.exitCode, result.stderr.trim());
+      throw new GitError("git rebase --continue failed", result.stderr.trim() || undefined);
     }
   }
 
@@ -459,5 +459,16 @@ export class ShellGitRepository implements GitRepository {
   async tagExists(tagName: string): Promise<boolean> {
     const tags = await this.tags();
     return tags.includes(tagName);
+  }
+
+  async cherryPickRange(base: string, topic: string): Promise<void> {
+    // compute merge-base
+    const mergeBase = await this.run(["merge-base", base, topic]);
+    const range = `${mergeBase.trim()}..${topic}`;
+    await this.run(["cherry-pick", range]);
+  }
+
+  async cherryPickAbort(): Promise<void> {
+    await this.exec(["cherry-pick", "--abort"]);
   }
 }

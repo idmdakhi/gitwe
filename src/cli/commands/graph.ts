@@ -4,7 +4,7 @@ import type { GlobalOptions } from "../options.js";
 import { print, renderTree, style, printStructured } from "../output.js";
 import type { OverviewReport } from "../../application/engine.js";
 
-export function registerGraph(program: Command, globals: () => GlobalOptions): void {
+export function registerGraphCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("graph")
     .description("show branch graph (base branches and topics)")

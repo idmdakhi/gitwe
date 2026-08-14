@@ -1,13 +1,12 @@
 import { ValidationError } from "./errors.js";
-import type {
-  BaseBranch,
-  BranchType,
-  ResolvedBranch,
-  WorkflowConfig,
-  RemoteConfig,
-  MergeStrategy,
-} from "./entities.js";
+import type { BaseBranch, BranchType, ResolvedBranch, WorkflowConfig } from "./entities.js";
 import { VersionBumpType } from "./versioning/version-calculator.js";
+import {
+  resolvePushRemotes as resolveRemotes,
+  defaultFetchRemotes,
+  type RemoteConfig,
+} from "./remote.js";
+import type { MergeStrategy } from "./merge-strategy.js";
 
 export class Workflow {
   readonly config: WorkflowConfig;
@@ -17,11 +16,38 @@ export class Workflow {
   }
 
   get remoteName(): string {
-    return this.config.remote?.name ?? "origin";
+    const remote = this.config.remote;
+    if (!remote) return "origin";
+    const name = remote.name;
+    if (typeof name === "string") return name;
+    if (Array.isArray(name) && name.length > 0) return name[0];
+    return "origin";
   }
 
   get remoteConfig(): RemoteConfig {
-    return this.config.remote ?? { name: "origin" };
+    return (
+      this.config.remote ?? {
+        name: "origin",
+        autoFetch: true,
+        fetch: ["origin"],
+        autoPush: false,
+        push: ["origin"],
+      }
+    );
+  }
+  /**
+   * لیست ریموت‌هایی که باید برای push استفاده شوند.
+   * اولویت: topic pushRemote > parent remote > workflow push
+   */
+  resolvePushRemotes(topicType: BranchType): string[] {
+    const config = this.config;
+    const topicPushRemote = (topicType as any).pushRemote;
+    const parentRemote = defaultFetchRemotes(config?.remote as RemoteConfig);
+    return resolveRemotes({
+      workflowRemote: this.remoteConfig,
+      topicPushRemote,
+      parentRemote,
+    }) as string[];
   }
 
   get baseBranches(): BaseBranch[] {
@@ -52,18 +78,30 @@ export class Workflow {
     return base;
   }
 
-  findBranchType(name: string): BranchType | undefined {
-    return this.config.branchTypes.find((bt) => bt.name === name);
+  findBranchType(nameOrAlias: string): BranchType | undefined {
+    const value = nameOrAlias.trim().toLowerCase();
+    return this.config.branchTypes.find((bt) => {
+      if (bt.name.toLowerCase() === value) return true;
+      return bt.aliases?.some((alias) => alias.toLowerCase() === value) ?? false;
+    });
   }
 
-  requireBranchType(name: string): BranchType {
-    const bt = this.findBranchType(name);
+  requireBranchType(nameOrAlias: string): BranchType {
+    const bt = this.findBranchType(nameOrAlias);
+
     if (bt === undefined) {
       throw new ValidationError(
-        `unknown branch type "${name}"`,
-        `known types: ${this.config.branchTypes.map((bt) => bt.name).join(", ")}`,
+        `unknown branch type "${nameOrAlias}"`,
+        `known types: ${this.config.branchTypes
+          .map((bt) => {
+            const aliases = bt.aliases?.length ? ` (${bt.aliases.join(", ")})` : "";
+
+            return `${bt.name}${aliases}`;
+          })
+          .join(", ")}`,
       );
     }
+
     return bt;
   }
 

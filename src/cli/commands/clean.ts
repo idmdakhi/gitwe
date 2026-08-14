@@ -7,7 +7,7 @@ import { print, style, printStructured } from "../output.js";
  * Register `gitwe clean` — report (or remove) a stale finish operation state file.
  * Does not delete branches or worktree files.
  */
-export function registerClean(program: Command, globals: () => GlobalOptions): void {
+export function registerCleanCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("clean")
     .description("remove a stale gitwe operation state file (does not touch branches)")

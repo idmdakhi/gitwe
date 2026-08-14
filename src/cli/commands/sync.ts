@@ -7,7 +7,7 @@ import { printStructured, success } from "../output.js";
  * Register `gitwe sync` — fetch the remote and update the current topic branch
  * from its parent (same as `gitwe update --fetch`).
  */
-export function registerSync(program: Command, globals: () => GlobalOptions): void {
+export function registerSyncCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("sync")
     .description("fetch the remote and update the current topic from its parent")

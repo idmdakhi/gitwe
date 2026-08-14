@@ -7,7 +7,7 @@ import type { GlobalOptions } from "../options.js";
 import { print, renderTree, style } from "../output.js";
 import type { OverviewReport } from "../../application/engine.js";
 
-export function registerStatus(program: Command, globals: () => GlobalOptions): void {
+export function registerStatusCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("status")
     .alias("overview")

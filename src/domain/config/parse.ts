@@ -3,14 +3,15 @@ import type {
   BaseBranch,
   BranchType,
   HookConfig,
-  MergeStrategy,
+
   // UpdateStrategy,
   WorkflowConfig,
-  RemoteConfig,
   VersioningConfig,
   MergeConfig,
   CliConfig,
 } from "../entities.js";
+import { parseRemoteField } from "./parse-remote.js";
+import type { MergeStrategy } from "../merge-strategy.js";
 
 const MERGE_STRATEGIES: MergeStrategy[] = ["merge", "squash", "rebase"];
 
@@ -137,20 +138,6 @@ function parseHooks(value: unknown): HookConfig {
     enabled: booleanValue(value.enabled, "hooks.enabled", true),
     path: requireString(value.path, "hooks.path", ".gitwe/hooks"),
   };
-}
-
-function parseRemote(value: unknown): RemoteConfig {
-  if (isRecord(value)) {
-    return {
-      name: requireString(value.name, "remote.name"),
-      autoPush: booleanValue(value.autoPush, "remote.autoPush", false),
-      autoFetch: booleanValue(value.autoFetch, "remote.autoFetch", true),
-    };
-  }
-  if (typeof value === "string") {
-    return { name: value };
-  }
-  return { name: "origin" };
 }
 
 function parseVersion(value: unknown): VersioningConfig {
@@ -428,7 +415,7 @@ export function parseWorkflowConfig(input: unknown): WorkflowConfig {
   const config: WorkflowConfig = {
     version: 1,
     name: requireString(input.name, "name", "custom"),
-    remote: parseRemote(input.remote),
+    remote: parseRemoteField(input.remote),
     baseBranches: baseBranches.map(parseBaseBranch),
     branchTypes: branchTypes.map(parseBranchType),
     hooks: parseHooks(input.hooks),

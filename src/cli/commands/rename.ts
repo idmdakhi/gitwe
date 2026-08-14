@@ -3,7 +3,7 @@ import { createEngine } from "../context.js";
 import { success, printStructured } from "../output.js";
 import type { GlobalOptions } from "../options.js";
 
-export function registerRename(program: Command, globals: () => GlobalOptions): void {
+export function registerRenameCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("rename")
     .description("rename the current topic branch")

@@ -29,13 +29,16 @@ export class VersionCalculator {
     switch (type) {
       case "major":
         return `${current.major + 1}.0.0`;
-
       case "minor":
         return `${current.major}.${current.minor + 1}.0`;
-
       case "patch":
         return `${current.major}.${current.minor}.${current.patch + 1}`;
-
+      case "prerelease": {
+        const parts = current.prerelease ? current.prerelease.split(".") : [];
+        const typeName = parts[0] || "alpha";
+        const number = parts.length > 1 ? parseInt(parts[1], 10) + 1 : 1;
+        return `${current.major}.${current.minor}.${current.patch}-${typeName}.${number}`;
+      }
       default:
         throw new Error(`Unsupported version bump type: ${type}`);
     }

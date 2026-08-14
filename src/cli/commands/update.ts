@@ -3,7 +3,7 @@ import { createEngine } from "../context.js";
 import { print, style, success, printStructured } from "../output.js";
 import type { GlobalOptions } from "../options.js";
 
-export function registerUpdate(program: Command, globals: () => GlobalOptions): void {
+export function registerUpdateCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("update")
     .description("update the current (or named) topic branch from its parent")

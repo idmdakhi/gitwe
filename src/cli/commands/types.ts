@@ -4,7 +4,7 @@ import type { GlobalOptions } from "../options.js";
 import { print, style, printStructured } from "../output.js";
 
 /** Register `gitwe types` — list configured topic types from the workflow definition. */
-export function registerTypes(program: Command, globals: () => GlobalOptions): void {
+export function registerTypesCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("types")
     .description("list topic types defined in the active workflow")

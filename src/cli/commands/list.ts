@@ -4,7 +4,7 @@ import type { GlobalOptions } from "../options.js";
 import { print, style, printStructured } from "../output.js";
 import { BranchStatus } from "../../domain/entities.js";
 
-export function registerList(program: Command, globals: () => GlobalOptions): void {
+export function registerListCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("list")
     .description("list branches of a given type (or all if no type given)")

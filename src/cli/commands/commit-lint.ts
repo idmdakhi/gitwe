@@ -6,7 +6,7 @@ import { print, style } from "../output.js";
  * Placeholder for conventional-commit linting.
  * Out of scope for the 1.0 workflow engine (see CHANGELOG / ROADMAP).
  */
-export function registerCommitLint(program: Command, _globals: () => GlobalOptions): void {
+export function registerCommitLintCommand(program: Command, _globals: () => GlobalOptions): void {
   program
     .command("commit-lint")
     .description("lint commit messages (not implemented — out of scope for 1.0)")

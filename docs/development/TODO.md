@@ -1,6 +1,6 @@
 # gitwe TODO
 
-Last updated: 2026-08-01  
+Last updated: 2026-08-13  
 Current version: **1.0.0**
 
 This file is the single source of truth for planned work.  
@@ -33,17 +33,18 @@ Checkboxes can be ticked in PRs; please keep the file up to date.
 
 - [ ] Re-enable the currently disabled jobs (`if: false`) in:
   - `.github/workflows/ci.yaml`
-  - `.github/workflows/e2e.yml`
-  - `.github/workflows/nightly.yml`
-  - `.github/workflows/release.yml`
+  - `.github/workflows/e2e.yaml`
+  - `.github/workflows/nightly.yaml`
+  - `.github/workflows/release.yaml`
+  - relevant parts of `.github/workflows/publish.yaml`
 - [ ] Align Node.js versions across `action.yaml`, `package.json` engines and all workflows (prefer 20 + 22 + 24 matrix where sensible).
-- [ ] Make the composite Action cache the `node_modules` of the action itself correctly.
+- [ ] Make the composite Action and root `action.yaml` cache `node_modules` and `dist` correctly.
 - [ ] Verify `publish.yaml` matrix (npm + GitHub Packages) still works after the 1.0 rewrite.
 
 ### Output & CLI consistency
 
 - [ ] Add `schemaVersion: 1` to every JSON response (see RFC-0004).
-- [ ] Make `--format json|yaml` available on `start`, `finish`, `list`, `version` and `config list`.
+- [ ] Make `--format json|yaml|table` available on `start`, `finish`, `list`, `version`, `config list`, `doctor` and `overview`.
 - [ ] Treat the old `--json` flag as a deprecated alias for `--format json`.
 
 ### Error experience
@@ -55,7 +56,7 @@ Checkboxes can be ticked in PRs; please keep the file up to date.
 ### Code quality
 
 - [ ] Remove or translate remaining Persian comments in the domain layer so the codebase is consistently English.
-- [ ] Raise test coverage on `ShellGitRepository` (especially conflict, rebase-in-progress and missing-remote paths).
+- [ ] Raise test coverage on `ShellGitRepository` (especially conflict, rebase-in-progress, missing-remote and Windows paths).
 - [ ] Support `GITWE_CONFIG` environment variable as an alternative to `--config`.
 
 ---
@@ -108,94 +109,47 @@ Checkboxes can be ticked in PRs; please keep the file up to date.
 ### New finish strategies (RFC-0002)
 
 - [ ] Extend `MergeStrategy` with `cherry-pick` and `rebase-merge`.
-- [ ] Implement both paths inside `FinishOperation` with proper conflict / resume su
-      ...
+- [ ] Implement both paths inside `FinishOperation` with proper conflict / resume support.
+- [ ] Optional CLI flags `--cherry-pick` / `--rebase-merge`.
+- [ ] Tests and documentation updates.
 
-gitwe/
-├── src/
-│ ├── application/
-│ │ ├── commands/
-│ │ │ ├── start.ts
-│ │ │ ├── finish.ts
-│ │ │ ├── publish.ts
-│ │ │ ├── abort.ts
-│ │ │ ├── sync.ts
-│ │ │ ├── status.ts
-│ │ │ ├── list.ts
-│ │ │ └── index.ts
-│ │ │
-│ │ ├── services/
-│ │ │ ├── branch-service.ts
-│ │ │ ├── merge-service.ts
-│ │ │ ├── tag-service.ts
-│ │ │ ├── release-service.ts
-│ │ │ └── workflow-service.ts
-│ │ │
-│ │ └── dto/
-│ │
-│ ├── domain/
-│ │ ├── entities/
-│ │ │ ├── branch.ts
-│ │ │ ├── tag.ts
-│ │ │ ├── workflow.ts
-│ │ │ └── repository.ts
-│ │ │
-│ │ ├── value-objects/
-│ │ │ ├── branch-name.ts
-│ │ │ ├── version.ts
-│ │ │ ├── tag-name.ts
-│ │ │ └── commit-id.ts
-│ │ │
-│ │ ├── interfaces/
-│ │ │ ├── git-repository.ts
-│ │ │ ├── config-repository.ts
-│ │ │ └── console.ts
-│ │ │
-│ │ └── errors/
-│ │
-│ ├── infrastructure/
-│ │ ├── git/
-│ │ │ ├── shell-git-repository.ts
-│ │ │ ├── git-process.ts
-│ │ │ └── git-error.ts
-│ │ │
-│ │ ├── cli/
-│ │ │ ├── commands/
-│ │ │ ├── parser.ts
-│ │ │ └── program.ts
-│ │ │
-│ │ ├── config/
-│ │ ├── logger/
-│ │ └── filesystem/
-│ │
-│ ├── shared/
-│ │ ├── utils/
-│ │ ├── constants/
-│ │ └── types/
-│ │
-│ └── index.ts
-│
-├── tests/
-│ ├── application/
-│ ├── domain/
-│ ├── infrastructure/
-│ ├── integration/
-│ ├── helpers/
-│ └── fixtures/
-│
-├── docs/
-│ ├── commands/
-│ ├── configuration/
-│ ├── examples/
-│ └── workflow/
-│
-└── examples/
+### Parity with git-flow / gitflow-avh / git-flow-next
 
-❌ VersionPolicy
-❌ VersionCalculator
-❌ ReleaseIntent
-❌ VersionStrategy
-❌ VersionResolver
-❌ Release entity
-❌ prerelease engine
-❌ changelog engine
+- [ ] Fuller support-branch behaviour.
+- [ ] Richer finish flags (`--keep-remote`, `--force-delete`, `--tagname`, …).
+- [ ] Stronger custom base support on `start`.
+- [ ] `integrate` command for base branches (merge without delete).
+- [ ] Optional `allowdirty` behaviour (start from dirty tree when configured).
+- [ ] Better `publish` / `track` with push options (`-o`).
+
+### Versioning & Changelog
+
+- [ ] Activate and complete changelog support (aligned with `cliff.toml`).
+- [ ] Better prerelease handling.
+- [ ] `tagFormat` and richer message options.
+
+### Other
+
+- [ ] Richer `--dry-run` for finish (exact step list + remotes that would be touched).
+- [ ] End-to-end support for signed commits and tags.
+
+---
+
+## P3 – 1.3+ (Integration & later)
+
+- [ ] Official, well-documented GitHub Action with proper caching and matrix examples.
+- [ ] Basic VS Code extension (start / finish / overview / doctor).
+- [ ] Path-based / subdirectory workflow support for monorepos.
+- [ ] JSON Schema for the workflow definition published to the Schema Store.
+- [ ] Reusable workflow that other repositories can call.
+- [ ] Structured hook I/O (for 2.0).
+- [ ] Lightweight strategy scripts (for 2.0).
+
+---
+
+## Notes for contributors
+
+- Keep PRs focused. Large items should be split into several issues.
+- Tick the checkbox in this file in the same PR that implements the item.
+- Fill in the PR template checklist (especially layer boundaries and no duplicate domain concepts).
+- Large design changes still require an RFC under `docs/rfcs/`.

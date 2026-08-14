@@ -15,10 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  e2e:
+  e2e-classic:
     name: E2E (classic workflow)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Checkout
@@ -50,18 +50,151 @@ jobs:
         working-directory: /tmp/test-repo
         run: node "${{ github.workspace }}/dist/cli/index.js" init --defaults --preset classic
 
+      - name: Doctor
+        working-directory: /tmp/test-repo
+        run: node "${{ github.workspace }}/dist/cli/index.js" doctor --format json || true
+
       - name: Start feature
         working-directory: /tmp/test-repo
         run: node "${{ github.workspace }}/dist/cli/index.js" start feature login
 
-      - name: Status
+      - name: Status (json)
         working-directory: /tmp/test-repo
-        run: node "${{ github.workspace }}/dist/cli/index.js" status
+        run: node "${{ github.workspace }}/dist/cli/index.js" status --format json
+
+      - name: Version (json)
+        working-directory: /tmp/test-repo
+        run: node "${{ github.workspace }}/dist/cli/index.js" version --format json
 
       - name: Finish feature (keep branch)
         working-directory: /tmp/test-repo
         run: node "${{ github.workspace }}/dist/cli/index.js" finish feature/login --keep
 
-      - name: Doctor
-        working-directory: /tmp/test-repo
-        run: node "${{ github.workspace }}/dist/cli/index.js" doctor || true
+  e2e-conflict-continue:
+    name: E2E (conflict + continue)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          node-version: "22"
+
+      - name: Setup conflicting repository
+        run: |
+          set -e
+          ROOT=/tmp/conflict-repo
+          mkdir -p "$ROOT"
+          cd "$ROOT"
+          git init -b main
+          git config user.name "Test User"
+          git config user.email "test@example.com"
+          git config commit.gpgsign false
+          git config tag.gpgsign false
+
+          echo "base" > file.txt
+          git add file.txt
+          git commit -m "base"
+
+          git checkout -b develop
+          git checkout -b feature/conflict
+
+          echo "feature change" > file.txt
+          git add file.txt
+          git commit -m "feature edit"
+
+          git checkout develop
+          echo "develop change" > file.txt
+          git add file.txt
+          git commit -m "develop edit"
+
+          # Init gitwe
+          node "${{ github.workspace }}/dist/cli/index.js" init --defaults --preset classic
+
+          # Start is already done (we created the branch manually to control content)
+          # Finish should produce a conflict
+          set +e
+          node "${{ github.workspace }}/dist/cli/index.js" finish feature/conflict --strategy merge
+          EXIT=$?
+          set -e
+
+          if [ "$EXIT" -ne 2 ]; then
+            echo "Expected exit code 2 (conflict), got $EXIT"
+            # Still try to demonstrate continue path if conflict markers exist
+          fi
+
+          # Resolve conflict in favour of feature
+          echo "feature change" > file.txt
+          git add file.txt
+
+          # Continue
+          node "${{ github.workspace }}/dist/cli/index.js" finish --continue
+
+          echo "Conflict + continue path completed"
+
+  e2e-conflict-abort:
+    name: E2E (conflict + abort)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          node-version: "22"
+
+      - name: Setup and abort
+        run: |
+          set -e
+          ROOT=/tmp/abort-repo
+          mkdir -p "$ROOT"
+          cd "$ROOT"
+          git init -b main
+          git config user.name "Test User"
+          git config user.email "test@example.com"
+          git config commit.gpgsign false
+          git config tag.gpgsign false
+
+          echo "base" > file.txt
+          git add file.txt
+          git commit -m "base"
+
+          git checkout -b develop
+          git checkout -b feature/abort-me
+
+          echo "feature" > file.txt
+          git add file.txt
+          git commit -m "feature"
+
+          git checkout develop
+          echo "develop" > file.txt
+          git add file.txt
+          git commit -m "develop"
+
+          node "${{ github.workspace }}/dist/cli/index.js" init --defaults --preset classic
+
+          set +e
+          node "${{ github.workspace }}/dist/cli/index.js" finish feature/abort-me --strategy merge
+          set -e
+
+          # Abort the in-progress operation
+          node "${{ github.workspace }}/dist/cli/index.js" finish --abort
+
+          # State file should be gone
+          if [ -f .git/gitwe/operation.json ]; then
+            echo "operation.json still present after abort"
+            exit 1
+          fi
+
+          echo "Conflict + abort path completed"

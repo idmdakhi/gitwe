@@ -111,7 +111,7 @@ async function selectFromList(
   }
 }
 
-export function registerInit(program: Command, globals: () => GlobalOptions): void {
+export function registerInitCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("init")
     .description("create a gitwe workflow definition in the current repository")
@@ -240,7 +240,10 @@ export function registerInit(program: Command, globals: () => GlobalOptions): vo
 
         // ۵. پرسش‌وجو برای remote و tag prefix
         if (options.remote === undefined) {
-          const remoteNameAnswer = await prompt("Remote name?", draft.remote?.name ?? "origin");
+          const remoteNameAnswer = await prompt(
+            "Remote name?",
+            (draft.remote?.name as string) ?? "origin",
+          );
           overrides.remoteName = remoteNameAnswer;
         }
 

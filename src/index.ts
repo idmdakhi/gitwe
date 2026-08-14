@@ -1,4 +1,4 @@
-export { VERSION } from "./version.js";
+export { getVersion } from "./version.js";
 
 export * from "./domain/entities.js";
 export * from "./domain/errors.js";

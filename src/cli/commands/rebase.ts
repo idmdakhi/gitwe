@@ -3,7 +3,7 @@ import { createEngine } from "../context.js";
 import { print, style, success, printStructured } from "../output.js";
 import type { GlobalOptions } from "../options.js";
 
-export function registerRebase(program: Command, globals: () => GlobalOptions): void {
+export function registerRebaseCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("rebase")
     .description("update the current (or named) topic branch by rebasing")

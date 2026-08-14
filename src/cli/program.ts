@@ -1,41 +1,43 @@
 import { Command } from "commander";
-import { VERSION } from "../version.js";
-import { preScanGlobals } from "./args.js";
+import { getVersion } from "../version.js";
+import { expandCliAliases, preScanGlobals, resolveCliAliases } from "./args.js";
 import { GLOBAL_OPTION_FLAGS, GlobalOptions } from "./options.js";
 import { exitCodeFor, reportError } from "./error-reporter.js";
 
 // دستورات پایه
-import { registerInit } from "./commands/init.js";
-import { registerConfig } from "./commands/config.js";
-import { registerStatus } from "./commands/status.js";
-import { registerDoctor } from "./commands/doctor.js";
-import { registerValidate } from "./commands/validate.js";
-import { registerVersion } from "./commands/version.js";
+import { registerInitCommand } from "./commands/init.js";
+import { registerConfigCommand } from "./commands/config.js";
+import { registerStatusCommand } from "./commands/status.js";
+import { registerDoctorCommand } from "./commands/doctor.js";
+import { registerValidateCommand } from "./commands/validate.js";
+import { registerVersionCommand } from "./commands/version.js";
 
 // دستورات اصلی شاخه‌ها
-import { registerStart } from "./commands/start.js";
-import { registerFinish } from "./commands/finish.js";
-import { registerUpdate } from "./commands/update.js";
-import { registerRebase } from "./commands/rebase.js";
-import { registerDelete } from "./commands/delete.js";
-import { registerRename } from "./commands/rename.js";
-import { registerPush } from "./commands/push.js";
-import { registerCheckout } from "./commands/checkout.js";
-import { registerTrack } from "./commands/track.js";
-import { registerCurrent } from "./commands/current.js";
-import { registerList } from "./commands/list.js";
-import { registerGraph } from "./commands/graph.js";
+import { registerStartCommand } from "./commands/start.js";
+import { registerFinishCommand } from "./commands/finish.js";
+import { registerUpdateCommand } from "./commands/update.js";
+import { registerRebaseCommand } from "./commands/rebase.js";
+import { registerDeleteCommand } from "./commands/delete.js";
+import { registerRenameCommand } from "./commands/rename.js";
+import { registerPushCommand } from "./commands/push.js";
+import { registerCheckoutCommand } from "./commands/checkout.js";
+import { registerTrackCommand } from "./commands/track.js";
+import { registerCurrentCommand } from "./commands/current.js";
+import { registerListCommand } from "./commands/list.js";
+import { registerGraphCommand } from "./commands/graph.js";
 
 // دستورات کمکی و پیشرفته
-import { registerAbort } from "./commands/abort.js";
-import { registerClean } from "./commands/clean.js";
-// import { registerCommitLint } from "./commands/commit-lint.js";
-// import { registerLog } from "./commands/log.js";
-// import { registerModules } from "./commands/modules.js";
-import { registerPull } from "./commands/pull.js";
-import { registerSync } from "./commands/sync.js";
-import { registerTag } from "./commands/tag.js";
-import { registerTypes } from "./commands/types.js";
+import { registerAbortCommand } from "./commands/abort.js";
+import { registerCleanCommand } from "./commands/clean.js";
+// import { registerCommitLintCommand } from "./commands/commit-lint.js";
+// import { registerLogCommand } from "./commands/log.js";
+// import { registerModulesCommand } from "./commands/modules.js";
+import { registerPullCommand } from "./commands/pull.js";
+import { registerSyncCommand } from "./commands/sync.js";
+import { registerTagCommand } from "./commands/tag.js";
+import { registerTypesCommand } from "./commands/types.js";
+import { createEngine } from "./context.js";
+import { Engine } from "../application/engine.js";
 // import { registerVersionBump } from "./commands/version-bump.js";
 
 export async function buildProgram(argv: string[]): Promise<Command> {
@@ -44,48 +46,50 @@ export async function buildProgram(argv: string[]): Promise<Command> {
   program
     .name("gitwe")
     .description("gitwe — a configurable git workflow engine")
-    .version(VERSION, "--version", "show the gitwe version")
+    .version(getVersion(), "--version", "show the gitwe version")
     .showHelpAfterError()
     .enablePositionalOptions();
 
   for (const opt of GLOBAL_OPTION_FLAGS) {
     program.option(opt.flags, opt.description);
   }
-
   const globalOptions = (): GlobalOptions => ({ ...globals, ...program.opts<GlobalOptions>() });
 
+  const getEngine = async (): Promise<Engine> => {
+    return createEngine(globalOptions());
+  };
   // ========== ۱. دستورات پایه ==========
-  registerInit(program, globalOptions);
-  registerConfig(program, globalOptions);
-  registerStatus(program, globalOptions);
-  registerDoctor(program, globalOptions);
-  registerValidate(program, globalOptions);
-  registerVersion(program, globalOptions);
+  registerInitCommand(program, globalOptions);
+  registerConfigCommand(program, globalOptions);
+  registerStatusCommand(program, globalOptions);
+  registerDoctorCommand(program, getEngine);
+  registerValidateCommand(program, globalOptions);
+  registerVersionCommand(program, getVersion);
 
   // ========== ۲. دستورات اصلی شاخه‌ها ==========
-  registerStart(program, globalOptions);
-  registerFinish(program, globalOptions);
-  registerUpdate(program, globalOptions);
-  registerRebase(program, globalOptions);
-  registerDelete(program, globalOptions);
-  registerRename(program, globalOptions);
-  registerPush(program, globalOptions);
-  registerCheckout(program, globalOptions);
-  registerTrack(program, globalOptions);
-  registerCurrent(program, globalOptions);
-  registerList(program, globalOptions);
-  registerGraph(program, globalOptions);
+  registerStartCommand(program, globalOptions);
+  registerFinishCommand(program, globalOptions);
+  registerUpdateCommand(program, globalOptions);
+  registerRebaseCommand(program, globalOptions);
+  registerDeleteCommand(program, globalOptions);
+  registerRenameCommand(program, globalOptions);
+  registerPushCommand(program, globalOptions);
+  registerCheckoutCommand(program, globalOptions);
+  registerTrackCommand(program, globalOptions);
+  registerCurrentCommand(program, globalOptions);
+  registerListCommand(program, globalOptions);
+  registerGraphCommand(program, globalOptions);
 
   // ========== ۳. دستورات کمکی و پیشرفته ==========
-  registerAbort(program, globalOptions);
-  registerClean(program, globalOptions);
-  // registerCommitLint(program, globalOptions);
-  // registerLog(program, globalOptions);
-  // registerModules(program, globalOptions);
-  registerPull(program, globalOptions);
-  registerSync(program, globalOptions);
-  registerTag(program, globalOptions);
-  registerTypes(program, globalOptions);
+  registerAbortCommand(program, globalOptions);
+  registerCleanCommand(program, globalOptions);
+  // registerCommitLintCommand(program, globalOptions);
+  // registerLogCommand(program, globalOptions);
+  // registerModulesCommand(program, globalOptions);
+  registerPullCommand(program, globalOptions);
+  registerSyncCommand(program, globalOptions);
+  registerTagCommand(program, globalOptions);
+  registerTypesCommand(program, globalOptions);
   // registerVersionBump(program, globalOptions);
 
   acceptGlobalOptionsEverywhere(program);
@@ -106,6 +110,8 @@ function acceptGlobalOptionsEverywhere(command: Command): void {
 
 export async function run(argv: string[] = process.argv): Promise<number> {
   try {
+    const globals = preScanGlobals(argv);
+    argv = resolveCliAliases(argv, globals);
     const program = await buildProgram(argv.slice(2));
     await program.parseAsync(argv);
     return 0;

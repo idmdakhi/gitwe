@@ -1,48 +1,67 @@
-import { Command } from "commander";
-import { createEngine } from "../context.js";
-import type { GlobalOptions } from "../options.js";
-import { print, style, printStructured } from "../output.js";
-import type { OverviewReport } from "../../application/engine.js";
+/**
+ * `gitwe doctor` command.
+ * Reports repository health and optionally applies safe fixes (RFC-0003).
+ */
 
-export function registerDoctor(program: Command, globals: () => GlobalOptions): void {
+import type { Command } from "commander";
+import type { Engine } from "../../application/engine.js";
+import { runDoctor } from "../../application/engine-doctor.js";
+import { print, printStructured, style } from "../output.js";
+import { reportAndPrintError } from "../error-reporter.js";
+import { resolveFormat } from "../options.js";
+
+export function registerDoctorCommand(program: Command, getEngine: () => Promise<Engine>): void {
   program
     .command("doctor")
-    .description("check repository health and optionally repair issues")
-    .option("--fix", "attempt to automatically fix problems")
-    .option("--yes", "non-interactive mode for --fix")
-    .action(async (options: { fix?: boolean; yes?: boolean }) => {
-      const engine = await createEngine(globals());
-      // TODO: Replace with engine.doctor() once implemented (RFC-0003)
-      // Currently using overview as a temporary solution.
-      const report: OverviewReport = await engine.overview();
-      const issues = report.health.filter((h) => h.level !== "ok");
+    .description("Check repository health and optionally repair common problems")
+    .option("--fix", "Attempt to safely repair problems", false)
+    .option("--yes", "Non-interactive; assume yes for confirmations", false)
+    .action(async (opts: { fix?: boolean; yes?: boolean; format?: string }) => {
+      const format = resolveFormat(opts.format);
+      try {
+        const engine = await getEngine();
+        const report = await runDoctor(engine, {
+          fix: opts.fix === true,
+          yes: opts.yes === true,
+        });
 
-      const format = globals().format;
-      if (format === "json" || format === "yaml") {
-        printStructured({ issues, fixed: false }, format);
-        return;
-      }
-
-      if (issues.length === 0) {
-        print(style.green("✓ Repository is healthy."));
-        return;
-      }
-
-      print(style.bold("Issues found:"));
-      for (const issue of issues) {
-        const icon = issue.level === "error" ? style.red("✗") : style.yellow("!");
-        print(`  ${icon} ${issue.message}`);
-      }
-
-      if (options.fix) {
-        if (!options.yes) {
-          print(style.dim("\n--fix requires --yes to proceed (non-interactive)."));
-          print(style.dim("  Use: gitwe doctor --fix --yes"));
+        if (format === "json" || format === "yaml") {
+          printStructured(report, format, { command: "doctor" });
+          process.exitCode = report.ok ? 0 : 1;
           return;
         }
-        // TODO: 실제 복구 로직 (Engine.doctor({ fix: true, yes: true }))
-        print(style.yellow("\n⚠️  --fix is not yet fully implemented (see RFC-0003)."));
-        print(style.dim("  This is a placeholder. Coming soon."));
+
+        // Human-readable output
+        if (report.findings.length === 1 && report.findings[0].severity === "ok") {
+          print(style.green("✓ workflow is healthy"));
+          process.exitCode = 0;
+          return;
+        }
+
+        for (const f of report.findings) {
+          const icon =
+            f.severity === "ok"
+              ? style.green("✓")
+              : f.severity === "warning"
+                ? style.yellow("⚠")
+                : style.red("✗");
+
+          const fixedMark = f.fixed ? style.green(" [fixed]") : "";
+          print(`${icon} ${f.message}${fixedMark}`);
+
+          if (f.suggestion && !f.fixed) {
+            print(style.dim(`  → ${f.suggestion}`));
+          }
+        }
+
+        if (opts.fix && report.fixedCount > 0) {
+          print("");
+          print(style.green(`Repaired ${report.fixedCount} issue(s).`));
+        }
+
+        process.exitCode = report.ok ? 0 : 1;
+      } catch (err) {
+        process.exitCode = reportAndPrintError("doctor", err, format);
       }
     });
 }

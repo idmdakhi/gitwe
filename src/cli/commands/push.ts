@@ -11,7 +11,7 @@ function collect(value: string, previous: string[]): string[] {
  * Register `gitwe push` — push the current branch to the workflow remote.
  * For topic branches prefer `gitwe publish` (sets upstream).
  */
-export function registerPush(program: Command, globals: () => GlobalOptions): void {
+export function registerPushCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("push")
     .alias("publish")
@@ -38,7 +38,7 @@ export function registerPush(program: Command, globals: () => GlobalOptions): vo
         }
 
         const remote = engine.workflow.remoteName;
-        await engine.git.push(remote, branch, {
+        await engine.git.push(remote as string, branch, {
           setUpstream: opts.setUpstream === true,
           followTags: opts.tags === true,
           pushOptions: opts.pushOption,

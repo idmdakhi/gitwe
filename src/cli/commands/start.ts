@@ -3,7 +3,7 @@ import { createEngine } from "../context.js";
 import { success, printStructured } from "../output.js";
 import type { GlobalOptions } from "../options.js";
 
-export function registerStart(program: Command, globals: () => GlobalOptions): void {
+export function registerStartCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("start")
     .description("create a new topic branch")

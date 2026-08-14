@@ -7,7 +7,7 @@ import { printStructured, success } from "../output.js";
  * Register `gitwe abort` — roll back an in-progress finish operation.
  * Equivalent to `gitwe finish --abort`.
  */
-export function registerAbort(program: Command, globals: () => GlobalOptions): void {
+export function registerAbortCommand(program: Command, globals: () => GlobalOptions): void {
   program
     .command("abort")
     .description("abort an in-progress finish and restore the previous state")
