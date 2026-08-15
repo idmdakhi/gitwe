@@ -1,125 +1,163 @@
 # gitwe
 
-[![CI](https://github.com/idmdakhi/gitwe/actions/workflows/ci.yaml/badge.svg)](https://github.com/idmdakhi/gitwe/actions/workflows/ci.yaml)
-[![npm version](https://img.shields.io/npm/v/gitwe.svg)](https://www.npmjs.com/package/gitwe)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-**gitwe** is a git **workflow engine**. You describe your branching model once — base
-branches, topic branch types, merge strategies, tagging — and gitwe executes every
-`start` / `finish` / `update` / `publish` operation according to that description.
-
-git-flow is not built into the engine: it is just one of the workflow definitions that
-ship with it, alongside GitHub Flow and GitLab Flow. Anything you can express as
-"topic branches that integrate into base branches" is a first-class workflow.
+A configurable git branching-workflow engine. Define your branching model once
+in `.gitwe/gitwe.yaml`, and let `gitwe` run `start` / `finish` / `update` /
+`publish` / `delete` against it.
 
 ```bash
-npm install -g gitwe
-
-gitwe init --preset classic     # or: github, gitlab
-gitwe start feature login
-gitwe finish
+npm install
+npm run build
+node dist/cli/program.js init --preset classic
+node dist/cli/program.js start feature login
+node dist/cli/program.js finish
 ```
 
-## Why an engine?
+## Why this rewrite
 
-Classic git-flow tools hard-code five branch types and their rules. gitwe keeps the
-rules in data:
+This is a from-scratch rewrite of the original project on a **clean,
+layered architecture**. The goals:
 
-```jsonc
-{
-  "baseBranches": [{ "name": "main" }, { "name": "develop", "parent": "main" }],
-  "branchTypes": [
-    { "name": "feature", "parent": "develop" },
-    { "name": "release", "parent": "main", "startPoint": "develop", "tag": true },
-  ],
-}
+- **`domain` has zero I/O.** No `fs`, no `child_process`, no `console`. Every
+  business rule (branch resolution, merge-strategy selection, semver bumping,
+  config validation, cycle detection) is a plain function/class you can unit
+  test in milliseconds, with no git repository required.
+- **`application` orchestrates, it doesn't implement.** Each operation is one
+  use case (`StartBranchUseCase`, `FinishBranchUseCase`, ...) that depends only
+  on domain services and *ports* (interfaces) — never on a concrete adapter.
+- **`infrastructure` is swappable.** `ShellGitRepository` is the only place
+  that shells out to `git`. Swap it for a fake in tests, or for a different
+  VCS backend entirely, without touching a single use case.
+- **`cli` is presentation only.** Commander wiring, flag parsing, and
+  `console.log` formatting live here and nowhere else. The composition root
+  (`cli/container.ts`) is the one place adapters get wired together.
+
+```
+src/
+├── domain/            # entities, value objects, domain services, ports (pure)
+├── application/        # use cases + the Engine facade that composes them
+├── infrastructure/     # ShellGitRepository, YAML config, hooks, logger, state
+├── cli/                 # Commander program, one file per command
+├── index.ts             # library entry point (import { Engine } from "gitwe")
+└── version.ts
 ```
 
-From that definition the engine derives everything: which branch `start feature` forks
-from, where `finish release ` merges and tags, and that `develop` must be brought back in
-sync with `main` afterwards. Adding a new topic type (e.g. `spike`) automatically makes
-it available to all commands — you just use `gitwe start spike ...` and the engine
-follows the rules you defined.
+### The resumable `finish` operation
 
-## Installation
+`finish` is modeled as an explicit state machine
+(`FinishBranchUseCase`): merge into each target → tag → push → delete.
+If a merge conflict stops it partway through, progress is persisted via
+`OperationStateStore` (`.gitwe/state.json`) so a **separate process** can
+resume it with `gitwe finish --continue`, or cancel it with
+`gitwe finish --abort` — this is exercised directly in
+`tests/application/finish-branch.use-case.test.ts` using an in-memory fake,
+no real git repository needed.
 
-```bash
-npm install -g gitwe          # CLI
-npm install gitwe             # library (Node.js >= 20, ESM)
+## Workflow definition — `.gitwe/gitwe.yaml`
+
+```yaml
+version: 1
+name: classic
+
+baseBranches:
+  - name: main
+    aliases: [master]
+    protected: true
+  - name: develop
+    base: main
+    protected: true
+
+branchTypes:
+  - name: feature
+    base: develop
+    target: [develop]
+    prefix: feature/
+  - name: release
+    base: develop
+    target: [main, develop]
+    prefix: release/
+  - name: hotfix
+    base: main
+    target: [main, develop]
+    prefix: hotfix/
+
+merge:
+  strategy: merge
+  deleteOnFinish: [feature, release, hotfix]
+  squash: { enabled: true, default: false, branchTypes: [feature] }
+
+versioning:
+  enabled: true
+  tagPrefix: v
+  tag: [release, hotfix]
+  bumpRules: { minor: [release], patch: [hotfix] }
+
+remote:
+  name: origin
+  autoFetch: true
+  fetch: [origin]
+  push: [origin]
 ```
 
-## Commands
+`ConfigValidatorService` rejects invalid definitions before any git command
+runs: missing/duplicate root branches, cycles in the base-branch tree,
+duplicate branch-type names or prefixes, and dangling `base`/`target`
+references.
 
-| Command                                                              | Description                                                     |
-| -------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `gitwe init [--preset classic\|github\|gitlab] [--defaults]`         | write a workflow definition and create missing base branches    |
-| `gitwe config list \| add \| edit \| rename \| delete`               | inspect and edit the definition                                 |
-| `gitwe overview [--format text\|json\|yaml\|table]` (alias `status`) | configuration, branch structure and health                      |
-| `gitwe start <type> <name> [base] [--fetch]`                         | create a topic branch                                           |
-| `gitwe finish [name] [options]`                                      | integrate a topic branch into its parent                        |
-| `gitwe update [name] [--rebase] [--fetch]`                           | bring a topic branch up to date with its parent                 |
-| `gitwe rebase [name]`                                                | update a topic branch by rebasing (alias for `update --rebase`) |
-| `gitwe publish [name] [-o <push-option>...]`                         | push a topic branch and set its upstream                        |
-| `gitwe delete [name] [-f] [-r]`                                      | delete a topic branch, optionally its remote                    |
-| `gitwe rename <new-name>`                                            | rename the current topic branch                                 |
-| `gitwe checkout <type> <name\|prefix>`                               | switch to a topic branch, partial names allowed                 |
-| `gitwe track <type> <name>`                                          | create a local topic branch tracking the remote one             |
-| `gitwe list <type> [pattern]`                                        | list topic branches of a given type (`*`, `?`, `[abc]` globs)   |
-| `gitwe current`                                                      | show information about the current topic branch                 |
-| `gitwe graph`                                                        | show branch graph (base branches and topics)                    |
-| `gitwe doctor [--fix] [--yes]`                                       | check repository health                                         |
-| `gitwe validate [file]`                                              | validate a workflow definition                                  |
-| `gitwe version`                                                      | print the gitwe version                                         |
+Three presets ship out of the box — `classic` (git-flow), `github`
+(trunk-based), `gitlab` (main → staging → production) — see
+`src/infrastructure/config/presets.ts`.
 
-Global options — `--config <path>`, `--cwd <path>`, `-v, --verbose`, `--no-color`, `--dry-run`, `--format <text|json|yaml|table>` — are accepted anywhere on the command line.
+## CLI reference
 
-See [docs/commands.md](docs/commands.md) for every flag and
-[docs/workflow-definition.md](docs/workflow-definition.md) for the definition format.
+| Command | Purpose |
+|---|---|
+| `gitwe init [--preset classic\|github\|gitlab] [--force]` | write a workflow definition + create missing base branches |
+| `gitwe start <type> <name> [base] [--fetch]` | create a topic branch |
+| `gitwe finish [name] [--squash] [--push] [--current-version <semver>]` | merge into every target, tag, push, delete |
+| `gitwe finish --continue` / `--abort` | resume or cancel a conflicted finish |
+| `gitwe update <name> [--rebase] [--fetch]` | sync a topic branch with its base |
+| `gitwe publish <name> [--force]` | push + set upstream |
+| `gitwe delete <name> [-f] [-r]` | delete local (and optionally remote) branch |
+| `gitwe list [type] [pattern]` | list topic branches |
+| `gitwe overview` (alias `status`) | workflow summary + branch counts |
+| `gitwe validate` | validate the workflow definition |
 
-### Finishing a branch
+Global flags: `--cwd <path>`, `--config <path>`, `--no-color`, `-v/--verbose`.
 
-`finish` is a state machine: merge (or squash/rebase) into the parent, tag it if the
-topic type asks for it, update every auto-updating child branch, push if requested,
-then delete the topic branch. If git stops on a conflict, gitwe saves its progress:
-
-```bash
-gitwe start feature login
-# ... work, commit ...
-gitwe finish login
-# conflict: git merge stopped on conflicts in: src/app.ts
-
-# ... resolve, then git add the files ...
-gitwe finish --continue     # resume exactly where it stopped
-gitwe finish --abort        # or roll every touched branch and tag back
-```
-
-## Library use
+## Library usage
 
 ```ts
-import { Engine, createPreset } from "gitwe";
+import { Engine, YamlConfigRepository, ShellGitRepository,
+         FileHookRunner, FileOperationStateStore, ConsoleLogger } from "gitwe";
 
-const engine = await Engine.create({ root: process.cwd(), config: createPreset("classic") });
+const root = process.cwd();
+const engine = await Engine.create({
+  configRepo: new YamlConfigRepository(root),
+  git: new ShellGitRepository(root),
+  hooks: new FileHookRunner(root, ".gitwe/hooks", true),
+  stateStore: new FileOperationStateStore(root),
+  logger: new ConsoleLogger(),
+});
 
 await engine.start("feature", "login");
-await engine.finish(engine.resolve("feature", "login"), { squash: true });
+await engine.finish("feature/login", { squash: true });
 ```
 
-Every operation is typed, returns a structured result, and never prints anything —
-the CLI is a thin layer on top of it.
+## Development
 
-## Hooks
+```bash
+npm install
+npm run typecheck   # strict TypeScript, no emit
+npm test            # vitest — 18 tests, domain + application layers
+npm run build        # emits dist/
+```
 
-Executable scripts in `.gitwe/hooks/` run around operations: `pre-start`, `post-start`,
-`pre-finish`, `post-finish`, `pre-update`, `post-update`, `pre-publish`, `post-publish`,
-`pre-delete`, `post-delete`. Context is passed as `GITWE_BRANCH`, `GITWE_TOPIC_TYPE`
-and `GITWE_BASE`; a non-zero exit aborts the operation.
+## Scope note
 
-## Compatibility
-
-gitwe drives the `git` binary directly, so it works with any git >= 2.30 and needs no
-native modules. Definitions are plain JSON or YAML (`gitwe.json`, `.gitwe.yaml`, …),
-which makes them reviewable and shareable across a team.
-
-## License
-
-[MIT](LICENSE) © Mohammad Amanalikhani
+This rewrite prioritises the core engine (start/finish/update/publish/delete/
+list/overview/validate) with full test coverage of the domain layer and the
+resumable finish state machine. Not reimplemented from the original: the
+`doctor` auto-repair command, multi-remote push fan-out, changelog
+generation, and machine-readable (`--format json|yaml|table`) output — the
+architecture (ports in `domain`, adapters in `infrastructure`) is built so
+each can be added as a new use case + adapter without touching existing code.
