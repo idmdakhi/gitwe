@@ -23,7 +23,7 @@ import { typesCommand } from "./commands/types.command.js";
 import { currentCommand } from "./commands/current.command.js";
 import { doctorCommand } from "./commands/doctor.command.js";
 
-export function buildProgram(): Command {
+export async function buildProgram(): Promise<Command> {
   const program = new Command("gitwe")
     .description("A configurable git branching-workflow engine")
     .version(version)
@@ -57,4 +57,10 @@ export function buildProgram(): Command {
   return program;
 }
 
-buildProgram().parseAsync(process.argv);
+export async function run(argv: string[] = process.argv): Promise<0 | undefined> {
+  try {
+    const program = await buildProgram(); //argv.slice(2)
+    await program.parseAsync(argv);
+    return 0;
+  } catch (error) {}
+}
