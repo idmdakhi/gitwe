@@ -13,7 +13,7 @@ import { runProcess } from "./process-runner.js";
 export interface ShellGitOptions {
   readonly cwd: string;
   /** Optional tracer for every git argv (CLI `--verbose`). */
-  readonly trace?: (args: string[]) => void;
+  readonly trace?: ((args: string[]) => void) | undefined;
 }
 
 /**
@@ -26,7 +26,7 @@ export interface ShellGitOptions {
  */
 export class ShellGitRepository implements GitRepository {
   readonly cwd: string;
-  private readonly trace?: (args: string[]) => void;
+  private readonly trace?: ((args: string[]) => void) | undefined;
 
   constructor(cwdOrOptions: string | ShellGitOptions) {
     if (typeof cwdOrOptions === "string") {
