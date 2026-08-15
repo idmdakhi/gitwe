@@ -74,7 +74,7 @@ Checkboxes can be ticked in PRs; please keep the file up to date.
 
 - [ ] Add `--format table` to `overview`.
 - [ ] Show ahead/behind against the remote tracking branch when it exists.
-- [ ] Surface a clearer “operation in progress” banner when `.git/gitwe/operation.json` is present.
+- [ ] Surface a clearer “operation in progress” banner when `.gitwe/operation.json` is present.
 
 ### Testing
 

@@ -18,7 +18,7 @@ Strengthen the existing health checks (currently part of `overview`) into a dedi
 New users (and CI jobs) frequently encounter:
 
 - Missing base branches after a shallow clone or a partial `gitwe init`
-- A stale `.git/gitwe/operation.json` left behind after a crash
+- A stale `.gitwe/operation.json` left behind after a crash
 - Topic branches that lost their upstream
 - Working-tree dirtiness that blocks every operation
 
@@ -43,7 +43,7 @@ gitwe doctor --fix --yes # non-interactive (CI)
 | ID                 | Severity | Detection                                      | `--fix` action                                     | Notes                          |
 | ------------------ | -------- | ---------------------------------------------- | -------------------------------------------------- | ------------------------------ |
 | `missing-base`     | error    | base branch declared but absent                | create from parent (or HEAD if root)               | same logic as `init`           |
-| `stale-operation`  | warning  | `.git/gitwe/operation.json` exists             | delete the file (with confirmation unless `--yes`) | never resumes automatically    |
+| `stale-operation`  | warning  | `.gitwe/operation.json` exists                 | delete the file (with confirmation unless `--yes`) | never resumes automatically    |
 | `missing-upstream` | warning  | topic branch has no upstream but remote exists | `git branch --set-upstream-to=…`                   | only if remote branch present  |
 | `dirty-worktree`   | warning  | tracked changes present                        | none (report only)                                 | too dangerous to auto-stash    |
 | `unknown-parent`   | error    | config references a non-existent base          | none (report only – config must be edited)         |                                |

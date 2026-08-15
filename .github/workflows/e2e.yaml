@@ -192,7 +192,7 @@ jobs:
           node "${{ github.workspace }}/dist/cli/index.js" finish --abort
 
           # State file should be gone
-          if [ -f .git/gitwe/operation.json ]; then
+          if [ -f .gitwe/operation.json ]; then
             echo "operation.json still present after abort"
             exit 1
           fi

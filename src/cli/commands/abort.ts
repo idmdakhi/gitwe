@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { createEngine } from "../context.js";
 import type { GlobalOptions } from "../options.js";
 import { printStructured, success } from "../output.js";
+import { loadEngine } from "./shared.js";
 
 /**
  * Register `gitwe abort` — roll back an in-progress finish operation.
@@ -13,7 +13,7 @@ export function registerAbortCommand(program: Command, globals: () => GlobalOpti
     .description("abort an in-progress finish and restore the previous state")
     .action(async () => {
       const format = globals().format;
-      const engine = await createEngine(globals());
+      const engine = await loadEngine(this);
       await engine.abortOperation();
       if (format === "json" || format === "yaml") {
         printStructured({ ok: true, action: "abort" }, format);

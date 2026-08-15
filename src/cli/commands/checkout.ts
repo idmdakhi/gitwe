@@ -1,7 +1,7 @@
 import { Command } from "commander";
-import { createEngine } from "../context.js";
 import { success, printStructured } from "../output.js";
 import type { GlobalOptions } from "../options.js";
+import { loadEngine } from "./shared.js";
 
 export function registerCheckoutCommand(program: Command, globals: () => GlobalOptions): void {
   program
@@ -11,7 +11,8 @@ export function registerCheckoutCommand(program: Command, globals: () => GlobalO
     .argument("<name>", "branch name or unique prefix")
     .action(async (type: string, name: string) => {
       const format = globals().format;
-      const engine = await createEngine(globals());
+      const engine = await loadEngine(this);
+
       const topicType = engine.workflow.requireBranchType(type);
       const branch = await engine.checkout(topicType, name);
       const data = { branch };

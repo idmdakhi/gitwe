@@ -1,6 +1,6 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { GitCommandError } from "../../domain/errors/index.js";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { ConflictError, GitCommandError } from "../../domain/errors/index.js";
 import type {
   AheadBehind,
   GitRepository,
@@ -8,80 +8,160 @@ import type {
   PushOptions,
   TagOptions,
 } from "../../domain/ports/git-repository.port.js";
+import { runProcess } from "./process-runner.js";
 
-const execFileAsync = promisify(execFile);
+export interface ShellGitOptions {
+  readonly cwd: string;
+  /** Optional tracer for every git argv (CLI `--verbose`). */
+  readonly trace?: (args: string[]) => void;
+}
 
-/** Real {@link GitRepository} implementation: shells out to the `git` binary. */
+/**
+ * Real {@link GitRepository}: shells out to the `git` binary on PATH.
+ *
+ * Conflict-aware: merge/rebase failures that leave the repo in a conflict
+ * state throw {@link ConflictError} so finish can persist and resume.
+ * Version bumping and package.json I/O do **not** belong here — use
+ * {@link VersionCalculatorService} and application use cases.
+ */
 export class ShellGitRepository implements GitRepository {
-  constructor(readonly cwd: string) {}
+  readonly cwd: string;
+  private readonly trace?: (args: string[]) => void;
 
-  private async run(args: string[]): Promise<string> {
-    try {
-      const { stdout } = await execFileAsync("git", args, { cwd: this.cwd });
-      return stdout.trim();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      throw new GitCommandError(`git ${args.join(" ")} failed: ${message}`);
+  constructor(cwdOrOptions: string | ShellGitOptions) {
+    if (typeof cwdOrOptions === "string") {
+      this.cwd = cwdOrOptions;
+    } else {
+      this.cwd = cwdOrOptions.cwd;
+      this.trace = cwdOrOptions.trace;
     }
   }
 
-  private async runOk(args: string[]): Promise<boolean> {
+  private async exec(
+    args: string[],
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+    this.trace?.(args);
+    return runProcess("git", args, { cwd: this.cwd });
+  }
+
+  /** Run git; throw ConflictError or GitCommandError on failure. */
+  private async run(args: string[]): Promise<string> {
+    const result = await this.exec(args);
+    if (result.exitCode === 0) {
+      return result.stdout.trim();
+    }
+
+    const conflicts = await this.conflictedFiles();
+    const mergeActive = await this.mergeInProgress();
+    const rebaseActive = await this.rebaseInProgress();
+    const looksLikeConflict =
+      result.exitCode === 2 ||
+      mergeActive ||
+      rebaseActive ||
+      conflicts.length > 0 ||
+      /conflict/i.test(result.stderr);
+
+    if (looksLikeConflict) {
+      throw new ConflictError(
+        conflicts.length > 0
+          ? `git ${args[0]} stopped on conflicts in: ${conflicts.join(", ")}`
+          : `git ${args[0]} stopped on a conflict`,
+        conflicts,
+      );
+    }
+
+    throw new GitCommandError(`git ${args.join(" ")} failed`, result.stderr.trim() || undefined);
+  }
+
+  private async ok(args: string[]): Promise<boolean> {
+    const result = await this.exec(args);
+    return result.exitCode === 0;
+  }
+
+  private async gitDir(): Promise<string> {
+    const result = await this.exec(["rev-parse", "--absolute-git-dir"]);
+    if (result.exitCode !== 0) {
+      throw new GitCommandError("not a git repository", result.stderr.trim() || undefined);
+    }
+    return result.stdout.trim();
+  }
+
+  async rebaseInProgress(): Promise<boolean> {
     try {
-      await execFileAsync("git", args, { cwd: this.cwd });
-      return true;
+      const dir = await this.gitDir();
+      return existsSync(join(dir, "rebase-merge")) || existsSync(join(dir, "rebase-apply"));
     } catch {
       return false;
     }
   }
 
   async currentBranch(): Promise<string | undefined> {
-    const name = await this.run(["rev-parse", "--abbrev-ref", "HEAD"]);
-    return name === "HEAD" ? undefined : name;
+    const result = await this.exec(["symbolic-ref", "--quiet", "--short", "HEAD"]);
+    if (result.exitCode !== 0) return undefined;
+    const branch = result.stdout.trim();
+    return branch === "" ? undefined : branch;
   }
 
   async listBranches(pattern = "*"): Promise<string[]> {
-    const out = await this.run(["for-each-ref", "--format=%(refname:short)", `refs/heads/${pattern}`]);
+    const out = await this.run([
+      "for-each-ref",
+      "--format=%(refname:short)",
+      `refs/heads/${pattern}`,
+    ]);
     return out.length ? out.split("\n") : [];
   }
 
   async branchExists(branch: string): Promise<boolean> {
-    return this.runOk(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]);
+    return this.ok(["show-ref", "--verify", "--quiet", `refs/heads/${branch}`]);
   }
 
   async remoteBranchExists(remote: string, branch: string): Promise<boolean> {
-    return this.runOk(["show-ref", "--verify", "--quiet", `refs/remotes/${remote}/${branch}`]);
+    return this.ok(["show-ref", "--verify", "--quiet", `refs/remotes/${remote}/${branch}`]);
   }
 
   async upstreamOf(branch: string): Promise<string | undefined> {
-    try {
-      return await this.run(["rev-parse", "--abbrev-ref", `${branch}@{upstream}`]);
-    } catch {
-      return undefined;
-    }
+    const result = await this.exec([
+      "rev-parse",
+      "--abbrev-ref",
+      "--symbolic-full-name",
+      `${branch}@{upstream}`,
+    ]);
+    if (result.exitCode !== 0) return undefined;
+    const upstream = result.stdout.trim();
+    return upstream === "" ? undefined : upstream;
   }
 
   async aheadBehind(ref: string, base: string): Promise<AheadBehind> {
-    const out = await this.run(["rev-list", "--left-right", "--count", `${ref}...${base}`]);
-    const [ahead = "0", behind = "0"] = out.split(/\s+/);
-    return { ahead: Number(ahead), behind: Number(behind) };
+    // left = base, right = ref  →  behind, ahead  (matches common "how far is ref from base")
+    const out = await this.run(["rev-list", "--left-right", "--count", `${base}...${ref}`]);
+    const [behind = "0", ahead = "0"] = out.split(/\s+/);
+    return { ahead: Number(ahead) || 0, behind: Number(behind) || 0 };
   }
 
   async isAncestor(ancestor: string, descendant: string): Promise<boolean> {
-    return this.runOk(["merge-base", "--is-ancestor", ancestor, descendant]);
+    return this.ok(["merge-base", "--is-ancestor", ancestor, descendant]);
   }
 
+  /** Only tracked changes block operations; untracked files are ignored. */
   async isClean(): Promise<boolean> {
-    const out = await this.run(["status", "--porcelain"]);
+    const out = await this.run(["status", "--porcelain", "--untracked-files=no"]);
     return out.length === 0;
   }
 
   async conflictedFiles(): Promise<string[]> {
-    const out = await this.run(["diff", "--name-only", "--diff-filter=U"]);
+    const result = await this.exec(["diff", "--name-only", "--diff-filter=U"]);
+    if (result.exitCode !== 0) return [];
+    const out = result.stdout.trim();
     return out.length ? out.split("\n") : [];
   }
 
   async mergeInProgress(): Promise<boolean> {
-    return this.runOk(["rev-parse", "--verify", "-q", "MERGE_HEAD"]);
+    try {
+      const dir = await this.gitDir();
+      return existsSync(join(dir, "MERGE_HEAD"));
+    } catch {
+      return false;
+    }
   }
 
   async createBranch(branch: string, startPoint: string): Promise<void> {
@@ -105,10 +185,14 @@ export class ShellGitRepository implements GitRepository {
   }
 
   async merge(branch: string, options: MergeOptions = {}): Promise<void> {
-    const args = ["merge", branch];
-    if (options.noFastForward) args.push("--no-ff");
-    if (options.squash) args.push("--squash");
+    const args = ["merge"];
+    if (options.squash) {
+      args.push("--squash");
+    } else if (options.noFastForward) {
+      args.push("--no-ff");
+    }
     if (options.message) args.push("-m", options.message);
+    args.push(branch);
     await this.run(args);
   }
 
@@ -117,7 +201,7 @@ export class ShellGitRepository implements GitRepository {
   }
 
   async abortMerge(): Promise<void> {
-    await this.run(["merge", "--abort"]);
+    await this.exec(["merge", "--abort"]);
   }
 
   async rebase(onto: string): Promise<void> {
@@ -128,12 +212,13 @@ export class ShellGitRepository implements GitRepository {
     const args = ["tag"];
     if (options.annotated ?? true) args.push("-a");
     if (options.message) args.push("-m", options.message);
+    else if (options.annotated ?? true) args.push("-m", name);
     args.push(name);
     await this.run(args);
   }
 
   async tagExists(name: string): Promise<boolean> {
-    return this.runOk(["show-ref", "--verify", "--quiet", `refs/tags/${name}`]);
+    return this.ok(["show-ref", "--verify", "--quiet", `refs/tags/${name}`]);
   }
 
   async fetch(remote: string, refspec?: string): Promise<void> {
@@ -143,14 +228,14 @@ export class ShellGitRepository implements GitRepository {
   }
 
   async push(remote: string, branch: string, options: PushOptions = {}): Promise<void> {
-    const args = ["push", remote];
+    const args = ["push"];
+    if (options.setUpstream) args.push("--set-upstream");
+    if (options.force) args.push("--force-with-lease");
+    if (options.followTags) args.push("--follow-tags");
     if (options.delete) {
-      args.push("--delete", branch);
+      args.push("--delete", remote, branch);
     } else {
-      args.push(branch);
-      if (options.setUpstream) args.push("--set-upstream");
-      if (options.force) args.push("--force-with-lease");
-      if (options.followTags) args.push("--follow-tags");
+      args.push(remote, branch);
     }
     await this.run(args);
   }

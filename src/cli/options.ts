@@ -6,7 +6,6 @@
  */
 
 import type { Command } from "commander";
-import { isValidFormat } from "./args.js";
 
 export type OutputFormat = "text" | "json" | "yaml" | "table";
 
@@ -46,8 +45,8 @@ export function addFormatOption(command: Command): Command {
  */
 export function resolveFormat(format?: string): OutputFormat {
   format = (format ?? "text").toLowerCase();
-  if (!isValidFormat(format)) {
-    throw new Error(`Invalid output format: ${format}`);
-  }
+  // if (!isValidFormat(format)) {
+  //   throw new Error(`Invalid output format: ${format}`);
+  // }
   return format as OutputFormat;
 }

@@ -4,15 +4,32 @@ import { buildEngineDeps } from "../container.js";
 import type { GlobalOptions } from "../container.js";
 import { Engine } from "../../application/engine.js";
 
-/** Reads global flags off the root program, resolved relative to the running command. */
-export function globalOptions(cmd: Command): GlobalOptions {
+export type OutputFormat = "text" | "json" | "yaml";
+
+/** Reads global flags from the root program relative to the active command. */
+export function globalOptions(
+  cmd: Command,
+): GlobalOptions & { format: OutputFormat; dryRun: boolean } {
   const root = cmd.parent ?? cmd;
-  const opts = root.opts<{ cwd?: string; config?: string; color?: boolean; verbose?: boolean }>();
+  const opts = root.opts<{
+    cwd?: string;
+    config?: string;
+    color?: boolean;
+    verbose?: boolean;
+    format?: string;
+    dryRun?: boolean;
+  }>();
+
+  const rawFormat = (opts.format ?? "text").toLowerCase();
+  const format: OutputFormat = rawFormat === "json" || rawFormat === "yaml" ? rawFormat : "text";
+
   return {
     cwd: opts.cwd ?? process.cwd(),
     ...(opts.config ? { config: opts.config } : {}),
     color: opts.color ?? true,
     verbose: opts.verbose ?? false,
+    format,
+    dryRun: opts.dryRun === true,
   };
 }
 

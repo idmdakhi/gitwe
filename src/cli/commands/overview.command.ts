@@ -1,5 +1,6 @@
 import { Command } from "commander";
-import { loadEngine, action } from "./shared.js";
+import { loadEngine, action, globalOptions } from "./shared.js";
+import { print, printStructured, style } from "../output.js";
 
 export function overviewCommand(): Command {
   return new Command("overview")
@@ -8,13 +9,28 @@ export function overviewCommand(): Command {
     .action(
       action(async function (this: Command) {
         const engine = await loadEngine(this);
+        const format = globalOptions(this).format;
         const overview = await engine.overview();
-        console.log(`workflow: ${overview.workflowName}`);
-        console.log(`current branch: ${overview.currentBranch ?? "(detached)"}`);
-        console.log(`base branches: ${overview.baseBranches.join(", ")}`);
-        console.log("branch types:");
+
+        if (format === "json" || format === "yaml") {
+          printStructured(overview, format, { command: "overview" });
+          return;
+        }
+
+        print(`${style.bold("Workflow")}  ${overview.workflowName}`);
+        print(`${style.dim("branch")}    ${overview.currentBranch ?? "(detached)"}`);
+        print();
+        print(style.bold("Base branches"));
+        for (const name of overview.baseBranches) {
+          print(`  ${style.cyan(name)}`);
+        }
+        print();
+        print(style.bold("Topic types"));
         for (const t of overview.branchTypes) {
-          console.log(`  ${t.type.padEnd(10)} base=${t.base.padEnd(10)} target=[${t.target.join(", ")}]  count=${t.count}`);
+          print(
+            `  ${style.cyan(t.type.padEnd(10))} base=${t.base.padEnd(10)} ` +
+              `target=[${t.target.join(", ")}]  count=${t.count}`,
+          );
         }
       }),
     );
