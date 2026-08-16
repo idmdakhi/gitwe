@@ -12,7 +12,7 @@ import type {
 } from "../../domain/entities/workflow-config.entity.js";
 import { runInitWizard, applyInitOverrides } from "./init-wizard.js";
 import { isInteractive } from "../prompts.js";
-import { omitUndefined } from "../../utils.js";
+import { omitUndefined, parseKeyValuePairs } from "../../utils.js";
 
 const PRESETS = ["classic", "github", "gitlab"] as const;
 
@@ -20,24 +20,6 @@ const PRESETS = ["classic", "github", "gitlab"] as const;
 function collect(value: string, previous: string[]): string[] {
   previous.push(value);
   return previous;
-}
-
-// تبدیل key=value به آبجکت
-function parseKeyValuePairs(pairs: string[]): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const pair of pairs) {
-    const eq = pair.indexOf("=");
-    if (eq <= 0) {
-      throw new Error(`expected key=value, got "${pair}"`);
-    }
-    const key = pair.slice(0, eq).trim();
-    const value = pair.slice(eq + 1).trim();
-    if (!key || !value) {
-      throw new Error(`expected key=value, got "${pair}"`);
-    }
-    result[key] = value;
-  }
-  return result;
 }
 
 // اعمال تغییرات روی preset (برای حالت غیرتعاملی)

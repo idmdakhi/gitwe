@@ -7,7 +7,7 @@ import {
   EditBaseOptions,
   EditBranchTypeOptions,
 } from "../../domain/services/config-editor.service.js";
-import { omitUndefined } from "../../utils.js";
+import { omitUndefined, parseCsv } from "../../utils.js";
 
 // ---- root config command -------------------------------------------------
 export function configCommand(): Command {
@@ -216,12 +216,4 @@ export function configCommand(): Command {
     );
 
   return root;
-}
-
-// Helper to parse comma-separated values
-function parseCsv(value: string): string[] {
-  return value
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
 }
