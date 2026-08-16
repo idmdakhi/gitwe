@@ -70,7 +70,10 @@ export class ShellGitRepository implements GitRepository {
       );
     }
 
-    throw new GitCommandError(`git ${args.join(" ")} failed`, result.stderr.trim() || undefined);
+    throw new GitCommandError(
+      `git ${args.join(" ")} failed with exit code ${result.exitCode}`,
+      result.stderr.trim() || undefined,
+    );
   }
 
   private async ok(args: string[]): Promise<boolean> {

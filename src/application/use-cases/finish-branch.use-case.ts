@@ -1,10 +1,18 @@
-import { ConflictError, OperationInProgressError, ValidationError } from "../../domain/errors/index.js";
+import {
+  ConflictError,
+  GitCommandError,
+  OperationInProgressError,
+  ValidationError,
+} from "../../domain/errors/index.js";
 import type { WorkflowService } from "../../domain/services/workflow.service.js";
 import { VersionCalculatorService } from "../../domain/services/version-calculator.service.js";
 import type { GitRepository } from "../../domain/ports/git-repository.port.js";
 import type { HookRunner } from "../../domain/ports/hook-runner.port.js";
 import type { Logger } from "../../domain/ports/logger.port.js";
-import type { OperationState, OperationStateStore } from "../../domain/ports/operation-state-store.port.js";
+import type {
+  OperationState,
+  OperationStateStore,
+} from "../../domain/ports/operation-state-store.port.js";
 
 export interface FinishBranchInput {
   readonly branch: string;
@@ -100,7 +108,10 @@ export class FinishBranchUseCase {
     if (await this.git.mergeInProgress()) {
       const conflicts = await this.git.conflictedFiles();
       if (conflicts.length > 0) {
-        throw new ConflictError(`${conflicts.length} file(s) still have unresolved conflicts`, conflicts);
+        throw new ConflictError(
+          `${conflicts.length} file(s) still have unresolved conflicts`,
+          conflicts,
+        );
       }
       const target = persisted.data["pendingTarget"] as string;
       await this.git.continueMerge();
@@ -119,10 +130,14 @@ export class FinishBranchUseCase {
 
   // ---- state machine --------------------------------------------------------
 
-  private async runFrom(state: FinishStateData, completed: readonly string[] = []): Promise<FinishResult> {
+  private async runFrom(
+    state: FinishStateData,
+    completed: readonly string[] = [],
+  ): Promise<FinishResult> {
     const done = new Set(completed);
     const type = this.workflow.requireBranchType(state.typeName);
 
+    // ---- Merge into each target ------------------------------------------
     for (const target of state.targets) {
       const step = `merge:${target}`;
       if (done.has(step)) continue;
@@ -138,10 +153,7 @@ export class FinishBranchUseCase {
         if (await this.git.mergeInProgress()) {
           await this.persist(state, [...done], step, target);
           const conflicts = await this.git.conflictedFiles();
-          throw new ConflictError(
-            `conflict merging ${state.branch} into ${target}`,
-            conflicts,
-          );
+          throw new ConflictError(`conflict merging ${state.branch} into ${target}`, conflicts);
         }
         throw new ConflictError(`failed to merge ${state.branch} into ${target}`);
       }
@@ -150,6 +162,7 @@ export class FinishBranchUseCase {
       done.add(step);
     }
 
+    // ---- Tagging ----------------------------------------------------------
     if (this.workflow.shouldTag(type) && !done.has("tag")) {
       const bump = this.workflow.versionBumpFor(type);
       if (state.currentVersion && bump !== "none") {
@@ -163,15 +176,62 @@ export class FinishBranchUseCase {
       done.add("tag");
     }
 
+    // ---- Push with remote sync check --------------------------------------
     if (state.push && !done.has("push")) {
-      for (const remote of this.workflow.pushRemotesFor(type)) {
+      // Pre‑push validation: ensure each target branch is not behind its remote
+      const remotes = this.workflow.pushRemotesFor(type);
+      for (const remote of remotes) {
         for (const target of state.targets) {
-          await this.git.push(remote, target, { followTags: true });
+          const upstream = await this.git.upstreamOf(target);
+          if (upstream) {
+            const { behind } = await this.git.aheadBehind(target, upstream);
+            if (behind > 0) {
+              throw new GitCommandError(
+                `Cannot push ${target} because it is behind its remote (${upstream}) by ${behind} commit(s).`,
+                `Run 'git pull --rebase ${remote} ${target}' first, or use --force if you are sure.`,
+              );
+            }
+          }
+        }
+      }
+
+      // Push each target to each configured remote
+      for (const remote of remotes) {
+        for (const target of state.targets) {
+          try {
+            await this.git.push(remote, target, { followTags: true });
+          } catch (error) {
+            // Improve error messaging for common push failures
+            if (error instanceof GitCommandError) {
+              const msg = error.message.toLowerCase();
+              if (msg.includes("non-fast-forward")) {
+                throw new GitCommandError(
+                  `Push to ${remote}/${target} was rejected because it is behind the remote.`,
+                  `Run 'git pull --rebase ${remote} ${target}' to integrate remote changes, then try again.`,
+                );
+              }
+              if (msg.includes("permission denied") || msg.includes("403")) {
+                throw new GitCommandError(
+                  `Permission denied when pushing to ${remote}/${target}.`,
+                  `Check your credentials and push permissions for ${remote}.`,
+                );
+              }
+              if (msg.includes("repository not found") || msg.includes("404")) {
+                throw new GitCommandError(
+                  `Remote repository ${remote} not found or you have no access.`,
+                  `Verify the remote URL and your access rights.`,
+                );
+              }
+            }
+            // Re‑throw as is if not caught above
+            throw error;
+          }
         }
       }
       done.add("push");
     }
 
+    // ---- Delete local branch ----------------------------------------------
     let deleted = false;
     if (this.workflow.shouldDeleteOnFinish(type) && !done.has("delete")) {
       await this.git.deleteBranch(state.branch, true);
@@ -179,6 +239,7 @@ export class FinishBranchUseCase {
       done.add("delete");
     }
 
+    // ---- Cleanup ----------------------------------------------------------
     await this.stateStore.clear();
     await this.hooks.run("post-finish", { branch: state.branch, branchType: type.name });
 
