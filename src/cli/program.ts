@@ -22,6 +22,7 @@ import { versionCommand } from "./commands/version.command.js";
 import { typesCommand } from "./commands/types.command.js";
 import { currentCommand } from "./commands/current.command.js";
 import { doctorCommand } from "./commands/doctor.command.js";
+import { checkoutCommand } from "./commands/checkout.command.js";
 
 export async function buildProgram(): Promise<Command> {
   const program = new Command("gitwe")
@@ -53,6 +54,7 @@ export async function buildProgram(): Promise<Command> {
   program.addCommand(typesCommand());
   program.addCommand(currentCommand());
   program.addCommand(doctorCommand());
+  program.addCommand(checkoutCommand());
 
   return program;
 }
