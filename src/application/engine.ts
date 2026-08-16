@@ -1,5 +1,5 @@
 import type { WorkflowConfig } from "../domain/entities/workflow-config.entity.js";
-import { NotInitializedError } from "../domain/errors/index.js";
+import { NotInitializedError, ValidationError } from "../domain/errors/index.js";
 import { WorkflowService } from "../domain/services/workflow.service.js";
 import type { ConfigRepository } from "../domain/ports/config-repository.port.js";
 import type { GitRepository } from "../domain/ports/git-repository.port.js";
@@ -68,6 +68,54 @@ export class Engine {
     force = false,
   ): Promise<Engine> {
     return Engine.init(deps, { preset, force });
+  }
+
+  /** Switch to an existing topic branch (type + name or unique short-name prefix). */
+  async checkout(
+    typeNameOrAlias: string,
+    nameOrPrefix: string,
+  ): Promise<{
+    branch: string;
+    shortName: string;
+    type: string;
+  }> {
+    const type = this.workflow.requireBranchType(typeNameOrAlias);
+    const all = await this.deps.git.listBranches(`${type.prefix}*`);
+
+    const candidates = all
+      .map((branch) => this.workflow.resolveBranch(branch))
+      .filter((r): r is NonNullable<typeof r> => r !== undefined && r.type.name === type.name)
+      .filter(
+        (r) =>
+          r.shortName === nameOrPrefix ||
+          r.shortName.startsWith(nameOrPrefix) ||
+          r.branch === nameOrPrefix,
+      );
+
+    if (candidates.length === 0) {
+      throw new ValidationError(
+        `no ${type.name} branch matching "${nameOrPrefix}"`,
+        `known prefix: ${type.prefix}`,
+      );
+    }
+    if (candidates.length > 1) {
+      throw new ValidationError(
+        `ambiguous ${type.name} name "${nameOrPrefix}"`,
+        `matches: ${candidates.map((c) => c.branch).join(", ")}`,
+      );
+    }
+
+    const resolved = candidates[0]!;
+    if (!(await this.deps.git.branchExists(resolved.branch))) {
+      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
+    }
+
+    await this.deps.git.checkout(resolved.branch);
+    return {
+      branch: resolved.branch,
+      shortName: resolved.shortName,
+      type: resolved.type.name,
+    };
   }
 
   get config(): WorkflowConfig {
