@@ -1,6 +1,9 @@
 /**
  * Shared CLI output helpers (text + machine-readable).
  * Envelope shape follows RFC-0004 when `command` is provided.
+ *
+ * Prefer {@link CommandOutput} from command handlers so format branching
+ * stays in one place.
  */
 
 import { dump as yamlDump } from "js-yaml";
@@ -19,6 +22,18 @@ export interface OutputEnvelope<T = unknown> {
     hint?: string;
     files?: string[];
   } | null;
+}
+
+/** What a successful command returns to the output layer. */
+export interface CommandResult<T = unknown> {
+  /** Machine-readable payload (json / yaml `data`). */
+  data?: T;
+  /** One-line success message (text mode). */
+  message?: string;
+  /** Extra human lines under the success message (text mode). */
+  details?: string[];
+  /** Surfaced in envelope.warnings and as yellow lines in text. */
+  warnings?: string[];
 }
 
 let colorEnabled = true;
@@ -44,6 +59,10 @@ export function success(message: string): void {
   print(style.green(message));
 }
 
+export function warn(message: string): void {
+  print(style.yellow(`warning: ${message}`));
+}
+
 export function buildEnvelope<T>(
   command: string,
   data: T | null,
@@ -67,7 +86,7 @@ export function buildEnvelope<T>(
 export function printStructured<T>(
   data: T,
   format: OutputFormat,
-  options: { command?: string; warnings?: string[] } = {},
+  options: { command?: string | undefined; warnings?: string[] | undefined } = {},
 ): void {
   if (format !== "json" && format !== "yaml") {
     if (typeof data === "string") print(data);
@@ -84,5 +103,84 @@ export function printStructured<T>(
     process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
   } else {
     process.stdout.write(`${yamlDump(payload, { lineWidth: 120, noRefs: true })}\n`);
+  }
+}
+
+/**
+ * Per-command output facade. Handlers should prefer this over calling
+ * print / success / printStructured directly.
+ *
+ * @example
+ * out.ok({
+ *   data: { path },
+ *   message: `wrote ${path}`,
+ *   details: [`Try: gitwe overview`],
+ * });
+ */
+export class CommandOutput {
+  constructor(
+    readonly format: OutputFormat,
+    readonly command: string,
+  ) {}
+
+  get isMachine(): boolean {
+    return this.format === "json" || this.format === "yaml";
+  }
+
+  /** Final successful result — branches on format once. */
+  ok<T>(result: CommandResult<T>): void {
+    if (this.isMachine) {
+      printStructured(result.data ?? null, this.format, {
+        command: this.command,
+        warnings: result.warnings,
+      });
+      return;
+    }
+
+    if (result.message) success(result.message);
+    for (const line of result.details ?? []) print(line);
+    for (const w of result.warnings ?? []) warn(w);
+  }
+
+  /**
+   * Progress / wizard lines. Silent in json|yaml so CI output stays pure.
+   */
+  note(message = ""): void {
+    if (!this.isMachine) print(message);
+  }
+
+  /** Text-mode warning that is also collectable into a later ok(). */
+  warn(message: string): void {
+    if (!this.isMachine) warn(message);
+  }
+
+  /**
+   * Machine or text error. Prefer throwing GitweError from action() instead;
+   * this is for rare cases where the handler catches and reports itself.
+   */
+  fail(error: { code: string; message: string; hint?: string; files?: string[] }): void {
+    if (this.isMachine) {
+      const envelope = buildEnvelope(this.command, null, {
+        ok: false,
+        error: {
+          code: error.code,
+          message: error.message,
+          ...(error.hint ? { hint: error.hint } : {}),
+          ...(error.files ? { files: error.files } : {}),
+        },
+      });
+      if (this.format === "json") {
+        process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
+      } else {
+        process.stdout.write(`${yamlDump(envelope, { lineWidth: 120, noRefs: true })}\n`);
+      }
+      return;
+    }
+
+    print(style.red(`error: ${error.message}`));
+    if (error.hint) print(style.dim(`hint: ${error.hint}`));
+    if (error.files?.length) {
+      for (const f of error.files) print(style.dim(`  - ${f}`));
+    }
   }
 }

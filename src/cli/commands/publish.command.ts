@@ -1,6 +1,5 @@
 import { Command } from "commander";
-import { loadEngine, action, globalOptions } from "./shared.js";
-import { printStructured, success } from "../output.js";
+import { loadEngine, action } from "./shared.js";
 import { ValidationError } from "../../domain/errors/index.js";
 
 export function publishCommand(): Command {
@@ -10,9 +9,8 @@ export function publishCommand(): Command {
     .argument("[name]", "branch to publish (defaults to current)")
     .option("--force", "force-push with lease", false)
     .action(
-      action(async function (this: Command, name: string | undefined) {
+      action(async function (this: Command, out, name: string | undefined) {
         const engine = await loadEngine(this);
-        const format = globalOptions(this).format;
         const opts = this.opts<{ force: boolean }>();
 
         const branch = name ?? (await engine.overview()).currentBranch;
@@ -21,13 +19,11 @@ export function publishCommand(): Command {
         }
 
         const remotes = await engine.publish(branch, opts);
-        const data = { branch, remotes };
 
-        if (format === "json" || format === "yaml") {
-          printStructured(data, format, { command: "publish" });
-        } else {
-          success(`published ${branch} to ${remotes.join(", ")}`);
-        }
+        out.ok({
+          data: { branch, remotes },
+          message: `published ${branch} to ${remotes.join(", ")}`,
+        });
       }),
     );
 }

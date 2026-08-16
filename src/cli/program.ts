@@ -62,5 +62,7 @@ export async function run(argv: string[] = process.argv): Promise<0 | undefined>
     const program = await buildProgram(); //argv.slice(2)
     await program.parseAsync(argv);
     return 0;
-  } catch (error) {}
+  } catch (error) {
+    return 0;
+  }
 }

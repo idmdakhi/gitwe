@@ -1,6 +1,5 @@
 import { Command } from "commander";
-import { loadEngine, action, globalOptions } from "./shared.js";
-import { printStructured, success } from "../output.js";
+import { loadEngine, action } from "./shared.js";
 import { ValidationError } from "../../domain/errors/index.js";
 
 export function deleteCommand(): Command {
@@ -10,9 +9,8 @@ export function deleteCommand(): Command {
     .option("-f, --force", "delete even if unmerged", false)
     .option("-r, --remote", "also delete the remote branch", false)
     .action(
-      action(async function (this: Command, name: string | undefined) {
+      action(async function (this: Command, out, name: string | undefined) {
         const engine = await loadEngine(this);
-        const format = globalOptions(this).format;
         const opts = this.opts<{ force: boolean; remote: boolean }>();
 
         const branch = name ?? (await engine.overview()).currentBranch;
@@ -21,13 +19,11 @@ export function deleteCommand(): Command {
         }
 
         await engine.delete(branch, opts);
-        const data = { branch, force: opts.force, remote: opts.remote };
 
-        if (format === "json" || format === "yaml") {
-          printStructured(data, format, { command: "delete" });
-        } else {
-          success(`deleted ${branch}`);
-        }
+        out.ok({
+          data: { branch, force: opts.force, remote: opts.remote },
+          message: `deleted ${branch}`,
+        });
       }),
     );
 }

@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { loadEngine, action, globalOptions } from "./shared.js";
-import { printStructured, success, print, style } from "../output.js";
+import { loadEngine, action } from "./shared.js";
+import { style } from "../output.js";
 import { ValidationError } from "../../domain/errors/index.js";
 
 export function finishCommand(): Command {
@@ -13,8 +13,6 @@ export function finishCommand(): Command {
       .option("--current-version <semver>", "current version, for tagging")
       .option("-c, --continue", "resume a finish stopped on a conflict", false)
       .option("-a, --abort", "cancel an in-progress finish", false)
-      // .option("-c, --continue", "continue a finish that stopped on conflicts")
-      // .option("-a, --abort", "abort a finish and restore the previous state")
       // .option("-f, --force", "skip the remote sync check")
       // .option("--no-fetch", "do not fetch the remote before finishing")
       // .option("--keep,--no-delete", "keep the topic branch after finishing")
@@ -26,22 +24,19 @@ export function finishCommand(): Command {
       // .option("-m, --message <message>", "tag message")
       // .option("--sign", "sign the tag with GPG")
       // .option("--signingkey <keyid>", "GPG key to sign the tag with")
-      // .option("--squash", "squash the topic branch into a single commit")
       // .option("--rebase", "rebase the topic branch onto its parent before merging")
       // .option("--no-ff", "always create a merge commit")
       // .option("-M, --merge-message <message>", "message for the merge into the parent (%b, %p)")
       // .option("--squash-message <message>", "commit message for a squash merge")
       // .option("--update-message <message>", "message for parent → child updates (%b, %p)")
       // .option("--no-verify", "bypass git hooks during merges")
-      // .option("--push", "push the updated base branches when finished")
       // .option("--no-interactive", "disable interactive prompts (use defaults)")
       // .option("--major", "force major version bump")
       // .option("--minor", "force minor version bump")
       // .option("--patch", "force patch version bump")
       .action(
-        action(async function (this: Command, name: string | undefined) {
+        action(async function (this: Command, out, name: string | undefined) {
           const engine = await loadEngine(this);
-          const format = globalOptions(this).format;
           const opts = this.opts<{
             squash?: boolean;
             push: boolean;
@@ -52,23 +47,23 @@ export function finishCommand(): Command {
 
           if (opts.abort) {
             await engine.abortFinish();
-            if (format === "json" || format === "yaml") {
-              printStructured({ aborted: true }, format, { command: "finish" });
-            } else {
-              success("finish aborted");
-            }
+            out.ok({
+              data: { aborted: true },
+              message: "finish aborted",
+            });
             return;
           }
 
           if (opts.continue) {
             const result = await engine.continueFinish();
-            if (format === "json" || format === "yaml") {
-              printStructured(result, format, { command: "finish" });
-            } else {
-              success(`finished ${result.branch} → ${result.mergedInto.join(", ")}`);
-              if (result.tag) success(`tagged ${result.tag}`);
-              if (result.deleted) print(style.dim(`deleted ${result.branch}`));
-            }
+            out.ok({
+              data: result,
+              message: `finished ${result.branch} → ${result.mergedInto.join(", ")}`,
+              details: [
+                ...(result.tag ? [`tagged ${result.tag}`] : []),
+                ...(result.deleted ? [style.dim(`deleted ${result.branch}`)] : []),
+              ],
+            });
             return;
           }
 
@@ -86,14 +81,14 @@ export function finishCommand(): Command {
             ...(opts.currentVersion ? { currentVersion: opts.currentVersion } : {}),
           });
 
-          if (format === "json" || format === "yaml") {
-            printStructured(result, format, { command: "finish" });
-            return;
-          }
-
-          success(`finished ${result.branch} → ${result.mergedInto.join(", ")}`);
-          if (result.tag) success(`tagged ${result.tag}`);
-          if (result.deleted) print(style.dim(`deleted ${result.branch}`));
+          out.ok({
+            data: result,
+            message: `finished ${result.branch} → ${result.mergedInto.join(", ")}`,
+            details: [
+              ...(result.tag ? [`tagged ${result.tag}`] : []),
+              ...(result.deleted ? [style.dim(`deleted ${result.branch}`)] : []),
+            ],
+          });
         }),
       )
   );

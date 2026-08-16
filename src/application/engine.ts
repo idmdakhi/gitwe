@@ -26,6 +26,13 @@ export interface EngineDeps {
   readonly logger?: Logger;
 }
 
+export interface InitEngineOptions {
+  readonly preset?: "classic" | "github" | "gitlab";
+  readonly config?: WorkflowConfig;
+  readonly force?: boolean;
+  readonly createBranches?: boolean;
+}
+
 /**
  * Public facade over every use case. This is what both the CLI and
  * library consumers talk to — nobody outside `application/` ever
@@ -44,10 +51,23 @@ export class Engine {
     return new Engine(workflow, { logger: silentLogger, ...deps });
   }
 
-  static async init(deps: EngineDeps, preset: "classic" | "github" | "gitlab", force = false): Promise<Engine> {
+  static async init(deps: EngineDeps, options: InitEngineOptions): Promise<Engine> {
     const useCase = new InitWorkflowUseCase(deps.configRepo, deps.git);
-    const config = await useCase.execute({ preset, force });
+    const config = await useCase.execute({
+      preset: options.preset,
+      config: options.config,
+      force: options.force,
+      createBranches: options.createBranches,
+    });
     return new Engine(new WorkflowService(config), { logger: silentLogger, ...deps });
+  }
+  /** Optional helper for older call sites that only pass a preset name. */
+  static async initFromPreset(
+    deps: EngineDeps,
+    preset: "classic" | "github" | "gitlab",
+    force = false,
+  ): Promise<Engine> {
+    return Engine.init(deps, { preset, force });
   }
 
   get config(): WorkflowConfig {
@@ -55,7 +75,12 @@ export class Engine {
   }
 
   start(typeNameOrAlias: string, name: string, options: { base?: string; fetch?: boolean } = {}) {
-    return new StartBranchUseCase(this.workflow, this.deps.git, this.deps.hooks, this.deps.logger).execute({
+    return new StartBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+    ).execute({
       typeNameOrAlias,
       name,
       ...(options.base ? { baseOverride: options.base } : {}),
@@ -78,32 +103,53 @@ export class Engine {
 
   continueFinish() {
     return new FinishBranchUseCase(
-      this.workflow, this.deps.git, this.deps.hooks, this.deps.logger, this.deps.stateStore,
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+      this.deps.stateStore,
     ).execute({ kind: "continue" });
   }
 
   abortFinish() {
     return new FinishBranchUseCase(
-      this.workflow, this.deps.git, this.deps.hooks, this.deps.logger, this.deps.stateStore,
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+      this.deps.stateStore,
     ).execute({ kind: "abort" });
   }
 
   update(branch: string, options: { rebase?: boolean; fetch?: boolean } = {}) {
-    return new UpdateBranchUseCase(this.workflow, this.deps.git, this.deps.hooks, this.deps.logger).execute({
+    return new UpdateBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+    ).execute({
       branch,
       ...options,
     });
   }
 
   publish(branch: string, options: { force?: boolean } = {}) {
-    return new PublishBranchUseCase(this.workflow, this.deps.git, this.deps.hooks, this.deps.logger).execute({
+    return new PublishBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+    ).execute({
       branch,
       ...options,
     });
   }
 
   delete(branch: string, options: { force?: boolean; remote?: boolean } = {}) {
-    return new DeleteBranchUseCase(this.workflow, this.deps.git, this.deps.hooks).execute({ branch, ...options });
+    return new DeleteBranchUseCase(this.workflow, this.deps.git, this.deps.hooks).execute({
+      branch,
+      ...options,
+    });
   }
 
   list(typeNameOrAlias?: string, pattern?: string) {

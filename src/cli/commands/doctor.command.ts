@@ -1,6 +1,6 @@
 import { Command } from "commander";
-import { loadEngine, action, globalOptions } from "./shared.js";
-import { print, printStructured, style } from "../output.js";
+import { loadEngine, action } from "./shared.js";
+import { style } from "../output.js";
 
 /**
  * Lightweight doctor based on overview + validate (RFC-0003 full --fix later).
@@ -13,9 +13,8 @@ export function doctorCommand(): Command {
       // .option("--fix", "Attempt to safely repair problems", false)
       // .option("--yes", "Non-interactive; assume yes for confirmations", false)
       .action(
-        action(async function (this: Command) {
+        action(async function (this: Command, out) {
           const engine = await loadEngine(this);
-          const format = globalOptions(this).format;
           const overview = await engine.overview();
           const validation = engine.validate();
 
@@ -67,21 +66,21 @@ export function doctorCommand(): Command {
             findings,
           };
 
-          if (format === "json" || format === "yaml") {
-            printStructured(report, format, { command: "doctor" });
-            process.exitCode = ok ? 0 : 1;
-            return;
-          }
-
-          for (const f of findings) {
+          const details = findings.map((f) => {
             const icon =
               f.severity === "ok"
                 ? style.green("✓")
                 : f.severity === "warning"
                   ? style.yellow("!")
                   : style.red("✗");
-            print(`  ${icon} ${f.message}`);
-          }
+            return `  ${icon} ${f.message}`;
+          });
+
+          out.ok({
+            data: report,
+            details,
+          });
+
           process.exitCode = ok ? 0 : 1;
         }),
       )

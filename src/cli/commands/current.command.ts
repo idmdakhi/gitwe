@@ -1,14 +1,13 @@
 import { Command } from "commander";
-import { loadEngine, action, globalOptions } from "./shared.js";
-import { print, printStructured, style } from "../output.js";
+import { loadEngine, action } from "./shared.js";
+import { style } from "../output.js";
 
 export function currentCommand(): Command {
   return new Command("current")
     .description("show information about the current topic branch")
     .action(
-      action(async function (this: Command) {
+      action(async function (this: Command, out) {
         const engine = await loadEngine(this);
-        const format = globalOptions(this).format;
         const overview = await engine.overview();
         const branch = overview.currentBranch;
         const resolved = branch ? engine.workflow.resolveBranch(branch) : undefined;
@@ -22,26 +21,28 @@ export function currentCommand(): Command {
           target: resolved ? [...resolved.type.target] : null,
         };
 
-        if (format === "json" || format === "yaml") {
-          printStructured(data, format, { command: "current" });
-          return;
-        }
-
         if (!branch) {
-          print(style.dim("(detached HEAD)"));
+          out.ok({
+            data,
+            message: style.dim("(detached HEAD)"),
+          });
           return;
         }
 
         if (!resolved) {
-          print(`${branch}  ${style.dim("(not a configured topic branch)")}`);
+          out.ok({
+            data,
+            message: `${branch}  ${style.dim("(not a configured topic branch)")}`,
+          });
           return;
         }
 
-        print(
-          `${style.bold(resolved.branch)}  ${style.dim(
+        out.ok({
+          data,
+          message: `${style.bold(resolved.branch)}  ${style.dim(
             `type=${resolved.type.name}  base=${resolved.type.base}`,
           )}`,
-        );
+        });
       }),
     );
 }

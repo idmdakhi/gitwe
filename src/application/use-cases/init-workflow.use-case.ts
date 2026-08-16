@@ -7,8 +7,13 @@ import type { PresetName } from "../../infrastructure/config/presets.js";
 import { presets } from "../../infrastructure/config/presets.js";
 
 export interface InitWorkflowInput {
-  readonly preset: PresetName;
-  readonly force?: boolean;
+  /** Start from this preset when `config` is not provided. */
+  readonly preset?: PresetName | undefined;
+  /** Fully built config (e.g. from the interactive wizard). Takes precedence over preset. */
+  readonly config?: WorkflowConfig | undefined;
+  readonly force?: boolean | undefined;
+  /** When false, skip creating missing base branches. Default true. */
+  readonly createBranches?: boolean | undefined;
 }
 
 export class InitWorkflowUseCase {
@@ -27,13 +32,22 @@ export class InitWorkflowUseCase {
       );
     }
 
-    const config = presets[input.preset]();
+    const config = input.config ?? (input.preset ? presets[input.preset]() : undefined);
+    if (!config) {
+      throw new ConfigError(
+        "init requires a preset or an explicit workflow config",
+        "pass --preset classic|github|gitlab or use the interactive wizard",
+      );
+    }
+
     this.validator.validate(config).assertValid();
 
-    for (const base of config.baseBranches) {
-      if (!(await this.git.branchExists(base.name))) {
-        const startPoint = base.base ?? "HEAD";
-        await this.git.createBranch(base.name, startPoint);
+    if (input.createBranches !== false) {
+      for (const base of config.baseBranches) {
+        if (!(await this.git.branchExists(base.name))) {
+          const startPoint = base.base ?? "HEAD";
+          await this.git.createBranch(base.name, startPoint);
+        }
       }
     }
 

@@ -54,7 +54,7 @@ export function initCommand(): Command {
           }
 
           const deps = buildEngineDeps(globals);
-          const engine = await Engine.init(deps, preset, opts.force === true);
+          const engine = await Engine.init(deps, { preset: preset, force: opts.force === true });
           const data = {
             preset,
             path: deps.configRepo.path,
