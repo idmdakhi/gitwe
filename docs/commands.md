@@ -1,199 +1,185 @@
 # Command reference
 
-Global options work anywhere on the command line:
+> **This page documents the commands `src/cli/program.ts` actually registers
+> today.** gitwe's CLI was rewritten on a Clean Architecture (see
+> [ARCHITECTURE.md](./ARCHITECTURE.md)), and only the nine commands below are
+> currently wired into the `gitwe` binary. Files like `doctor.ts`, `graph.ts`,
+> `config.ts`, `checkout.ts`, `track.ts`, `rename.ts`, `current.ts` and
+> `rebase.ts` still exist under `src/cli/commands/` from an earlier iteration,
+> but `program.ts` does not import them, so those commands do not run. The
+> same applies to `--format`/`--dry-run`: the JSON/YAML envelope machinery in
+> `cli/output.ts` and `cli/options.ts` exists, but no command below calls into
+> it yet. All of this is tracked, prioritised work — see
+> [ROADMAP.md](./development/ROADMAP.md) and
+> [TODO.md](./development/TODO.md) — not a documentation choice.
 
-- `-C, --config <path>` — use a specific workflow definition
-- `--cwd <path>` — run as if gitwe was started in `<path>`
-- `-v, --verbose` — print every git command gitwe runs
-- `--no-color` — disable coloured output
-- `--dry-run` — simulate the operation without making changes
-- `--format <text|json|yaml|table>` — output format (default `text`)
-- `--version`, `-h, --help`
+## Global options
 
-Exit codes: `0` success, `1` error, `2` the operation stopped on a merge conflict.
+Available on every command, defined once on the root program:
 
----
+| Flag                | Description                                          |
+| -------------------- | ----------------------------------------------------- |
+| `--cwd <path>`        | run as if gitwe was started in `<path>` (default: current directory) |
+| `--config <path>`      | explicit path to the workflow definition file          |
+| `--no-color`            | disable coloured output                                |
+| `-v, --verbose`          | verbose logging                                          |
+| `-h, --help`              | show help for the command                                |
+| `--version`                 | print the gitwe version (root command only)               |
 
-## Core commands
-
-### `gitwe init`
-
-Write a workflow definition and create any missing base branches.
-
-| Option                                                                        | Description                                     |
-| ----------------------------------------------------------------------------- | ----------------------------------------------- |
-| `-f, --force`                                                                 | overwrite an existing definition                |
-| `-p, --preset <classic\|github\|gitlab>`                                      | preset to start from (default `classic`)        |
-| `-d, --defaults`                                                              | do not prompt, accept the preset defaults       |
-| `--file <path>`                                                               | write to a specific file (default `gitwe.json`) |
-| `--no-create-branches`                                                        | do not create missing base branches             |
-| `-m, --main <name>`, `--develop`, `--staging`, `--production`                 | base branch name overrides                      |
-| `--feature`, `-b, --bugfix`, `-r, --release`, `-x, --hotfix`, `-s, --support` | prefix overrides                                |
-| `-t, --tag <prefix>`                                                          | version tag prefix                              |
-| `--remote <name>`                                                             | remote name                                     |
-
-Without `--defaults` on a TTY, gitwe asks for each branch name and prefix.
+Exit codes: `0` success, `1` error, `2` the operation stopped on a merge
+conflict (thrown as `ConflictError`, `code: "CONFLICT"`).
 
 ---
 
-### `gitwe config <command>`
+## `gitwe init`
 
-Inspect and edit the workflow definition.
+Create a workflow definition (`.gitwe/gitwe.yaml`) in this repository.
 
-| Command                          | Description                                      |
-| -------------------------------- | ------------------------------------------------ |
-| `list`                           | print the definition as a branch tree            |
-| `add base <name> [parent]`       | add a base branch                                |
-| `add topic <name> <parent>`      | add a topic type                                 |
-| `edit base\|topic <name>`        | change fields of an existing entry               |
-| `rename base\|topic <from> <to>` | rename an entry (base renames update references) |
-| `delete base\|topic <name>`      | remove an entry (refuses if still referenced)    |
-
-Options: `--parent`, `--prefix`, `--starting-point`, `--upstream-strategy`,
-`--downstream-strategy`, `--auto-update` / `--no-auto-update`, `--tag` / `--no-tag`,
-`--tag-prefix`, `--keep` / `--no-keep`.
-
-`gitwe config` only edits the definition file; existing git branches are untouched.
-
----
-
-### `gitwe overview` (alias `gitwe status`)
-
-Configuration summary, base branch tree with ahead/behind counts, topic branches per
-type, and health checks (missing base branches, branches behind their upstream, a dirty
-working tree, an operation waiting for `--continue`).
-
-`--format text|json|yaml|table` — `json` and `yaml` are meant for CI and tooling.
-
----
-
-### `gitwe validate [file]`
-
-Validate a workflow definition file. If no file is given, the one found in the repository is used.
-
----
-
-### `gitwe doctor [--fix] [--yes]`
-
-Check repository health (missing base branches, stale operation state, etc.).
-`--fix` attempts to repair problems (currently a placeholder – see RFC-0003).
-
----
-
-### `gitwe graph`
-
-Show the branch graph (base branches and topic branches).
-
----
-
-### `gitwe version`
-
-Print the gitwe version.
-
----
-
-## Topic branch commands (global shorthands)
-
-These commands operate on topic branches. The `<type>` argument must match a configured topic type (e.g. `feature`, `release`, `hotfix`).
-
-### `gitwe start <type> <name> [base] [--fetch]`
-
-Creates a new topic branch of the given type with short name `<name>`.  
-Optionally specify a different start point with `[base]` (branch, tag or commit).  
-`--fetch` fetches from the remote before creating the branch.
-
-### `gitwe finish [name] [options]`
-
-Finishes the current topic branch (or the one named by `[name]`).
-
-Steps: preflight → fetch → remote sync check → optional rebase → merge into the parent
-→ tag → update auto-updating children → push → delete remote branch → delete local
-branch → check out the branch you end on.
-
-| Option                                                                                        | Description                               |
-| --------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| `-c, --continue`                                                                              | resume after resolving conflicts          |
-| `-a, --abort`                                                                                 | roll every touched branch and tag back    |
-| `-f, --force`                                                                                 | skip the remote sync check                |
-| `--no-fetch`                                                                                  | do not fetch first                        |
-| `--keep`, `--keep-remote`, `--force-delete`                                                   | branch retention                          |
-| `--tag`, `--no-tag`, `--tagname <name>`, `-m, --message <msg>`, `--sign`, `--signingkey <id>` | tagging                                   |
-| `--squash`, `--rebase`, `--no-ff`                                                             | merge strategy overrides                  |
-| `-M, --merge-message <msg>`, `--squash-message <msg>`, `--update-message <msg>`               | commit messages                           |
-| `--no-verify`                                                                                 | bypass git hooks during merges            |
-| `--push`                                                                                      | push the updated base branches (and tags) |
-
-Message placeholders: `%b` branch, `%B` full refname, `%p` parent, `%P` full parent
-refname, `%%` literal percent.
-
-### `gitwe update [name] [--rebase] [--fetch]`
-
-Brings the current (or named) topic branch up to date with its parent using the configured downstream strategy.  
-`--rebase` forces a rebase; `--fetch` fetches first.
-
-### `gitwe rebase [name]`
-
-Alias for `update --rebase`.
-
-### `gitwe publish [name] [-o <push-option>...]`
-
-Pushes the current (or named) topic branch and sets its upstream.  
-`-o` transmits server-side push options (GitLab, Gitea, Gerrit).
-
-### `gitwe delete [name] [-f] [-r]`
-
-Deletes the current (or named) topic branch.  
-`-f, --force` deletes even if not fully merged; `-r, --remote` also deletes the remote branch.
-
-### `gitwe rename <new-name>`
-
-Renames the current topic branch to `<new-name>`.
-
-### `gitwe checkout <type> <name|prefix>`
-
-Switches to a topic branch of the given type. If `<name>` is a prefix that uniquely matches one branch, that branch is checked out. If ambiguous, the command reports the candidates.
-
-### `gitwe track <type> <name>`
-
-Creates a local topic branch tracking the remote one. Fetches first and checks out the branch.
-
-### `gitwe list <type> [pattern]`
-
-Lists topic branches of the given type. The optional `pattern` is a shell‑style glob (`*`, `?`, `[abc]`) applied to the short name.
-
-### `gitwe current`
-
-Shows information about the current topic branch (name, type, parent, upstream).
-
----
-
-## Examples
+| Option              | Description                                |
+| -------------------- | -------------------------------------------- |
+| `--preset <name>`     | `classic` \| `github` \| `gitlab` (default `classic`) |
+| `--force`               | overwrite an existing definition               |
 
 ```bash
-# Initialise a classic git‑flow workflow
 gitwe init --preset classic
-
-# Start a feature branch
-gitwe start feature login
-
-# Make some commits, then finish it
-gitwe finish
-
-# Start a release branch from develop
-gitwe start release 1.0.0 --base develop
-
-# Finish the release (tags and back‑merges automatically)
-gitwe finish release/1.0.0
-
-# List all feature branches
-gitwe list feature
-
-# Update the current branch from its parent
-gitwe update
-
-# Publish the current branch
-gitwe publish
-
-# Delete the current branch
-gitwe delete --force
 ```
+
+## `gitwe start <type> <name> [base]`
+
+Create a new topic branch. `<type>` must be a configured branch type (e.g.
+`feature`, `release`, `hotfix`); `<name>` is the short name (e.g. `login`
+becomes `feature/login`). `[base]` overrides the branch's configured base.
+
+| Option    | Description                       |
+| ---------- | ------------------------------------ |
+| `--fetch`   | fetch the base branch before creating |
+
+```bash
+gitwe start feature login
+gitwe start release 1.0.0 develop
+```
+
+## `gitwe finish [name]`
+
+Merge a topic branch into its configured target(s). Defaults to the current
+branch if `[name]` is omitted.
+
+| Option                        | Description                                     |
+| ------------------------------ | -------------------------------------------------- |
+| `--squash`                       | squash-merge instead of a merge commit               |
+| `--push`                           | push targets after merging (default: off)              |
+| `--current-version <semver>`         | current version to base the tag bump on                  |
+| `--continue`                           | resume a `finish` that stopped on a conflict               |
+| `--abort`                                | cancel an in-progress `finish` and roll it back                |
+
+```bash
+gitwe finish                       # finish the current branch
+gitwe finish feature/login --push
+gitwe finish --continue            # after resolving a conflict
+gitwe finish --abort               # give up on the in-progress finish
+```
+
+If a merge conflict stops `finish` partway through, gitwe persists progress to
+`.gitwe/state.json` and exits with code `2`. Resolve the conflict, then run
+`gitwe finish --continue` (can be a separate process) or `gitwe finish --abort`
+to roll back everything touched so far. See
+["The resumable finish operation"](./ARCHITECTURE.md#the-resumable-finish-operation).
+
+## `gitwe update <name>`
+
+Bring a topic branch up to date with its base branch.
+
+| Option    | Description                        |
+| ---------- | -------------------------------------|
+| `--rebase`  | rebase instead of merge                |
+| `--fetch`     | fetch the base branch first              |
+
+```bash
+gitwe update feature/login --rebase
+```
+
+## `gitwe publish <name>` (alias: `push`)
+
+Push a topic branch and set its upstream.
+
+| Option    | Description               |
+| ---------- | ---------------------------- |
+| `--force`   | force-push with `--force-with-lease` |
+
+```bash
+gitwe publish feature/login
+```
+
+## `gitwe delete <name>`
+
+Delete a topic branch.
+
+| Option              | Description                          |
+| -------------------- | --------------------------------------- |
+| `-f, --force`          | delete even if not fully merged           |
+| `-r, --remote`           | also delete the remote branch               |
+
+```bash
+gitwe delete feature/login --force --remote
+```
+
+## `gitwe list [type] [pattern]`
+
+List topic branches, optionally restricted to `[type]` and filtered by a glob
+`[pattern]` on the short name.
+
+```bash
+gitwe list feature
+gitwe list feature "login-*"
+```
+
+## `gitwe overview` (alias: `status`)
+
+Print the workflow name, current branch, configured base branches, and a
+per-type count of topic branches. No options beyond the globals above.
+
+```bash
+gitwe overview
+gitwe status   # same command
+```
+
+## `gitwe validate`
+
+Validate the workflow definition discovered for the current repository
+(honours `--config`). Prints `workflow definition is valid` or lists every
+issue found and exits with code `1`.
+
+```bash
+gitwe validate
+gitwe validate --config .gitwe/gitwe.yaml
+```
+
+---
+
+## Not yet available
+
+The following are documented in [`ROADMAP.md`](./development/ROADMAP.md) and
+[`TODO.md`](./development/TODO.md) as planned, and referenced by the
+(currently out-of-sync) root [`action.yaml`](../action.yaml) and
+[`.github/workflows/e2e.yaml`](../.github/workflows/e2e.yaml), but are **not**
+runnable through the `gitwe` binary today:
+
+- `gitwe doctor [--fix]` — repository health checks (RFC-0003)
+- `gitwe graph` — branch graph view
+- `gitwe config <add|edit|rename|delete>` — edit the workflow definition from the CLI
+- `gitwe checkout <type> <name|prefix>`, `gitwe track <type> <name>`, `gitwe rename <new-name>`, `gitwe current`, `gitwe rebase` (alias for `update --rebase`)
+- `--format json|yaml|table` on any command (RFC-0004)
+- Message placeholders (`%b`, `%B`, `%p`, `%P`, `%%`) and the extra `finish`
+  flags described in earlier drafts of this page (`--keep`, `--keep-remote`,
+  `--force-delete`, `--tag`/`--no-tag`, `--sign`, `-M/--merge-message`, etc.)
+
+If you need one of these today, the underlying use case may already exist in
+`src/application/use-cases/` and just needs a `cli/commands/*.command.ts`
+wired into `program.ts` — see [ARCHITECTURE.md](./ARCHITECTURE.md) and
+[contributing.md](./development/contributing.md).
+
+## Library usage
+
+Everything above is a thin CLI wrapper around `Engine`. You can call the same
+operations from Node/TypeScript directly — see the
+["Library usage"](../README.md#library-usage) section of the main README.
