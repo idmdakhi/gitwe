@@ -1,661 +1,559 @@
-import { assertValidBranchName, globToRegExp } from "../domain/branch-name.js";
-import { OperationStateError, ValidationError } from "../domain/errors.js";
-import { silentLogger, type Logger } from "./interfaces/logger.js";
-import type {
-  BaseBranch,
-  BranchStatus,
-  BranchType,
-  ResolvedBranch,
-  WorkflowConfig,
-} from "../domain/entities.js";
-import { Workflow } from "../domain/workflow.js";
-import type { GitRepository } from "./interfaces/git-repository.js";
-import type { EngineContext } from "./context.js";
-import type { HookRunner } from "./interfaces/hook-runner.js";
-import { FinishOperation, type FinishOptions, type FinishResult } from "./use-case/finish.js";
-import type { OperationState, OperationStateStore } from "./interfaces/operation-state.js";
-import { createFinishWorkflow, EngineWorkflowContext } from "./workflows/finish-workflow.js";
-import { WorkflowEngine } from "./workflow-engine-impl.js";
+import type { WorkflowConfig } from "../domain/entities/workflow-config.entity.js";
+import { NotInitializedError, ValidationError } from "../domain/errors/index.js";
+import { WorkflowService } from "../domain/services/workflow.service.js";
+import type { ConfigRepository } from "../domain/ports/config-repository.port.js";
+import type { GitRepository } from "../domain/ports/git-repository.port.js";
+import type { HookRunner } from "../domain/ports/hook-runner.port.js";
+import type { Logger } from "../domain/ports/logger.port.js";
+import { silentLogger } from "../domain/ports/logger.port.js";
+import type { OperationStateStore } from "../domain/ports/operation-state-store.port.js";
 
-export interface StartOptions {
-  /** Explicit start point, overriding the topic type's configured one. */
-  base?: string;
-  fetch?: boolean;
+import { InitWorkflowUseCase } from "./use-cases/init-workflow.use-case.js";
+import { StartBranchUseCase } from "./use-cases/start-branch.use-case.js";
+import { FinishBranchUseCase } from "./use-cases/finish-branch.use-case.js";
+import { UpdateBranchUseCase } from "./use-cases/update-branch.use-case.js";
+import { PublishBranchUseCase } from "./use-cases/publish-branch.use-case.js";
+import { DeleteBranchUseCase } from "./use-cases/delete-branch.use-case.js";
+import { ListBranchesUseCase } from "./use-cases/list-branches.use-case.js";
+import { OverviewUseCase } from "./use-cases/overview.use-case.js";
+import { ValidateWorkflowUseCase } from "./use-cases/validate-workflow.use-case.js";
+import { BranchName } from "../domain/value-objects/branch-name.vo.js";
+import { TrackBranchUseCase } from "./use-cases/track-branch.use-case.js";
+import {
+  AddBaseOptions,
+  AddBranchTypeOptions,
+  ConfigEditorService,
+  EditBaseOptions,
+  EditBranchTypeOptions,
+} from "../domain/services/config-editor.service.js";
+
+export interface EngineDeps {
+  readonly configRepo: ConfigRepository;
+  readonly git: GitRepository;
+  readonly hooks: HookRunner;
+  readonly stateStore: OperationStateStore;
+  readonly logger?: Logger;
 }
 
-export interface StartResult {
-  branch: string;
-  startPoint: string;
-}
-
-export interface UpdateOptions {
-  rebase?: boolean;
-  fetch?: boolean;
-  noVerify?: boolean;
-}
-
-export interface UpdateResult {
-  branch: string;
-  base: string;
-  strategy: "merge" | "rebase";
-  alreadyUpToDate: boolean;
-}
-
-export interface PublishOptions {
-  pushOptions?: string[];
-}
-
-export interface DeleteOptions {
-  force?: boolean;
-  remote?: boolean;
-}
-
-export interface DeleteResult {
-  branch: string;
-  deletedRemote: boolean;
-}
-
-export interface OverviewReport {
-  workflow: string;
-  configPath?: string;
-  currentBranch?: string;
-  remote: string;
-  baseBranches: Array<BranchStatus & { base?: string; exists: boolean }>;
-  branchTypes: Array<{
-    name: string;
-    prefix: string;
-    base: string;
-    target: string[] | string;
-    branches: string[];
-  }>;
-  health: Array<{ level: "ok" | "warning" | "error"; message: string }>;
-}
-
-export interface EngineOptions {
-  git: GitRepository;
-  config: WorkflowConfig;
-  root: string;
-  logger?: Logger;
-  configPath?: string;
-  hooks: HookRunner;
-  state: OperationStateStore;
+export interface InitEngineOptions {
+  readonly preset?: "classic" | "github" | "gitlab";
+  readonly config?: WorkflowConfig;
+  readonly force?: boolean;
+  readonly createBranches?: boolean;
 }
 
 /**
- * The workflow engine: every operation is expressed in terms of the workflow
- * definition, never hard-coded git-flow rules.
+ * Public facade over every use case. This is what both the CLI and
+ * library consumers talk to — nobody outside `application/` ever
+ * imports a use case directly.
  */
 export class Engine {
-  readonly workflow: Workflow;
-  readonly git: GitRepository;
-  readonly root: string;
-  readonly configPath?: string;
-  private readonly ctx: EngineContext;
+  private constructor(
+    readonly workflow: WorkflowService,
+    private readonly deps: Required<EngineDeps>,
+  ) {}
 
-  constructor(options: EngineOptions) {
-    const logger = options.logger ?? silentLogger;
-    this.workflow = new Workflow(options.config);
-    this.git = options.git;
-    this.root = options.root;
-    this.configPath = options.configPath;
-    this.ctx = {
-      git: options.git,
-      workflow: this.workflow,
-      root: options.root,
-      logger,
-      hooks: options.hooks,
-      state: options.state,
-    };
+  static async create(deps: EngineDeps): Promise<Engine> {
+    const config = await deps.configRepo.load();
+    if (!config) throw new NotInitializedError();
+    const workflow = new WorkflowService(config);
+    return new Engine(workflow, { logger: silentLogger, ...deps });
   }
 
-  /** Create an engine for an existing repository at `root`. */
-  static async create(options: {
-    root: string;
-    config: WorkflowConfig;
-    logger?: Logger;
-    configPath?: string;
-    git: GitRepository;
-    hooks: HookRunner;
-    state: OperationStateStore;
-  }): Promise<Engine> {
-    return new Engine({
-      git: options.git,
+  static async init(deps: EngineDeps, options: InitEngineOptions): Promise<Engine> {
+    const useCase = new InitWorkflowUseCase(deps.configRepo, deps.git);
+    const config = await useCase.execute({
+      preset: options.preset,
       config: options.config,
-      root: options.root,
-      logger: options.logger,
-      configPath: options.configPath,
-      hooks: options.hooks,
-      state: options.state,
+      force: options.force,
+      createBranches: options.createBranches,
     });
+    return new Engine(new WorkflowService(config), { logger: silentLogger, ...deps });
   }
-
-  get context(): EngineContext {
-    return this.ctx;
-  }
-  /** Resolve a branch type + name to a ResolvedBranch */
-  resolve(typeName: string, name: string): ResolvedBranch {
-    const branchType = this.workflow.requireBranchType(typeName);
-    return this.workflow.resolveBranchType(branchType, name);
-  }
-
-  /** Resolve the checked-out branch as a branch type */
-  async currentBranchType(): Promise<ResolvedBranch> {
-    const branch = await this.git.currentBranch();
-    if (branch === undefined) {
-      throw new ValidationError("HEAD is detached; check out a branch first");
-    }
-    const resolved = this.workflow.resolveBranch(branch);
-    if (resolved === undefined) {
-      throw new ValidationError(
-        `"${branch}" is not a topic branch of the "${this.workflow.config.name}" workflow`,
-        `prefixes: ${this.workflow.branchTypes.map((t) => t.prefix).join(", ")}`,
-      );
-    }
-    return resolved;
-  }
-
-  async resolveTarget(type: BranchType | undefined, name?: string): Promise<ResolvedBranch> {
-    if (name === undefined) {
-      const resolved = await this.currentBranchType();
-      if (type !== undefined && resolved.type.name !== type.name) {
-        throw new ValidationError(
-          `the current branch is a ${resolved.type.name} branch, not a ${type.name} branch`,
-        );
-      }
-      return resolved;
-    }
-    if (type !== undefined) return this.workflow.resolveBranchType(type, name);
-    const resolved = this.workflow.resolveBranch(name);
-    if (resolved === undefined) {
-      throw new ValidationError(`"${name}" does not match any configured branch type prefix`);
-    }
-    return resolved;
-  }
-
-  async start(typeName: string, name: string, options: StartOptions = {}): Promise<StartResult> {
-    const branchType = this.workflow.requireBranchType(typeName);
-    const resolved = this.workflow.resolveBranchType(branchType, name);
-    assertValidBranchName(resolved.branch);
-
-    if (!(await this.git.isClean())) {
-      throw new ValidationError(
-        "the working tree has uncommitted changes",
-        "commit or stash them before starting a branch",
-      );
-    }
-    if (await this.git.branchExists(resolved.branch)) {
-      throw new ValidationError(`branch "${resolved.branch}" already exists`);
-    }
-    if (options.fetch === true && (await this.git.remoteExists(this.workflow.remoteName))) {
-      await this.git.fetch(this.workflow.remoteName);
-    }
-
-    const startPoint = options.base ?? this.workflow.baseOf(branchType);
-    if (!(await this.git.refExists(startPoint))) {
-      throw new ValidationError(
-        `start point "${startPoint}" does not exist`,
-        "create the base branch first, or pass an explicit start point",
-      );
-    }
-
-    await this.ctx.hooks.run("pre-start", {
-      branch: resolved.branch,
-      branchType: branchType.name,
-      parent: branchType.target.join(","),
-    });
-    await this.git.createBranch(resolved.branch, startPoint);
-    await this.git.checkout(resolved.branch);
-    await this.ctx.hooks.run("post-start", {
-      branch: resolved.branch,
-      branchType: branchType.name,
-      parent: branchType.target.join(","),
-    });
-
-    return { branch: resolved.branch, startPoint };
-  }
-
-  async finish(resolved: ResolvedBranch, options: FinishOptions = {}): Promise<FinishResult> {
-    if (this.ctx.state.exists()) {
-      throw new OperationStateError(
-        "another gitwe operation is in progress",
-        "run the command with --continue or --abort first",
-      );
-    }
-
-    const strategy = options.squash
-      ? "squash"
-      : options.rebase
-        ? "rebase"
-        : this.workflow.mergeStrategyFor(resolved.type);
-
-    const targets = resolved.type.target;
-    const children: BaseBranch[] = [];
-    for (const target of targets) {
-      for (const child of this.ctx.workflow.childrenOf(target)) {
-        children.push(child);
-      }
-    }
-    const childNames = children.map((c) => c.name);
-
-    const initialState: OperationState = {
-      version: 1,
-      operation: "finish",
-      currentStep: "",
-      completedSteps: [],
-      data: {
-        branch: resolved.branch,
-        branchType: resolved.type.name,
-        options: {
-          ...options,
-        },
-        strategy, // <-- ذخیره استراتژی
-        targets,
-        childBranches: childNames,
-        snapshots: {},
-        createdTags: [],
-        updatedBranches: [],
-        deletedRemote: false,
-        deletedLocal: false,
-        finalBranch: targets[0] ?? resolved.type.base,
-        tag: undefined,
-        originalBranch: undefined,
-      },
-      startedAt: new Date().toISOString(),
-    };
-
-    const workflow = createFinishWorkflow(this.ctx, resolved, options);
-    const workflowContext = new EngineWorkflowContext(this.ctx, resolved, "finish", initialState);
-    const engine = new WorkflowEngine<EngineWorkflowContext>();
-    await engine.execute(workflow, workflowContext);
-
-    const data = workflowContext.state.data;
-    return {
-      branch: data.branch as string,
-      base: (data.targets as string[])[0] ?? resolved.type.base,
-      strategy: data.strategy as "merge" | "squash" | "rebase", // <-- استفاده از data.strategy
-      tag: data.tag as string | undefined,
-      updatedBranches: data.updatedBranches as string[],
-      deletedLocal: data.deletedLocal as boolean,
-      deletedRemote: data.deletedRemote as boolean,
-      finalBranch: data.finalBranch as string,
-    };
-  }
-
-  async update(resolved: ResolvedBranch, options: UpdateOptions = {}): Promise<UpdateResult> {
-    const base = resolved.type.target[0];
-    if (base === undefined) {
-      throw new ValidationError(
-        `branch type "${resolved.type.name}" has no target configured`,
-        "update is only available for branch types with at least one target",
-      );
-    }
-    if (!(await this.git.branchExists(resolved.branch))) {
-      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
-    }
-    if (!(await this.git.isClean())) {
-      throw new ValidationError("the working tree has uncommitted changes");
-    }
-    if (options.fetch === true && (await this.git.remoteExists(this.workflow.remoteName))) {
-      await this.git.fetch(this.workflow.remoteName);
-    }
-
-    // محاسبه استراتژی: فقط "merge" یا "rebase" برای update معتبر است
-    const strategy =
-      options.rebase === true
-        ? "rebase"
-        : this.workflow.mergeStrategyFor(resolved.type) === "rebase"
-          ? "rebase"
-          : "merge";
-
-    if (await this.git.isAncestor(base, resolved.branch)) {
-      return { branch: resolved.branch, base, strategy, alreadyUpToDate: true };
-    }
-
-    await this.ctx.hooks.run("pre-update", {
-      branch: resolved.branch,
-      branchType: resolved.type.name,
-      base,
-    });
-    await this.git.checkout(resolved.branch);
-    if (strategy === "rebase") {
-      await this.git.rebase(base);
-    } else {
-      await this.git.merge(base, {
-        noFf: true,
-        message: `Merge branch '${base}' into ${resolved.branch}`,
-        noVerify: options.noVerify,
-      });
-    }
-    await this.ctx.hooks.run("post-update", {
-      branch: resolved.branch,
-      branchType: resolved.type.name,
-      base,
-    });
-    return { branch: resolved.branch, base, strategy, alreadyUpToDate: false };
-  }
-
-  async publish(resolved: ResolvedBranch, options: PublishOptions = {}): Promise<string> {
-    const remote = this.workflow.remoteName;
-    if (!(await this.git.branchExists(resolved.branch))) {
-      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
-    }
-    if (!(await this.git.remoteExists(remote))) {
-      throw new ValidationError(`remote "${remote}" is not configured`);
-    }
-    await this.ctx.hooks.run("pre-publish", {
-      branch: resolved.branch,
-      branchType: resolved.type.name,
-    });
-    await this.git.push(remote, resolved.branch, {
-      setUpstream: true,
-      pushOptions: options.pushOptions,
-    });
-    await this.ctx.hooks.run("post-publish", {
-      branch: resolved.branch,
-      branchType: resolved.type.name,
-    });
-    return `${remote}/${resolved.branch}`;
-  }
-
-  async track(typeName: string, name: string): Promise<string> {
-    const branchType = this.workflow.requireBranchType(typeName);
-    const resolved = this.workflow.resolveBranchType(branchType, name);
-    const remote = this.workflow.remoteName;
-    if (!(await this.git.remoteExists(remote))) {
-      throw new ValidationError(`remote "${remote}" is not configured`);
-    }
-    await this.git.fetch(remote);
-    if (!(await this.git.remoteBranchExists(remote, resolved.branch))) {
-      throw new ValidationError(`${remote}/${resolved.branch} does not exist`);
-    }
-    if (await this.git.branchExists(resolved.branch)) {
-      await this.git.setUpstream(resolved.branch, remote);
-    } else {
-      await this.git.createTrackingBranch(resolved.branch, remote);
-    }
-    await this.git.checkout(resolved.branch);
-    return resolved.branch;
-  }
-
-  async deleteBranchType(
-    resolved: ResolvedBranch,
-    options: DeleteOptions = {},
-  ): Promise<DeleteResult> {
-    if (!(await this.git.branchExists(resolved.branch))) {
-      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
-    }
-    await this.ctx.hooks.run("pre-delete", {
-      branch: resolved.branch,
-      branchType: resolved.type.name,
-    });
-    if ((await this.git.currentBranch()) === resolved.branch) {
-      const targets = this.workflow.targetsOf(resolved.type);
-      await this.git.checkout(targets[0] ?? this.workflow.rootBranch.name);
-    }
-    await this.git.deleteBranch(resolved.branch, options.force === true);
-    let deletedRemote = false;
-    if (options.remote === true) {
-      const remote = this.workflow.remoteName;
-      if (await this.git.remoteBranchExists(remote, resolved.branch)) {
-        await this.git.push(remote, resolved.branch, { delete: true });
-        deletedRemote = true;
-      }
-    }
-    await this.ctx.hooks.run("post-delete", {
-      branch: resolved.branch,
-      branchType: resolved.type.name,
-    });
-    return { branch: resolved.branch, deletedRemote };
-  }
-
-  async rename(resolved: ResolvedBranch, newName: string): Promise<string> {
-    const target = this.workflow.resolveBranchType(resolved.type, newName);
-    assertValidBranchName(target.branch);
-    if (!(await this.git.branchExists(resolved.branch))) {
-      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
-    }
-    if (await this.git.branchExists(target.branch)) {
-      throw new ValidationError(`branch "${target.branch}" already exists`);
-    }
-    await this.git.renameBranch(resolved.branch, target.branch);
-    return target.branch;
-  }
-
-  async checkout(type: BranchType, name: string): Promise<string> {
-    const exact = this.workflow.resolveBranchType(type, name);
-    if (await this.git.branchExists(exact.branch)) {
-      await this.git.checkout(exact.branch);
-      return exact.branch;
-    }
-    const candidates = (await this.git.listBranches()).filter((branch) =>
-      branch.startsWith(exact.branch),
-    );
-    if (candidates.length === 0) {
-      throw new ValidationError(`no ${type.name} branch matches "${name}"`);
-    }
-    if (candidates.length > 1) {
-      throw new ValidationError(`"${name}" matches multiple branches`, candidates.join(", "));
-    }
-    await this.git.checkout(candidates[0]);
-    return candidates[0];
-  }
-
-  async listBranchTypes(type: BranchType, pattern?: string): Promise<BranchStatus[]> {
-    const current = await this.git.currentBranch();
-    const matcher = pattern === undefined ? undefined : globToRegExp(pattern);
-    const branches = (await this.git.listBranches())
-      .filter((branch) => branch.startsWith(type.prefix))
-      .filter((branch) => matcher?.test(branch.slice(type.prefix.length)) ?? true)
-      .sort();
-    const statuses: BranchStatus[] = [];
-    for (const branch of branches) {
-      const target = type.target[0] ?? this.workflow.rootBranch.name;
-      const counts = (await this.git.branchExists(target))
-        ? await this.git.aheadBehind(branch, target)
-        : { ahead: 0, behind: 0 };
-      statuses.push({
-        name: branch,
-        current: branch === current,
-        ahead: counts.ahead,
-        behind: counts.behind,
-        upstream: await this.git.upstreamOf(branch),
-      });
-    }
-    return statuses;
-  }
-
-  async overview(): Promise<OverviewReport> {
-    const current = await this.git.currentBranch();
-    const health: OverviewReport["health"] = [];
-    const baseBranches: OverviewReport["baseBranches"] = [];
-
-    for (const base of this.workflow.baseBranches) {
-      const exists = await this.git.branchExists(base.name);
-      if (!exists) {
-        health.push({ level: "error", message: `base branch "${base.name}" is missing` });
-      }
-      const upstream = exists ? await this.git.upstreamOf(base.name) : undefined;
-      let ahead = 0;
-      let behind = 0;
-      if (exists && upstream !== undefined) {
-        ({ ahead, behind } = await this.git.aheadBehind(base.name, upstream));
-        if (behind > 0) {
-          health.push({
-            level: "warning",
-            message: `"${base.name}" is ${behind} commit(s) behind ${upstream}`,
-          });
-        }
-      }
-      baseBranches.push({
-        name: base.name,
-        base: base.base,
-        exists,
-        current: base.name === current,
-        ahead,
-        behind,
-        upstream,
-      });
-    }
-
-    const branches = await this.git.listBranches();
-    const branchTypes = this.workflow.branchTypes.map((type) => ({
-      name: type.name,
-      prefix: type.prefix,
-      base: type.base,
-      target: type.target,
-      branches: branches.filter((branch) => branch.startsWith(type.prefix)).sort(),
-    }));
-
-    if (!(await this.git.isClean())) {
-      health.push({ level: "warning", message: "the working tree has uncommitted changes" });
-    }
-    if (this.ctx.state.exists()) {
-      health.push({
-        level: "warning",
-        message: "a gitwe operation is in progress (use --continue or --abort)",
-      });
-    }
-    if (health.length === 0) {
-      health.push({ level: "ok", message: "workflow is healthy" });
-    }
-
-    return {
-      workflow: this.workflow.config.name,
-      configPath: this.configPath,
-      currentBranch: current,
-      remote: this.workflow.remoteName,
-      baseBranches,
-      branchTypes,
-      health,
-    };
-  }
-
-  /** Create any base branch that the workflow declares but the repo lacks. */
-  async createMissingBaseBranches(): Promise<string[]> {
-    const created: string[] = [];
-    const rootBranch = this.workflow.rootBranch.name;
-    // const remote = this.workflow.config.remote?.name ?? "origin";
-
-    // اگر مخزن هیچ commitی ندارد، یک commit خالی ایجاد کن
-    if (!(await this.git.hasCommits())) {
-      // اگر شاخهٔ ریشه وجود ندارد، آن را با checkout -b بساز
-      if (!(await this.git.branchExists(rootBranch))) {
-        await this.git.raw(["checkout", "-b", rootBranch]);
-      }
-      // commit خالی با پیام "Initial commit"
-      await this.git.raw(["commit", "--allow-empty", "-m", "Initial commit", "--no-verify"]);
-      created.push(rootBranch);
-    }
-
-    // حالا بقیهٔ شاخه‌های پایه را ایجاد کن
-    for (const base of this.workflow.baseBranches) {
-      if (await this.git.branchExists(base.name)) continue;
-      const startPoint =
-        base.base !== undefined && (await this.git.branchExists(base.base))
-          ? base.base
-          : rootBranch;
-      await this.git.createBranch(base.name, startPoint);
-      created.push(base.name);
-    }
-
-    return created;
+  /** Optional helper for older call sites that only pass a preset name. */
+  static async initFromPreset(
+    deps: EngineDeps,
+    preset: "classic" | "github" | "gitlab",
+    force = false,
+  ): Promise<Engine> {
+    return Engine.init(deps, { preset, force });
   }
 
   /**
-   * بازگردانی عملیات finish متوقف‌شده به حالت اولیه (قبل از شروع finish).
+   * Switch to a topic branch.
+   *
+   * - checkout("feature", "login")  → type + short name / unique prefix
+   * - checkout("feature/login")     → full branch name only
    */
-  async abortOperation(): Promise<void> {
-    const state = this.ctx.state.require();
+  async checkout(
+    typeOrBranch: string,
+    nameOrPrefix?: string,
+  ): Promise<{ branch: string; shortName: string | null; type: string | null }> {
+    // ---- full branch name only ------------------------------------------
+    if (nameOrPrefix === undefined) {
+      const branch = typeOrBranch;
+      if (!(await this.deps.git.branchExists(branch))) {
+        throw new ValidationError(
+          `branch "${branch}" does not exist`,
+          "pass an existing branch name, or: gitwe checkout <type> <name>",
+        );
+      }
+      await this.deps.git.checkout(branch);
+      const resolved = this.workflow.resolveBranch(branch);
+      return {
+        branch,
+        shortName: resolved?.shortName ?? null,
+        type: resolved?.type.name ?? null,
+      };
+    }
 
-    // فقط عملیات finish پشتیبانی می‌شود
-    if (state.operation !== "finish") {
-      throw new OperationStateError(
-        `unsupported operation: ${state.operation}`,
-        "only finish operations can be aborted",
+    // ---- type + name / unique prefix ------------------------------------
+    const type = this.workflow.requireBranchType(typeOrBranch);
+    const all = await this.deps.git.listBranches(`${type.prefix}*`);
+
+    const candidates = all
+      .map((branch) => this.workflow.resolveBranch(branch))
+      .filter((r): r is NonNullable<typeof r> => r !== undefined && r.type.name === type.name)
+      .filter(
+        (r) =>
+          r.shortName === nameOrPrefix ||
+          r.shortName.startsWith(nameOrPrefix) ||
+          r.branch === nameOrPrefix,
+      );
+
+    if (candidates.length === 0) {
+      throw new ValidationError(
+        `no ${type.name} branch matching "${nameOrPrefix}"`,
+        `known prefix: ${type.prefix}`,
+      );
+    }
+    if (candidates.length > 1) {
+      throw new ValidationError(
+        `ambiguous ${type.name} name "${nameOrPrefix}"`,
+        `matches: ${candidates.map((c) => c.branch).join(", ")}`,
       );
     }
 
-    const data = state.data;
-
-    // خاتمه عملیات‌های در حال اجرای git (merge یا rebase)
-    if (await this.git.rebaseInProgress()) {
-      await this.git.abortRebase();
-    }
-    if (await this.git.mergeInProgress()) {
-      await this.git.abortMerge();
-    }
-
-    // حذف تگ‌های ایجاد شده
-    const createdTags = (data.createdTags as string[]) || [];
-    for (const tag of createdTags) {
-      if ((await this.git.tags()).includes(tag)) {
-        await this.git.deleteTag(tag);
-      }
-    }
-
-    // بازگردانی شاخه‌ها به snapshotهای قبلی
-    const currentBranch = await this.git.currentBranch();
-    const snapshots = (data.snapshots as Record<string, string>) || {};
-    for (const [branch, sha] of Object.entries(snapshots)) {
-      if (!(await this.git.branchExists(branch))) continue;
-      if (branch === currentBranch) {
-        await this.git.resetHard(sha);
-      } else {
-        await this.git.raw(["update-ref", `refs/heads/${branch}`, sha]);
-      }
-    }
-
-    // بازگشت به شاخهٔ اصلی (قبل از شروع finish)
-    const originalBranch = data.originalBranch as string | undefined;
-    if (originalBranch !== undefined && (await this.git.branchExists(originalBranch))) {
-      await this.git.checkout(originalBranch);
-    }
-
-    // پاک کردن state
-    await this.ctx.state.clear();
+    const resolved = candidates[0]!;
+    await this.deps.git.checkout(resolved.branch);
+    return {
+      branch: resolved.branch,
+      shortName: resolved.shortName,
+      type: resolved.type.name,
+    };
   }
 
-  async continueOperation(): Promise<FinishResult> {
-    const state = this.ctx.state.require();
-    if (state.operation !== "finish") {
-      throw new OperationStateError(
-        `unsupported operation: ${state.operation}`,
-        "only finish operations can be continued",
+  /**
+   * Report or remove a stale resumable-operation state file.
+   * Never deletes branches or worktree files.
+   */
+  async clean(options: { force?: boolean } = {}): Promise<{
+    existed: boolean;
+    removed: boolean;
+    path: string;
+    operation?: string;
+    currentStep?: string;
+    startedAt?: string;
+  }> {
+    const store = this.deps.stateStore;
+    const path =
+      "file" in store && typeof (store as { file?: string }).file === "string"
+        ? (store as { file: string }).file
+        : ".git/gitwe/operation.json";
+
+    const existed = await store.exists();
+    if (!existed) {
+      return { existed: false, removed: false, path };
+    }
+
+    const state = await store.read();
+    const summary = {
+      existed: true,
+      removed: false,
+      path,
+      ...(state?.operation ? { operation: state.operation } : {}),
+      ...(state?.currentStep ? { currentStep: state.currentStep } : {}),
+      ...(state?.startedAt ? { startedAt: state.startedAt } : {}),
+    };
+
+    if (!options.force) {
+      return summary;
+    }
+
+    await store.clear();
+    return { ...summary, removed: true };
+  }
+
+  /**
+   * Fetch configured workflow remotes, then integrate the current branch
+   * with its upstream (merge or rebase). Does not change the workflow base
+   * (that is `update`); this follows the branch's tracking ref.
+   */
+  async pull(options: { rebase?: boolean } = {}): Promise<{
+    branch: string;
+    fetched: string[];
+    upstream: string | null;
+    integrated: boolean;
+    rebase: boolean;
+  }> {
+    const fetchRemotes = [...this.workflow.fetchRemotes()];
+    const fetched: string[] = [];
+
+    for (const remote of fetchRemotes) {
+      if (await this.deps.git.remoteExists(remote)) {
+        await this.deps.git.fetch(remote);
+        fetched.push(remote);
+      }
+    }
+
+    const branch = await this.deps.git.currentBranch();
+    if (!branch) {
+      throw new ValidationError("HEAD is detached", "check out a branch before pulling");
+    }
+
+    const upstream = await this.deps.git.upstreamOf(branch);
+    if (!upstream) {
+      return {
+        branch,
+        fetched,
+        upstream: null,
+        integrated: false,
+        rebase: options.rebase === true,
+      };
+    }
+
+    if (options.rebase) {
+      await this.deps.git.rebase(upstream);
+    } else {
+      await this.deps.git.merge(upstream);
+    }
+
+    return {
+      branch,
+      fetched,
+      upstream,
+      integrated: true,
+      rebase: options.rebase === true,
+    };
+  }
+
+  /**
+   * Rename the current topic branch (keeps type prefix; only the short name changes).
+   * Example: on `feature/login`, rename("auth") → `feature/auth`
+   */
+  async rename(newShortName: string): Promise<{
+    from: string;
+    to: string;
+    type: string;
+    shortName: string;
+  }> {
+    const current = await this.deps.git.currentBranch();
+    if (!current) {
+      throw new ValidationError("HEAD is detached", "check out a topic branch before renaming");
+    }
+
+    const resolved = this.workflow.resolveBranch(current);
+    if (!resolved) {
+      throw new ValidationError(
+        `"${current}" is not a configured topic branch`,
+        "rename only applies to topic branches defined in the workflow",
       );
     }
 
-    const data = state.data;
-    const branchName = data.branch as string;
-    const branchTypeName = data.branchType as string;
-    const branchType = this.workflow.requireBranchType(branchTypeName);
-    const resolved: ResolvedBranch = {
-      branch: branchName,
-      shortName: branchName.slice(branchType.prefix.length),
-      type: branchType,
-    };
-    const options = data.options as FinishOptions;
-    const strategy = (data.strategy as string) || "merge";
+    // BranchName VO validates git-safe short names
+    const short = BranchName.create(newShortName).value;
+    const to = this.workflow.branchName(resolved.type, short);
 
-    // ساخت workflow و context با state موجود
-    const workflow = createFinishWorkflow(this.ctx, resolved, options);
-    const workflowContext = new EngineWorkflowContext(this.ctx, resolved, "finish", state);
-    const engine = new WorkflowEngine<EngineWorkflowContext>();
+    if (to === current) {
+      throw new ValidationError(`branch is already named "${to}"`);
+    }
 
-    // استفاده از resume برای ادامه
-    await engine.resume(workflow, workflowContext);
+    if (await this.deps.git.branchExists(to)) {
+      throw new ValidationError(`branch "${to}" already exists`);
+    }
 
-    const resultData = workflowContext.state.data;
+    if (this.workflow.isProtected(to) || this.workflow.isBaseBranch(to)) {
+      throw new ValidationError(
+        `"${to}" collides with a base branch name`,
+        "choose a different short name",
+      );
+    }
+
+    await this.deps.git.renameBranch(current, to);
+
     return {
-      branch: resultData.branch as string,
-      base: (resultData.targets as string[])[0] ?? resolved.type.base,
-      strategy: strategy as "merge" | "squash" | "rebase",
-      tag: resultData.tag as string | undefined,
-      updatedBranches: resultData.updatedBranches as string[],
-      deletedLocal: resultData.deletedLocal as boolean,
-      deletedRemote: resultData.deletedRemote as boolean,
-      finalBranch: resultData.finalBranch as string,
+      from: current,
+      to,
+      type: resolved.type.name,
+      shortName: short,
     };
+  }
+
+  track(branchOrType: string, name?: string): Promise<{ branch: string; remote: string }> {
+    return new TrackBranchUseCase(this.workflow, this.deps.git, this.deps.logger).execute({
+      branchOrType,
+      name,
+    });
+  }
+
+  get config(): WorkflowConfig {
+    return this.workflow.config;
+  }
+
+  start(typeNameOrAlias: string, name: string, options: { base?: string; fetch?: boolean } = {}) {
+    return new StartBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+    ).execute({
+      typeNameOrAlias,
+      name,
+      ...(options.base ? { baseOverride: options.base } : {}),
+      ...(options.fetch !== undefined ? { fetch: options.fetch } : {}),
+    });
+  }
+
+  finish(
+    branch: string,
+    options: { squash?: boolean; push?: boolean; currentVersion?: string } = {},
+  ) {
+    return new FinishBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+      this.deps.stateStore,
+    ).execute({ kind: "start", branch, ...options });
+  }
+
+  continueFinish() {
+    return new FinishBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+      this.deps.stateStore,
+    ).execute({ kind: "continue" });
+  }
+
+  abortFinish() {
+    return new FinishBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+      this.deps.stateStore,
+    ).execute({ kind: "abort" });
+  }
+
+  update(branch: string, options: { rebase?: boolean; fetch?: boolean } = {}) {
+    return new UpdateBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+    ).execute({
+      branch,
+      ...options,
+    });
+  }
+
+  publish(branch: string, options: { force?: boolean } = {}) {
+    return new PublishBranchUseCase(
+      this.workflow,
+      this.deps.git,
+      this.deps.hooks,
+      this.deps.logger,
+    ).execute({
+      branch,
+      ...options,
+    });
+  }
+
+  delete(branch: string, options: { force?: boolean; remote?: boolean } = {}) {
+    return new DeleteBranchUseCase(this.workflow, this.deps.git, this.deps.hooks).execute({
+      branch,
+      ...options,
+    });
+  }
+
+  list(typeNameOrAlias?: string, pattern?: string) {
+    return new ListBranchesUseCase(this.workflow, this.deps.git).execute({
+      ...(typeNameOrAlias ? { typeNameOrAlias } : {}),
+      ...(pattern ? { pattern } : {}),
+    });
+  }
+
+  overview() {
+    return new OverviewUseCase(this.workflow, this.deps.git).execute();
+  }
+
+  validate() {
+    return new ValidateWorkflowUseCase().execute(this.config);
+  }
+
+  async tag(
+    name?: string,
+    options: {
+      message?: string | undefined;
+      delete?: boolean | undefined;
+      deleteRemote?: boolean | undefined;
+      push?: boolean | undefined;
+      pushAll?: boolean | undefined;
+    } = {},
+  ): Promise<{
+    tags: string[];
+    created?: string;
+    deleted?: string;
+    deletedRemote?: string;
+    pushed?: boolean;
+    pushedAll?: boolean;
+  }> {
+    if (options.delete && !name) {
+      throw new ValidationError("tag name is required for deletion");
+    }
+    if (options.deleteRemote && !name) {
+      throw new ValidationError("tag name is required for remote deletion");
+    }
+
+    // --- Delete local + optionally remote ---
+    if (name && options.delete) {
+      await this.deps.git.deleteTag(name);
+      const result: any = { tags: await this.deps.git.listTags(), deleted: name };
+
+      if (options.deleteRemote) {
+        const remote = this.workflow.defaultRemote;
+        await this.deps.git.deleteRemoteTag(remote, name);
+        result.deletedRemote = name;
+      }
+
+      return result;
+    }
+
+    // --- Delete remote only (without local deletion) ---
+    if (name && options.deleteRemote) {
+      const remote = this.workflow.defaultRemote;
+      await this.deps.git.deleteRemoteTag(remote, name);
+      return { tags: await this.deps.git.listTags(), deletedRemote: name };
+    }
+
+    // --- Create ---
+    if (name) {
+      await this.deps.git.createTag(name, { annotated: true, message: options.message });
+      const result: any = { tags: await this.deps.git.listTags(), created: name };
+
+      if (options.push) {
+        const remote = this.workflow.defaultRemote;
+        await this.deps.git.pushTags(remote, name);
+        result.pushed = true;
+      } else if (options.pushAll) {
+        const remote = this.workflow.defaultRemote;
+        await this.deps.git.pushTags(remote);
+        result.pushedAll = true;
+      }
+
+      return result;
+    }
+
+    // --- List ---
+    return { tags: await this.deps.git.listTags() };
+  }
+
+  /** Run an arbitrary git command and return stdout. For internal use only. */
+  runGit(args: string[]): Promise<string> {
+    return this.deps.git.raw(args);
+  }
+
+  graph(root?: string): Promise<string> {
+    return this.deps.git.graph(root);
+  }
+
+  configList(): WorkflowConfig {
+    return this.workflow.config;
+  }
+
+  async configAdd(
+    kind: "base" | "branchType",
+    name: string,
+    options:
+      | (AddBaseOptions & { kind?: "base" })
+      | (AddBranchTypeOptions & { kind?: "branchType" }),
+  ): Promise<WorkflowConfig> {
+    const editor = new ConfigEditorService();
+    let current = await this.deps.configRepo.load();
+    if (!current) throw new NotInitializedError();
+
+    let updated: WorkflowConfig;
+    if (kind === "base") {
+      const opts = options as AddBaseOptions;
+      updated = editor.addBase(current, name, opts);
+    } else {
+      const opts = options as AddBranchTypeOptions;
+      updated = editor.addBranchType(current, name, opts);
+    }
+
+    await this.deps.configRepo.save(updated);
+    return updated;
+  }
+
+  async configEdit(
+    kind: "base" | "branchType",
+    name: string,
+    options:
+      | (EditBaseOptions & { kind?: "base" })
+      | (EditBranchTypeOptions & { kind?: "branchType" }),
+  ): Promise<WorkflowConfig> {
+    const editor = new ConfigEditorService();
+    let current = await this.deps.configRepo.load();
+    if (!current) throw new NotInitializedError();
+
+    let updated: WorkflowConfig;
+    if (kind === "base") {
+      const opts = options as EditBaseOptions;
+      updated = editor.editBase(current, name, opts);
+    } else {
+      const opts = options as EditBranchTypeOptions;
+      updated = editor.editBranchType(current, name, opts);
+    }
+
+    await this.deps.configRepo.save(updated);
+    return updated;
+  }
+
+  async configRename(
+    kind: "base" | "branchType",
+    from: string,
+    to: string,
+  ): Promise<WorkflowConfig> {
+    const editor = new ConfigEditorService();
+    let current = await this.deps.configRepo.load();
+    if (!current) throw new NotInitializedError();
+
+    let updated: WorkflowConfig;
+    if (kind === "base") {
+      updated = editor.renameBase(current, from, to);
+    } else {
+      updated = editor.renameBranchType(current, from, to);
+    }
+
+    await this.deps.configRepo.save(updated);
+    return updated;
+  }
+
+  async configDelete(kind: "base" | "branchType", name: string): Promise<WorkflowConfig> {
+    const editor = new ConfigEditorService();
+    let current = await this.deps.configRepo.load();
+    if (!current) throw new NotInitializedError();
+
+    let updated: WorkflowConfig;
+    if (kind === "base") {
+      updated = editor.deleteBase(current, name);
+    } else {
+      updated = editor.deleteBranchType(current, name);
+    }
+
+    await this.deps.configRepo.save(updated);
+    return updated;
   }
 }
-
-export type { FinishOptions, FinishResult };

@@ -64,23 +64,26 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - registry: https://registry.npmjs.org
-            package_name: "gitwe"
-            token_secret: NPM_TOKEN
-            provenance: true
-          - registry: https://registry.npmjs.org
-            package_name: "@idmdakhi/gitwe"
-            token_secret: NPM_TOKEN
-            provenance: true
           - registry: https://npm.pkg.github.com
             package_name: "@idmdakhi/gitwe"
             token_secret: GITHUB_TOKEN
+            use_oidc: false
             provenance: false
+          - registry: https://registry.npmjs.org
+            package_name: "@idmdakhi/gitwe"
+            token_secret: NPM_TOKEN
+            use_oidc: true
+            provenance: true
+          - registry: https://registry.npmjs.org
+            package_name: "gitwe-ts"
+            token_secret: NPM_TOKEN
+            use_oidc: true
+            provenance: true
 
     permissions:
       contents: read
-      packages: write
       id-token: write
+      packages: write
 
     steps:
       - name: Checkout
@@ -109,12 +112,25 @@ jobs:
       - name: Set package name
         run: npm pkg set name="${{ matrix.package_name }}"
 
-      - name: Publish
-        run: |
-          if [ "${{ matrix.provenance }}" = "true" ]; then
-            npm publish --provenance --access public
-          else
-            npm publish --access public
-          fi
+      # - name: Publish
+      #   run: |
+      #     if [ "${{ matrix.provenance }}" = "true" ]; then
+      #       npm publish --provenance --access public
+      #     else
+      #       npm publish --access public
+      #     fi
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets[matrix.token_secret] }}
+
+      - name: Publish (OIDC / npm)
+        if: matrix.use_oidc
+        run:
+          npm publish --access public
+          # بدون NODE_AUTH_TOKEN — احراز هویت از OIDC می‌آید
+          # provenance معمولاً خودکار است
+
+      - name: Publish (token / GitHub Packages)
+        if: ${{ !matrix.use_oidc }}
+        run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets[matrix.token_secret] }}

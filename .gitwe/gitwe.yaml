@@ -3,70 +3,42 @@ name: classic
 
 baseBranches:
   - name: main
-    aliases:
-      - master
+    aliases: [master]
     protected: true
   - name: develop
-    aliases:
-      - dev
+    aliases: [dev]
     base: main
     protected: true
 
 branchTypes:
   - name: feature
-    aliases:
-      - feat
-      - ftr
+    aliases: [feat]
     base: develop
-    target: develop
+    target: [develop]
     prefix: feature/
   - name: release
-    aliases:
-      - rls
-      - rels
+    aliases: [rel]
     base: develop
-    target:
-      - main
-      - develop
+    target: [main, develop]
     prefix: release/
   - name: hotfix
-    aliases:
-      - hfix
-      - patch
+    aliases: [fix]
     base: main
-    target:
-      - main
-      - develop
+    target: [main, develop]
     prefix: hotfix/
   - name: support
-    aliases:
-      - lts
+    aliases: [lts]
     base: main
-    target: main
+    target: [main]
     prefix: support/
-
-cli:
-  enabled: true
-  interactive: true
-  color: true
-  aliases:
-    fs: finish feature
-    rs: release start
-    hf: hotfix start
-    st: status
 
 merge:
   strategy: merge
-  branchTypes:
-  deleteOnFinish:
-    - feature
-    - release
-    - hotfix
+  deleteOnFinish: [feature, release, hotfix]
   squash:
-    branchTypes:
-      - feature
     enabled: true
     default: false
+    branchTypes: [feature]
 
 hooks:
   enabled: true
@@ -74,13 +46,15 @@ hooks:
 
 versioning:
   enabled: true
-  path: .gitwe/VERSION.yaml
-
-changelog:
-  enabled: false
-  path: .gitwe/CHANGELOG.yaml
+  tagPrefix: v
+  tag: [release, hotfix]
+  bumpRules:
+    minor: [release]
+    patch: [hotfix]
 
 remote:
   name: origin
-  autoPush: false
   autoFetch: true
+  fetch: [origin]
+  autoPush: false
+  push: [origin]

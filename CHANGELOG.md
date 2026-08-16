@@ -16,7 +16,7 @@ engine; the pre-1.0 code base is not carried over and no upgrade path is provide
 - **Engine** — `start`, `finish`, `update`, `publish`, `track`, `list`, `checkout`,
   `rename`, `delete` and `overview`, usable as a typed library API.
 - **Resumable finish** — the finish state machine persists its progress in
-  `.git/gitwe/operation.json`, so `--continue` resumes after conflicts and `--abort`
+  `.gitwe/operation.json`, so `--continue` resumes after conflicts and `--abort`
   restores every touched branch and tag.
 - **Remote safety** — `finish` fetches and refuses to run when the topic branch is
   behind its remote tracking branch unless `--force` is given.

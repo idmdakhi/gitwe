@@ -1,116 +1,99 @@
+#!/usr/bin/env node
+/**
+ * gitwe CLI entry — single command tree, no parallel register* / *.ts duals.
+ * Every command uses loadEngine + action from ./commands/shared.js and the
+ * application Engine facade (no infrastructure imports in command files
+ * except init's composition-root call to Engine.init).
+ */
 import { Command } from "commander";
-import { VERSION } from "../version.js";
-import { preScanGlobals } from "./args.js";
-import { GLOBAL_OPTION_FLAGS, GlobalOptions } from "./options.js";
-import { exitCodeFor, reportError } from "./error-reporter.js";
+import { version } from "../version.js";
+import { setColorEnabled } from "./output.js";
 
-// دستورات پایه
-import { registerInit } from "./commands/init.js";
-import { registerConfig } from "./commands/config.js";
-import { registerStatus } from "./commands/status.js";
-import { registerDoctor } from "./commands/doctor.js";
-import { registerValidate } from "./commands/validate.js";
-import { registerVersion } from "./commands/version.js";
+import { initCommand } from "./commands/init.command.js";
+import { startCommand } from "./commands/start.command.js";
+import { finishCommand } from "./commands/finish.command.js";
+import { updateCommand } from "./commands/update.command.js";
+import { publishCommand } from "./commands/publish.command.js";
+import { deleteCommand } from "./commands/delete.command.js";
+import { listCommand } from "./commands/list.command.js";
+import { overviewCommand } from "./commands/overview.command.js";
+import { validateCommand } from "./commands/validate.command.js";
+import { versionCommand } from "./commands/version.command.js";
+import { typesCommand } from "./commands/types.command.js";
+import { currentCommand } from "./commands/current.command.js";
+import { doctorCommand } from "./commands/doctor.command.js";
+import { checkoutCommand } from "./commands/checkout.command.js";
+import { cleanCommand } from "./commands/clean.command.js";
+import { pullCommand } from "./commands/pull.command.js";
+import { renameCommand } from "./commands/rename.command.js";
+import { syncCommand } from "./commands/sync.command.js";
+import { trackCommand } from "./commands/track.command.js";
+import { tagCommand } from "./commands/tag.command.js";
+import { abortCommand } from "./commands/abort.command.js";
+import { logCommand } from "./commands/log.command.js";
+import { graphCommand } from "./commands/graph.command.js";
+import { rebaseCommand } from "./commands/rebase.command.js";
+import { configCommand } from "./commands/config.command.js";
 
-// دستورات اصلی شاخه‌ها
-import { registerStart } from "./commands/start.js";
-import { registerFinish } from "./commands/finish.js";
-import { registerUpdate } from "./commands/update.js";
-import { registerRebase } from "./commands/rebase.js";
-import { registerDelete } from "./commands/delete.js";
-import { registerRename } from "./commands/rename.js";
-import { registerPush } from "./commands/push.js";
-import { registerCheckout } from "./commands/checkout.js";
-import { registerTrack } from "./commands/track.js";
-import { registerCurrent } from "./commands/current.js";
-import { registerList } from "./commands/list.js";
-import { registerGraph } from "./commands/graph.js";
+export async function buildProgram(): Promise<Command> {
+  const program = new Command("gitwe")
+    .description("A configurable git branching-workflow engine")
+    .version(version)
+    .option("--cwd <path>", "run as if gitwe was started in <path>", process.cwd())
+    .option("-C, --config <path>", "explicit path to the workflow definition file")
+    .option("--no-color", "disable coloured output")
+    .option("-v, --verbose", "verbose logging", false)
+    .option("--dry-run", "simulate without making changes (where supported)", false)
+    .option("--format <format>", "output format: text | json | yaml", "text");
 
-// دستورات کمکی و پیشرفته
-import { registerAbort } from "./commands/abort.js";
-import { registerClean } from "./commands/clean.js";
-// import { registerCommitLint } from "./commands/commit-lint.js";
-// import { registerLog } from "./commands/log.js";
-// import { registerModules } from "./commands/modules.js";
-import { registerPull } from "./commands/pull.js";
-import { registerSync } from "./commands/sync.js";
-import { registerTag } from "./commands/tag.js";
-import { registerTypes } from "./commands/types.js";
-// import { registerVersionBump } from "./commands/version-bump.js";
+  program.hook("preAction", (thisCommand) => {
+    const opts = thisCommand.opts<{ color?: boolean }>();
+    // Commander sets color=false when --no-color is passed
+    if (opts.color === false) setColorEnabled(false);
+  });
 
-export async function buildProgram(argv: string[]): Promise<Command> {
-  const globals = preScanGlobals(argv);
-  const program = new Command();
-  program
-    .name("gitwe")
-    .description("gitwe — a configurable git workflow engine")
-    .version(VERSION, "--version", "show the gitwe version")
-    .showHelpAfterError()
-    .enablePositionalOptions();
+  program.addCommand(initCommand());
+  program.addCommand(startCommand());
+  program.addCommand(finishCommand());
+  program.addCommand(updateCommand());
+  program.addCommand(syncCommand());
+  program.addCommand(publishCommand());
+  program.addCommand(deleteCommand());
+  program.addCommand(currentCommand());
+  program.addCommand(listCommand());
+  program.addCommand(checkoutCommand());
+  program.addCommand(overviewCommand());
+  program.addCommand(validateCommand());
+  program.addCommand(versionCommand());
+  program.addCommand(typesCommand());
+  program.addCommand(doctorCommand());
+  program.addCommand(cleanCommand());
+  program.addCommand(pullCommand());
+  program.addCommand(renameCommand());
+  program.addCommand(trackCommand());
+  program.addCommand(tagCommand());
+  program.addCommand(abortCommand());
+  program.addCommand(logCommand());
+  program.addCommand(graphCommand());
+  program.addCommand(rebaseCommand());
+  program.addCommand(configCommand());
 
-  for (const opt of GLOBAL_OPTION_FLAGS) {
-    program.option(opt.flags, opt.description);
-  }
-
-  const globalOptions = (): GlobalOptions => ({ ...globals, ...program.opts<GlobalOptions>() });
-
-  // ========== ۱. دستورات پایه ==========
-  registerInit(program, globalOptions);
-  registerConfig(program, globalOptions);
-  registerStatus(program, globalOptions);
-  registerDoctor(program, globalOptions);
-  registerValidate(program, globalOptions);
-  registerVersion(program, globalOptions);
-
-  // ========== ۲. دستورات اصلی شاخه‌ها ==========
-  registerStart(program, globalOptions);
-  registerFinish(program, globalOptions);
-  registerUpdate(program, globalOptions);
-  registerRebase(program, globalOptions);
-  registerDelete(program, globalOptions);
-  registerRename(program, globalOptions);
-  registerPush(program, globalOptions);
-  registerCheckout(program, globalOptions);
-  registerTrack(program, globalOptions);
-  registerCurrent(program, globalOptions);
-  registerList(program, globalOptions);
-  registerGraph(program, globalOptions);
-
-  // ========== ۳. دستورات کمکی و پیشرفته ==========
-  registerAbort(program, globalOptions);
-  registerClean(program, globalOptions);
-  // registerCommitLint(program, globalOptions);
-  // registerLog(program, globalOptions);
-  // registerModules(program, globalOptions);
-  registerPull(program, globalOptions);
-  registerSync(program, globalOptions);
-  registerTag(program, globalOptions);
-  registerTypes(program, globalOptions);
-  // registerVersionBump(program, globalOptions);
-
-  acceptGlobalOptionsEverywhere(program);
   return program;
 }
 
-function acceptGlobalOptionsEverywhere(command: Command): void {
-  for (const child of command.commands) {
-    if (child.commands.length > 0) {
-      acceptGlobalOptionsEverywhere(child);
-      continue;
-    }
-    for (const opt of GLOBAL_OPTION_FLAGS) {
-      child.option(opt.flags, opt.description);
-    }
-  }
-}
-
-export async function run(argv: string[] = process.argv): Promise<number> {
+export async function run(argv: string[] = process.argv): Promise<0 | 1> {
   try {
-    const program = await buildProgram(argv.slice(2));
+    const program = await buildProgram();
     await program.parseAsync(argv);
     return 0;
   } catch (error) {
-    reportError(error);
-    return exitCodeFor(error);
+    // If the error is already handled by the action() wrapper, it will have set process.exitCode.
+    // For unhandled errors, we set exit code 1 and print a generic message.
+    if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+    } else {
+      console.error(`Unexpected error: ${String(error)}`);
+    }
+    return 1;
   }
 }

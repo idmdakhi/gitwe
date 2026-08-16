@@ -1,4 +1,14 @@
 /** Global CLI flags accepted anywhere on the command line. */
+/**
+ * Shared --format / --json option helpers for every major command.
+ * Ensures RFC-0004 consistency across start, finish, list, version,
+ * config list, doctor, overview, status, …
+ */
+
+import type { Command } from "commander";
+
+export type OutputFormat = "text" | "json" | "yaml" | "table";
+
 export interface GlobalOptions {
   /** Path to the workflow definition (`-C` / `--config`). */
   config?: string;
@@ -21,3 +31,22 @@ export const GLOBAL_OPTION_FLAGS = [
   { flags: "--dry-run", description: "simulate the operation without making changes" },
   { flags: "--format <format>", description: "output format: text, json, yaml, table" },
 ] as const;
+
+/**
+ * Attach --format and legacy --json to a Commander command.
+ */
+export function addFormatOption(command: Command): Command {
+  command.option("--format <format>", "Output format: text | json | yaml | table", "text");
+  return command;
+}
+
+/**
+ * Resolve the effective OutputFormat from Commander opts.
+ */
+export function resolveFormat(format?: string): OutputFormat {
+  format = (format ?? "text").toLowerCase();
+  // if (!isValidFormat(format)) {
+  //   throw new Error(`Invalid output format: ${format}`);
+  // }
+  return format as OutputFormat;
+}

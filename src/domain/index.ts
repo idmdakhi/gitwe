@@ -1,8 +1,7 @@
-// src/domain/index.ts
-export * from "./entities.js";
-export * from "./errors.js";
-export * from "./branch-name.js";
-export * from "./workflow.js";
-export * from "./config/parse.js";
-export * from "./config/presets.js";
-export * from "./config/editor.js";
+export * from "./entities/index.js";
+export * from "./errors/index.js";
+export * from "./value-objects/branch-name.vo.js";
+export * from "./services/workflow.service.js";
+export * from "./services/config-validator.service.js";
+export * from "./services/version-calculator.service.js";
+export * from "./ports/index.js";
