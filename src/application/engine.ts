@@ -17,6 +17,15 @@ import { DeleteBranchUseCase } from "./use-cases/delete-branch.use-case.js";
 import { ListBranchesUseCase } from "./use-cases/list-branches.use-case.js";
 import { OverviewUseCase } from "./use-cases/overview.use-case.js";
 import { ValidateWorkflowUseCase } from "./use-cases/validate-workflow.use-case.js";
+import { BranchName } from "../domain/value-objects/branch-name.vo.js";
+import { TrackBranchUseCase } from "./use-cases/track-branch.use-case.js";
+import {
+  AddBaseOptions,
+  AddBranchTypeOptions,
+  ConfigEditorService,
+  EditBaseOptions,
+  EditBranchTypeOptions,
+} from "../domain/services/config-editor.service.js";
 
 export interface EngineDeps {
   readonly configRepo: ConfigRepository;
@@ -70,16 +79,36 @@ export class Engine {
     return Engine.init(deps, { preset, force });
   }
 
-  /** Switch to an existing topic branch (type + name or unique short-name prefix). */
+  /**
+   * Switch to a topic branch.
+   *
+   * - checkout("feature", "login")  → type + short name / unique prefix
+   * - checkout("feature/login")     → full branch name only
+   */
   async checkout(
-    typeNameOrAlias: string,
-    nameOrPrefix: string,
-  ): Promise<{
-    branch: string;
-    shortName: string;
-    type: string;
-  }> {
-    const type = this.workflow.requireBranchType(typeNameOrAlias);
+    typeOrBranch: string,
+    nameOrPrefix?: string,
+  ): Promise<{ branch: string; shortName: string | null; type: string | null }> {
+    // ---- full branch name only ------------------------------------------
+    if (nameOrPrefix === undefined) {
+      const branch = typeOrBranch;
+      if (!(await this.deps.git.branchExists(branch))) {
+        throw new ValidationError(
+          `branch "${branch}" does not exist`,
+          "pass an existing branch name, or: gitwe checkout <type> <name>",
+        );
+      }
+      await this.deps.git.checkout(branch);
+      const resolved = this.workflow.resolveBranch(branch);
+      return {
+        branch,
+        shortName: resolved?.shortName ?? null,
+        type: resolved?.type.name ?? null,
+      };
+    }
+
+    // ---- type + name / unique prefix ------------------------------------
+    const type = this.workflow.requireBranchType(typeOrBranch);
     const all = await this.deps.git.listBranches(`${type.prefix}*`);
 
     const candidates = all
@@ -106,16 +135,165 @@ export class Engine {
     }
 
     const resolved = candidates[0]!;
-    if (!(await this.deps.git.branchExists(resolved.branch))) {
-      throw new ValidationError(`branch "${resolved.branch}" does not exist`);
-    }
-
     await this.deps.git.checkout(resolved.branch);
     return {
       branch: resolved.branch,
       shortName: resolved.shortName,
       type: resolved.type.name,
     };
+  }
+
+  /**
+   * Report or remove a stale resumable-operation state file.
+   * Never deletes branches or worktree files.
+   */
+  async clean(options: { force?: boolean } = {}): Promise<{
+    existed: boolean;
+    removed: boolean;
+    path: string;
+    operation?: string;
+    currentStep?: string;
+    startedAt?: string;
+  }> {
+    const store = this.deps.stateStore;
+    const path =
+      "file" in store && typeof (store as { file?: string }).file === "string"
+        ? (store as { file: string }).file
+        : ".git/gitwe/operation.json";
+
+    const existed = await store.exists();
+    if (!existed) {
+      return { existed: false, removed: false, path };
+    }
+
+    const state = await store.read();
+    const summary = {
+      existed: true,
+      removed: false,
+      path,
+      ...(state?.operation ? { operation: state.operation } : {}),
+      ...(state?.currentStep ? { currentStep: state.currentStep } : {}),
+      ...(state?.startedAt ? { startedAt: state.startedAt } : {}),
+    };
+
+    if (!options.force) {
+      return summary;
+    }
+
+    await store.clear();
+    return { ...summary, removed: true };
+  }
+
+  /**
+   * Fetch configured workflow remotes, then integrate the current branch
+   * with its upstream (merge or rebase). Does not change the workflow base
+   * (that is `update`); this follows the branch's tracking ref.
+   */
+  async pull(options: { rebase?: boolean } = {}): Promise<{
+    branch: string;
+    fetched: string[];
+    upstream: string | null;
+    integrated: boolean;
+    rebase: boolean;
+  }> {
+    const fetchRemotes = [...this.workflow.fetchRemotes()];
+    const fetched: string[] = [];
+
+    for (const remote of fetchRemotes) {
+      if (await this.deps.git.remoteExists(remote)) {
+        await this.deps.git.fetch(remote);
+        fetched.push(remote);
+      }
+    }
+
+    const branch = await this.deps.git.currentBranch();
+    if (!branch) {
+      throw new ValidationError("HEAD is detached", "check out a branch before pulling");
+    }
+
+    const upstream = await this.deps.git.upstreamOf(branch);
+    if (!upstream) {
+      return {
+        branch,
+        fetched,
+        upstream: null,
+        integrated: false,
+        rebase: options.rebase === true,
+      };
+    }
+
+    if (options.rebase) {
+      await this.deps.git.rebase(upstream);
+    } else {
+      await this.deps.git.merge(upstream);
+    }
+
+    return {
+      branch,
+      fetched,
+      upstream,
+      integrated: true,
+      rebase: options.rebase === true,
+    };
+  }
+
+  /**
+   * Rename the current topic branch (keeps type prefix; only the short name changes).
+   * Example: on `feature/login`, rename("auth") → `feature/auth`
+   */
+  async rename(newShortName: string): Promise<{
+    from: string;
+    to: string;
+    type: string;
+    shortName: string;
+  }> {
+    const current = await this.deps.git.currentBranch();
+    if (!current) {
+      throw new ValidationError("HEAD is detached", "check out a topic branch before renaming");
+    }
+
+    const resolved = this.workflow.resolveBranch(current);
+    if (!resolved) {
+      throw new ValidationError(
+        `"${current}" is not a configured topic branch`,
+        "rename only applies to topic branches defined in the workflow",
+      );
+    }
+
+    // BranchName VO validates git-safe short names
+    const short = BranchName.create(newShortName).value;
+    const to = this.workflow.branchName(resolved.type, short);
+
+    if (to === current) {
+      throw new ValidationError(`branch is already named "${to}"`);
+    }
+
+    if (await this.deps.git.branchExists(to)) {
+      throw new ValidationError(`branch "${to}" already exists`);
+    }
+
+    if (this.workflow.isProtected(to) || this.workflow.isBaseBranch(to)) {
+      throw new ValidationError(
+        `"${to}" collides with a base branch name`,
+        "choose a different short name",
+      );
+    }
+
+    await this.deps.git.renameBranch(current, to);
+
+    return {
+      from: current,
+      to,
+      type: resolved.type.name,
+      shortName: short,
+    };
+  }
+
+  track(branchOrType: string, name?: string): Promise<{ branch: string; remote: string }> {
+    return new TrackBranchUseCase(this.workflow, this.deps.git, this.deps.logger).execute({
+      branchOrType,
+      name,
+    });
   }
 
   get config(): WorkflowConfig {
@@ -213,5 +391,169 @@ export class Engine {
 
   validate() {
     return new ValidateWorkflowUseCase().execute(this.config);
+  }
+
+  async tag(
+    name?: string,
+    options: {
+      message?: string | undefined;
+      delete?: boolean | undefined;
+      deleteRemote?: boolean | undefined;
+      push?: boolean | undefined;
+      pushAll?: boolean | undefined;
+    } = {},
+  ): Promise<{
+    tags: string[];
+    created?: string;
+    deleted?: string;
+    deletedRemote?: string;
+    pushed?: boolean;
+    pushedAll?: boolean;
+  }> {
+    if (options.delete && !name) {
+      throw new ValidationError("tag name is required for deletion");
+    }
+    if (options.deleteRemote && !name) {
+      throw new ValidationError("tag name is required for remote deletion");
+    }
+
+    // --- Delete local + optionally remote ---
+    if (name && options.delete) {
+      await this.deps.git.deleteTag(name);
+      const result: any = { tags: await this.deps.git.listTags(), deleted: name };
+
+      if (options.deleteRemote) {
+        const remote = this.workflow.defaultRemote;
+        await this.deps.git.deleteRemoteTag(remote, name);
+        result.deletedRemote = name;
+      }
+
+      return result;
+    }
+
+    // --- Delete remote only (without local deletion) ---
+    if (name && options.deleteRemote) {
+      const remote = this.workflow.defaultRemote;
+      await this.deps.git.deleteRemoteTag(remote, name);
+      return { tags: await this.deps.git.listTags(), deletedRemote: name };
+    }
+
+    // --- Create ---
+    if (name) {
+      await this.deps.git.createTag(name, { annotated: true, message: options.message });
+      const result: any = { tags: await this.deps.git.listTags(), created: name };
+
+      if (options.push) {
+        const remote = this.workflow.defaultRemote;
+        await this.deps.git.pushTags(remote, name);
+        result.pushed = true;
+      } else if (options.pushAll) {
+        const remote = this.workflow.defaultRemote;
+        await this.deps.git.pushTags(remote);
+        result.pushedAll = true;
+      }
+
+      return result;
+    }
+
+    // --- List ---
+    return { tags: await this.deps.git.listTags() };
+  }
+
+  /** Run an arbitrary git command and return stdout. For internal use only. */
+  runGit(args: string[]): Promise<string> {
+    return this.deps.git.raw(args);
+  }
+
+  graph(root?: string): Promise<string> {
+    return this.deps.git.graph(root);
+  }
+
+  configList(): WorkflowConfig {
+    return this.workflow.config;
+  }
+
+  async configAdd(
+    kind: "base" | "branchType",
+    name: string,
+    options:
+      | (AddBaseOptions & { kind?: "base" })
+      | (AddBranchTypeOptions & { kind?: "branchType" }),
+  ): Promise<WorkflowConfig> {
+    const editor = new ConfigEditorService();
+    let current = await this.deps.configRepo.load();
+    if (!current) throw new NotInitializedError();
+
+    let updated: WorkflowConfig;
+    if (kind === "base") {
+      const opts = options as AddBaseOptions;
+      updated = editor.addBase(current, name, opts);
+    } else {
+      const opts = options as AddBranchTypeOptions;
+      updated = editor.addBranchType(current, name, opts);
+    }
+
+    await this.deps.configRepo.save(updated);
+    return updated;
+  }
+
+  async configEdit(
+    kind: "base" | "branchType",
+    name: string,
+    options:
+      | (EditBaseOptions & { kind?: "base" })
+      | (EditBranchTypeOptions & { kind?: "branchType" }),
+  ): Promise<WorkflowConfig> {
+    const editor = new ConfigEditorService();
+    let current = await this.deps.configRepo.load();
+    if (!current) throw new NotInitializedError();
+
+    let updated: WorkflowConfig;
+    if (kind === "base") {
+      const opts = options as EditBaseOptions;
+      updated = editor.editBase(current, name, opts);
+    } else {
+      const opts = options as EditBranchTypeOptions;
+      updated = editor.editBranchType(current, name, opts);
+    }
+
+    await this.deps.configRepo.save(updated);
+    return updated;
+  }
+
+  async configRename(
+    kind: "base" | "branchType",
+    from: string,
+    to: string,
+  ): Promise<WorkflowConfig> {
+    const editor = new ConfigEditorService();
+    let current = await this.deps.configRepo.load();
+    if (!current) throw new NotInitializedError();
+
+    let updated: WorkflowConfig;
+    if (kind === "base") {
+      updated = editor.renameBase(current, from, to);
+    } else {
+      updated = editor.renameBranchType(current, from, to);
+    }
+
+    await this.deps.configRepo.save(updated);
+    return updated;
+  }
+
+  async configDelete(kind: "base" | "branchType", name: string): Promise<WorkflowConfig> {
+    const editor = new ConfigEditorService();
+    let current = await this.deps.configRepo.load();
+    if (!current) throw new NotInitializedError();
+
+    let updated: WorkflowConfig;
+    if (kind === "base") {
+      updated = editor.deleteBase(current, name);
+    } else {
+      updated = editor.deleteBranchType(current, name);
+    }
+
+    await this.deps.configRepo.save(updated);
+    return updated;
   }
 }

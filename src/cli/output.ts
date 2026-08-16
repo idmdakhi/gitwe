@@ -27,13 +27,13 @@ export interface OutputEnvelope<T = unknown> {
 /** What a successful command returns to the output layer. */
 export interface CommandResult<T = unknown> {
   /** Machine-readable payload (json / yaml `data`). */
-  data?: T;
+  data?: T | undefined;
   /** One-line success message (text mode). */
-  message?: string;
+  message?: string | undefined;
   /** Extra human lines under the success message (text mode). */
-  details?: string[];
+  details?: string[] | undefined;
   /** Surfaced in envelope.warnings and as yellow lines in text. */
-  warnings?: string[];
+  warnings?: string[] | undefined;
 }
 
 let colorEnabled = true;

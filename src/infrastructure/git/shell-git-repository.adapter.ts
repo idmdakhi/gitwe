@@ -244,4 +244,47 @@ export class ShellGitRepository implements GitRepository {
     const out = await this.run(["remote"]);
     return out.split("\n").includes(remote);
   }
+
+  async setUpstream(branch: string, remote: string): Promise<void> {
+    await this.run(["branch", "--set-upstream-to", `${remote}/${branch}`, branch]);
+  }
+
+  async listTags(pattern?: string): Promise<string[]> {
+    const args = ["tag", "--list"];
+    if (pattern) args.push(pattern);
+    const out = await this.run(args);
+    return out.length ? out.split("\n") : [];
+  }
+
+  async deleteTag(name: string): Promise<void> {
+    await this.run(["tag", "-d", name]);
+  }
+
+  async pushTags(remote: string, pattern?: string): Promise<void> {
+    const args = ["push", remote];
+    if (pattern) {
+      args.push("--tags", pattern);
+    } else {
+      args.push("--tags");
+    }
+    await this.run(args);
+  }
+
+  async deleteRemoteTag(remote: string, name: string): Promise<void> {
+    await this.run(["push", remote, "--delete", name]);
+  }
+
+  async raw(args: string[]): Promise<string> {
+    return this.run(args);
+  }
+
+  async graph(root?: string): Promise<string> {
+    const args = ["log", "--graph", "--oneline", "--decorate"];
+    if (root) {
+      args.push(root);
+    } else {
+      args.push("--all");
+    }
+    return this.run(args);
+  }
 }

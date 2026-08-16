@@ -5,7 +5,7 @@ export interface MergeOptions {
 }
 
 export interface TagOptions {
-  readonly message?: string;
+  readonly message?: string | undefined;
   readonly annotated?: boolean;
 }
 
@@ -59,4 +59,12 @@ export interface GitRepository {
   fetch(remote: string, refspec?: string): Promise<void>;
   push(remote: string, branch: string, options?: PushOptions): Promise<void>;
   remoteExists(remote: string): Promise<boolean>;
+  setUpstream(branch: string, remote: string): Promise<void>;
+  listTags(): Promise<string[]>;
+  deleteTag(name: string): Promise<void>;
+  pushTags(remote: string, pattern?: string): Promise<void>;
+  deleteRemoteTag(remote: string, name: string): Promise<void>;
+  /** Run an arbitrary git command and return stdout. */
+  raw(args: string[]): Promise<string>;
+  graph(root?: string): Promise<string>;
 }

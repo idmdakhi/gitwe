@@ -23,6 +23,17 @@ import { typesCommand } from "./commands/types.command.js";
 import { currentCommand } from "./commands/current.command.js";
 import { doctorCommand } from "./commands/doctor.command.js";
 import { checkoutCommand } from "./commands/checkout.command.js";
+import { cleanCommand } from "./commands/clean.command.js";
+import { pullCommand } from "./commands/pull.command.js";
+import { renameCommand } from "./commands/rename.command.js";
+import { syncCommand } from "./commands/sync.command.js";
+import { trackCommand } from "./commands/track.command.js";
+import { tagCommand } from "./commands/tag.command.js";
+import { abortCommand } from "./commands/abort.command.js";
+import { logCommand } from "./commands/log.command.js";
+import { graphCommand } from "./commands/graph.command.js";
+import { rebaseCommand } from "./commands/rebase.command.js";
+import { configCommand } from "./commands/config.command.js";
 
 export async function buildProgram(): Promise<Command> {
   const program = new Command("gitwe")
@@ -45,26 +56,44 @@ export async function buildProgram(): Promise<Command> {
   program.addCommand(startCommand());
   program.addCommand(finishCommand());
   program.addCommand(updateCommand());
+  program.addCommand(syncCommand());
   program.addCommand(publishCommand());
   program.addCommand(deleteCommand());
+  program.addCommand(currentCommand());
   program.addCommand(listCommand());
+  program.addCommand(checkoutCommand());
   program.addCommand(overviewCommand());
   program.addCommand(validateCommand());
   program.addCommand(versionCommand());
   program.addCommand(typesCommand());
-  program.addCommand(currentCommand());
   program.addCommand(doctorCommand());
-  program.addCommand(checkoutCommand());
+  program.addCommand(cleanCommand());
+  program.addCommand(pullCommand());
+  program.addCommand(renameCommand());
+  program.addCommand(trackCommand());
+  program.addCommand(tagCommand());
+  program.addCommand(abortCommand());
+  program.addCommand(logCommand());
+  program.addCommand(graphCommand());
+  program.addCommand(rebaseCommand());
+  program.addCommand(configCommand());
 
   return program;
 }
 
-export async function run(argv: string[] = process.argv): Promise<0 | undefined> {
+export async function run(argv: string[] = process.argv): Promise<0 | 1> {
   try {
-    const program = await buildProgram(); //argv.slice(2)
+    const program = await buildProgram();
     await program.parseAsync(argv);
     return 0;
   } catch (error) {
-    return 0;
+    // If the error is already handled by the action() wrapper, it will have set process.exitCode.
+    // For unhandled errors, we set exit code 1 and print a generic message.
+    if (error instanceof Error) {
+      console.error(`Error: ${error.message}`);
+    } else {
+      console.error(`Unexpected error: ${String(error)}`);
+    }
+    return 1;
   }
 }

@@ -1,7 +1,7 @@
 /** A short-lived topic-branch category (e.g. `feature`, `hotfix`). */
 export interface BranchType {
   readonly name: string;
-  readonly aliases?: readonly string[];
+  readonly aliases?: readonly string[] | undefined;
   /** Base branch new topics of this type are created from. */
   readonly base: string;
   /** Base branch(es) this type is merged into on `finish`. */
@@ -9,7 +9,7 @@ export interface BranchType {
   /** Branch-name prefix, e.g. `feature/`. */
   readonly prefix: string;
   /** Explicit remote to push to; falls back to workflow-level remote config. */
-  readonly pushRemote?: string;
+  readonly pushRemote?: string | undefined;
 }
 
 /** A topic branch resolved against a concrete workflow definition. */
