@@ -47,7 +47,7 @@ refactor blind; only touch code once the reference list below is complete.
       for any import path containing `../infrastructure/`, `../../infrastructure/`,
       or `src/infrastructure/`; log every hit as a P0 violation.
       **Confirmed:** `src/application/use-cases/init-workflow.use-case.ts` imports
-      `PresetName` and `presets` from `../../infrastructure/config/presets.js` — a
+      `PresetName` and `presets` from `../../domain/config/presets.js` — a
       direct `application → infrastructure` violation.
 - [ ] **P0.1-B — Duplicate symbol audit.** Two Preset implementations
       currently exist side by side:

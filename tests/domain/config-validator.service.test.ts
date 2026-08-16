@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ConfigValidatorService } from "../../src/domain/services/config-validator.service.js";
-import { classicPreset } from "../../src/infrastructure/config/presets.js";
+import { classicPreset } from "../../src/domain/config/presets.js";
 import type { WorkflowConfig } from "../../src/domain/entities/workflow-config.entity.js";
 
 describe("ConfigValidatorService", () => {

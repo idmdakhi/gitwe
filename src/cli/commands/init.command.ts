@@ -3,8 +3,8 @@ import { buildEngineDeps } from "../container.js";
 import { globalOptions, action } from "./shared.js";
 import { Engine } from "../../application/engine.js";
 import { printStructured, success, style, print } from "../output.js";
-import type { PresetName } from "../../infrastructure/config/presets.js";
-import { presets } from "../../infrastructure/config/presets.js";
+import type { PresetName } from "../../domain/config/presets.js";
+import { presets } from "../../domain/config/presets.js";
 import type {
   WorkflowConfig,
   VersioningConfig,
@@ -12,6 +12,7 @@ import type {
 } from "../../domain/entities/workflow-config.entity.js";
 import { runInitWizard, applyInitOverrides } from "./init-wizard.js";
 import { isInteractive } from "../prompts.js";
+import { omitUndefined } from "../../utils.js";
 
 const PRESETS = ["classic", "github", "gitlab"] as const;
 
@@ -37,18 +38,6 @@ function parseKeyValuePairs(pairs: string[]): Record<string, string> {
     result[key] = value;
   }
   return result;
-}
-
-// حذف کلیدهایی که مقدارشان undefined است
-function omitUndefined<T extends Record<string, unknown>>(obj: T): T {
-  const result: any = {};
-  for (const key of Object.keys(obj)) {
-    const val = obj[key];
-    if (val !== undefined) {
-      result[key] = val;
-    }
-  }
-  return result as T;
 }
 
 // اعمال تغییرات روی preset (برای حالت غیرتعاملی)

@@ -1,11 +1,14 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { FinishBranchUseCase } from "../../src/application/use-cases/finish-branch.use-case.js";
 import { WorkflowService } from "../../src/domain/services/workflow.service.js";
-import { classicPreset } from "../../src/infrastructure/config/presets.js";
+import { classicPreset } from "../../src/domain/config/presets.js";
 import { silentLogger } from "../../src/domain/ports/logger.port.js";
 import type { GitRepository } from "../../src/domain/ports/git-repository.port.js";
 import type { HookRunner } from "../../src/domain/ports/hook-runner.port.js";
-import type { OperationState, OperationStateStore } from "../../src/domain/ports/operation-state-store.port.js";
+import type {
+  OperationState,
+  OperationStateStore,
+} from "../../src/domain/ports/operation-state-store.port.js";
 
 /** Minimal in-memory fakes so the use case is tested without real git or disk. */
 function fakeGit(overrides: Partial<GitRepository> = {}): GitRepository {
@@ -36,6 +39,13 @@ function fakeGit(overrides: Partial<GitRepository> = {}): GitRepository {
     fetch: async () => undefined,
     push: async () => undefined,
     remoteExists: async () => true,
+    setUpstream: async () => undefined,
+    listTags: async () => [],
+    deleteTag: async () => undefined,
+    pushTags: async () => undefined,
+    deleteRemoteTag: async () => undefined,
+    raw: async (args: string[]) => "",
+    graph: async (root?: string) => "",
     ...overrides,
   };
 }
@@ -61,7 +71,13 @@ describe("FinishBranchUseCase", () => {
 
   it("merges a feature branch into develop and deletes it", async () => {
     const git = fakeGit();
-    const useCase = new FinishBranchUseCase(workflow, git, noopHooks, silentLogger, memoryStateStore());
+    const useCase = new FinishBranchUseCase(
+      workflow,
+      git,
+      noopHooks,
+      silentLogger,
+      memoryStateStore(),
+    );
 
     const result = await useCase.execute({ kind: "start", branch: "feature/login" });
 
@@ -80,10 +96,12 @@ describe("FinishBranchUseCase", () => {
     const stateStore = memoryStateStore();
     const useCase = new FinishBranchUseCase(workflow, git, noopHooks, silentLogger, stateStore);
 
-    await expect(useCase.execute({ kind: "start", branch: "feature/login" })).rejects.toMatchObject({
-      code: "CONFLICT",
-      files: ["src/index.ts"],
-    });
+    await expect(useCase.execute({ kind: "start", branch: "feature/login" })).rejects.toMatchObject(
+      {
+        code: "CONFLICT",
+        files: ["src/index.ts"],
+      },
+    );
     await expect(stateStore.exists()).resolves.toBe(true);
   });
 
@@ -115,11 +133,17 @@ describe("FinishBranchUseCase", () => {
 
   it("aborts an in-progress merge and clears state", async () => {
     let aborted = false;
-    const git = fakeGit({ mergeInProgress: async () => true, abortMerge: async () => void (aborted = true) });
+    const git = fakeGit({
+      mergeInProgress: async () => true,
+      abortMerge: async () => void (aborted = true),
+    });
     const stateStore = memoryStateStore();
     await stateStore.write({
-      operation: "finish", currentStep: "merge:develop", completedSteps: [],
-      data: {}, startedAt: new Date().toISOString(),
+      operation: "finish",
+      currentStep: "merge:develop",
+      completedSteps: [],
+      data: {},
+      startedAt: new Date().toISOString(),
     });
 
     const useCase = new FinishBranchUseCase(workflow, git, noopHooks, silentLogger, stateStore);

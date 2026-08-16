@@ -5,8 +5,10 @@ export interface MergeOptions {
 }
 
 export interface TagOptions {
-  readonly message?: string | undefined;
+  readonly message?: string;
   readonly annotated?: boolean;
+  readonly sign?: boolean;
+  readonly signingKey?: string;
 }
 
 export interface PushOptions {

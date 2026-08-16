@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { WorkflowService } from "../../src/domain/services/workflow.service.js";
-import { classicPreset } from "../../src/infrastructure/config/presets.js";
+import { classicPreset } from "../../src/domain/config/presets.js";
 
 describe("WorkflowService", () => {
   const workflow = new WorkflowService(classicPreset());

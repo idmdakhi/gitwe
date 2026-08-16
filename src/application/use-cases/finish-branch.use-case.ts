@@ -6,19 +6,37 @@ import {
 } from "../../domain/errors/index.js";
 import type { WorkflowService } from "../../domain/services/workflow.service.js";
 import { VersionCalculatorService } from "../../domain/services/version-calculator.service.js";
-import type { GitRepository } from "../../domain/ports/git-repository.port.js";
+import type { GitRepository, TagOptions } from "../../domain/ports/git-repository.port.js";
 import type { HookRunner } from "../../domain/ports/hook-runner.port.js";
 import type { Logger } from "../../domain/ports/logger.port.js";
 import type {
   OperationState,
   OperationStateStore,
 } from "../../domain/ports/operation-state-store.port.js";
+import { omitUndefined } from "../../utils.js";
 
 export interface FinishBranchInput {
   readonly branch: string;
   readonly squash?: boolean;
   readonly push?: boolean;
   readonly currentVersion?: string;
+  // جدید
+  readonly rebase?: boolean;
+  readonly noFF?: boolean;
+  readonly mergeMessage?: string;
+  readonly squashMessage?: string;
+  readonly tag?: boolean;
+  readonly noTag?: boolean;
+  readonly tagname?: string;
+  readonly tagMessage?: string;
+  readonly signTag?: boolean;
+  readonly signingKey?: string;
+  readonly keep?: boolean;
+  readonly keepRemote?: boolean;
+  readonly forceDelete?: boolean;
+  readonly force?: boolean;
+  readonly fetch?: boolean;
+  readonly bump?: "major" | "minor" | "patch";
 }
 
 export type FinishAction =
@@ -40,8 +58,24 @@ interface FinishStateData {
   readonly mergedInto: string[];
   readonly squash: boolean;
   readonly push: boolean;
-  readonly tag?: string;
-  readonly currentVersion?: string;
+  readonly tag?: string | undefined;
+  readonly currentVersion?: string | undefined;
+  readonly rebase: boolean;
+  readonly noFF: boolean;
+  readonly mergeMessage?: string | undefined;
+  readonly squashMessage?: string | undefined;
+  readonly tagOverride?: boolean | undefined; // true = create, false = skip
+  readonly noTag?: boolean | undefined;
+  readonly tagname?: string | undefined;
+  readonly tagMessage?: string | undefined;
+  readonly signTag?: boolean | undefined;
+  readonly signingKey?: string | undefined;
+  readonly keep: boolean; // true = keep local branch
+  readonly keepRemote: boolean; // true = keep remote branch
+  readonly forceDelete: boolean;
+  readonly force: boolean; // skip remote sync check
+  readonly fetch: boolean; // fetch before finishing
+  readonly bump?: "major" | "minor" | "patch" | undefined;
 }
 
 const OPERATION = "finish";
@@ -86,14 +120,49 @@ export class FinishBranchUseCase {
       throw new ValidationError(`branch "${resolved.branch}" does not exist`);
     }
 
+    // تعیین مقادیر پیش‌فرض
+    const squash = input.squash ?? this.workflow.allowsSquash(resolved.type);
+    const rebase = input.rebase ?? false;
+    const noFF = input.noFF ?? false;
+    const mergeMessage = input.mergeMessage;
+    const squashMessage = input.squashMessage;
+    const tagOverride = input.tag;
+    const noTag = input.noTag ?? false;
+    const tagname = input.tagname;
+    const tagMessage = input.tagMessage;
+    const signTag = input.signTag ?? false;
+    const signingKey = input.signingKey;
+    const keep = input.keep ?? !this.workflow.shouldDeleteOnFinish(resolved.type);
+    const keepRemote = input.keepRemote ?? true; // default: keep remote branch
+    const forceDelete = input.forceDelete ?? false;
+    const force = input.force ?? false;
+    const fetch = input.fetch ?? true; // default: fetch
+    const bump = input.bump;
+
     const state: FinishStateData = {
       branch: resolved.branch,
       typeName: resolved.type.name,
       targets: resolved.type.target,
       mergedInto: [],
-      squash: input.squash ?? this.workflow.allowsSquash(resolved.type),
+      squash,
       push: input.push ?? false,
-      ...(input.currentVersion ? { currentVersion: input.currentVersion } : {}),
+      currentVersion: input.currentVersion,
+      rebase,
+      noFF,
+      mergeMessage,
+      squashMessage,
+      tagOverride,
+      noTag,
+      tagname,
+      tagMessage,
+      signTag,
+      signingKey,
+      keep,
+      keepRemote,
+      forceDelete,
+      force,
+      fetch,
+      bump,
     };
 
     await this.hooks.run("pre-finish", { branch: state.branch, branchType: state.typeName });
@@ -129,7 +198,6 @@ export class FinishBranchUseCase {
   }
 
   // ---- state machine --------------------------------------------------------
-
   private async runFrom(
     state: FinishStateData,
     completed: readonly string[] = [],
@@ -137,18 +205,55 @@ export class FinishBranchUseCase {
     const done = new Set(completed);
     const type = this.workflow.requireBranchType(state.typeName);
 
-    // ---- Merge into each target ------------------------------------------
+    // ---- Fetch (if enabled) ------------------------------------------------
+    if (state.fetch && !done.has("fetch")) {
+      for (const remote of this.workflow.fetchRemotes()) {
+        await this.git.fetch(remote);
+      }
+      done.add("fetch");
+    }
+
+    // ---- Remote sync check (unless --force) --------------------------------
+    if (!state.force && !done.has("remote-sync")) {
+      const upstream = await this.git.upstreamOf(state.branch);
+      if (upstream) {
+        const { behind } = await this.git.aheadBehind(state.branch, upstream);
+        if (behind > 0) {
+          throw new GitCommandError(
+            `Topic branch "${state.branch}" is behind its remote (${upstream}) by ${behind} commit(s).`,
+            `Run 'git pull --rebase' first, or use --force to skip this check.`,
+          );
+        }
+      }
+      done.add("remote-sync");
+    }
+
+    // ---- Rebase if requested ----------------------------------------------
+    if (state.rebase && !done.has("rebase")) {
+      const parent = type.base;
+      await this.git.checkout(state.branch);
+      await this.git.rebase(parent);
+      done.add("rebase");
+    }
+
+    // ---- Merge into targets ------------------------------------------------
     for (const target of state.targets) {
       const step = `merge:${target}`;
       if (done.has(step)) continue;
 
       await this.git.checkout(target);
       try {
-        await this.git.merge(state.branch, {
-          noFastForward: !state.squash,
+        const mergeOptions: any = {
+          noFastForward: state.noFF,
           squash: state.squash,
-          message: `Merge ${state.branch} into ${target}`,
-        });
+        };
+        if (state.squash && state.squashMessage) {
+          mergeOptions.message = state.squashMessage;
+        } else if (state.mergeMessage) {
+          let msg = state.mergeMessage.replace(/%b/g, state.branch).replace(/%p/g, target);
+          mergeOptions.message = msg;
+        }
+        await this.git.merge(state.branch, mergeOptions);
       } catch {
         if (await this.git.mergeInProgress()) {
           await this.persist(state, [...done], step, target);
@@ -163,23 +268,44 @@ export class FinishBranchUseCase {
     }
 
     // ---- Tagging ----------------------------------------------------------
-    if (this.workflow.shouldTag(type) && !done.has("tag")) {
-      const bump = this.workflow.versionBumpFor(type);
-      if (state.currentVersion && bump !== "none") {
-        const next = this.versions.bump(state.currentVersion, bump);
-        const tagName = this.versions.format(next, this.workflow.tagPrefix());
-        if (!(await this.git.tagExists(tagName))) {
-          await this.git.createTag(tagName, { message: `Release ${tagName}` });
+    const shouldTag =
+      state.tagOverride !== undefined
+        ? state.tagOverride
+        : !state.noTag && this.workflow.shouldTag(type);
+
+    if (shouldTag && !done.has("tag")) {
+      let tagName: string;
+      if (state.tagname) {
+        tagName = state.tagname;
+      } else {
+        const bump = state.bump ?? this.workflow.versionBumpFor(type);
+        if (state.currentVersion && bump !== "none") {
+          const next = this.versions.bump(state.currentVersion, bump);
+          tagName = this.versions.format(next, this.workflow.tagPrefix());
+        } else {
+          tagName = `${this.workflow.tagPrefix()}${Date.now()}`;
         }
-        (state as { tag?: string }).tag = tagName;
       }
+      if (!(await this.git.tagExists(tagName))) {
+        await this.git.createTag(
+          tagName,
+          omitUndefined({
+            annotated: true,
+            message: state.tagMessage,
+            sign: state.signTag,
+            signingKey: state.signingKey,
+          }) as TagOptions,
+        );
+      }
+      (state as { tag?: string }).tag = tagName;
       done.add("tag");
     }
 
-    // ---- Push with remote sync check --------------------------------------
+    // ---- Push (if requested) ----------------------------------------------
     if (state.push && !done.has("push")) {
-      // Pre‑push validation: ensure each target branch is not behind its remote
       const remotes = this.workflow.pushRemotesFor(type);
+
+      // Pre‑push validation: ensure each target is not behind its remote
       for (const remote of remotes) {
         for (const target of state.targets) {
           const upstream = await this.git.upstreamOf(target);
@@ -201,7 +327,6 @@ export class FinishBranchUseCase {
           try {
             await this.git.push(remote, target, { followTags: true });
           } catch (error) {
-            // Improve error messaging for common push failures
             if (error instanceof GitCommandError) {
               const msg = error.message.toLowerCase();
               if (msg.includes("non-fast-forward")) {
@@ -223,7 +348,6 @@ export class FinishBranchUseCase {
                 );
               }
             }
-            // Re‑throw as is if not caught above
             throw error;
           }
         }
@@ -233,10 +357,21 @@ export class FinishBranchUseCase {
 
     // ---- Delete local branch ----------------------------------------------
     let deleted = false;
-    if (this.workflow.shouldDeleteOnFinish(type) && !done.has("delete")) {
-      await this.git.deleteBranch(state.branch, true);
+    if (!state.keep && !done.has("delete")) {
+      const force = state.forceDelete || false;
+      await this.git.deleteBranch(state.branch, force);
       deleted = true;
       done.add("delete");
+    }
+
+    // ---- Delete remote branch if requested --------------------------------
+    if (!state.keepRemote && !done.has("delete-remote")) {
+      for (const remote of this.workflow.pushRemotesFor(type)) {
+        if (await this.git.remoteBranchExists(remote, state.branch)) {
+          await this.git.deleteRemoteBranch(remote, state.branch);
+        }
+      }
+      done.add("delete-remote");
     }
 
     // ---- Cleanup ----------------------------------------------------------

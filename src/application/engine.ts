@@ -2,7 +2,7 @@ import type { WorkflowConfig } from "../domain/entities/workflow-config.entity.j
 import { NotInitializedError, ValidationError } from "../domain/errors/index.js";
 import { WorkflowService } from "../domain/services/workflow.service.js";
 import type { ConfigRepository } from "../domain/ports/config-repository.port.js";
-import type { GitRepository } from "../domain/ports/git-repository.port.js";
+import type { GitRepository, TagOptions } from "../domain/ports/git-repository.port.js";
 import type { HookRunner } from "../domain/ports/hook-runner.port.js";
 import type { Logger } from "../domain/ports/logger.port.js";
 import { silentLogger } from "../domain/ports/logger.port.js";
@@ -26,6 +26,7 @@ import {
   EditBaseOptions,
   EditBranchTypeOptions,
 } from "../domain/services/config-editor.service.js";
+import { omitUndefined } from "../utils.js";
 
 export interface EngineDeps {
   readonly configRepo: ConfigRepository;
@@ -316,7 +317,28 @@ export class Engine {
 
   finish(
     branch: string,
-    options: { squash?: boolean; push?: boolean; currentVersion?: string } = {},
+    options: {
+      squash?: boolean;
+      push?: boolean;
+      currentVersion?: string;
+      // جدید
+      rebase?: boolean;
+      noFF?: boolean;
+      mergeMessage?: string;
+      squashMessage?: string;
+      tag?: boolean;
+      noTag?: boolean;
+      tagname?: string;
+      tagMessage?: string;
+      signTag?: boolean;
+      signingKey?: string;
+      keep?: boolean;
+      keepRemote?: boolean;
+      forceDelete?: boolean;
+      force?: boolean;
+      fetch?: boolean;
+      bump?: "major" | "minor" | "patch";
+    } = {},
   ) {
     return new FinishBranchUseCase(
       this.workflow,
@@ -440,7 +462,10 @@ export class Engine {
 
     // --- Create ---
     if (name) {
-      await this.deps.git.createTag(name, { annotated: true, message: options.message });
+      await this.deps.git.createTag(
+        name,
+        omitUndefined({ annotated: true, message: options.message }) as TagOptions,
+      );
       const result: any = { tags: await this.deps.git.listTags(), created: name };
 
       if (options.push) {

@@ -2,7 +2,7 @@ import type {
   MergeStrategy,
   WorkflowConfig,
 } from "../../domain/entities/workflow-config.entity.js";
-import { presets, type PresetName } from "../../infrastructure/config/presets.js";
+import { presets, type PresetName } from "../../domain/config/presets.js";
 import { ask, choose, confirm } from "../prompts.js";
 import { style, print } from "../output.js";
 

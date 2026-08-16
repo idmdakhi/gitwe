@@ -2,8 +2,13 @@
 export { Engine } from "./application/engine.js";
 export type { EngineDeps } from "./application/engine.js";
 export * from "./domain/index.js";
-export { presets, classicPreset, githubPreset, gitlabPreset } from "./infrastructure/config/presets.js";
-export type { PresetName } from "./infrastructure/config/presets.js";
+export {
+  presets,
+  classicPreset,
+  githubPreset,
+  gitlabPreset,
+  type PresetName,
+} from "./domain/config/presets.js";
 export { ShellGitRepository } from "./infrastructure/git/shell-git-repository.adapter.js";
 export { YamlConfigRepository } from "./infrastructure/config/yaml-config-repository.adapter.js";
 export { FileHookRunner } from "./infrastructure/hooks/file-hook-runner.adapter.js";

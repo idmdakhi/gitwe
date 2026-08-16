@@ -7,6 +7,7 @@ import {
   EditBaseOptions,
   EditBranchTypeOptions,
 } from "../../domain/services/config-editor.service.js";
+import { omitUndefined } from "../../utils.js";
 
 // ---- root config command -------------------------------------------------
 export function configCommand(): Command {
@@ -74,7 +75,7 @@ export function configCommand(): Command {
           const updated = await engine.configAdd(
             "base",
             name,
-            pickDefined({
+            omitUndefined({
               base,
               aliases: opts.aliases ? parseCsv(opts.aliases) : undefined,
               protected: opts.protected,
@@ -98,7 +99,7 @@ export function configCommand(): Command {
           const updated = await engine.configAdd(
             "branchType",
             name,
-            pickDefined({
+            omitUndefined({
               base,
               target: parseCsv(opts.target),
               prefix: opts.prefix,
@@ -146,7 +147,7 @@ export function configCommand(): Command {
           const updated = await engine.configEdit(
             "base",
             name,
-            pickDefined({
+            omitUndefined({
               base: opts.base,
               aliases: opts.aliases ? parseCsv(opts.aliases) : undefined,
               protected: protectedVal,
@@ -161,7 +162,7 @@ export function configCommand(): Command {
           const updated = await engine.configEdit(
             "branchType",
             name,
-            pickDefined({
+            omitUndefined({
               base: opts.base,
               prefix: opts.prefix,
               target: opts.target ? parseCsv(opts.target) : undefined,
@@ -223,34 +224,4 @@ function parseCsv(value: string): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-}
-
-function omitUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
-  const result: Partial<T> = {};
-  for (const key of Object.keys(obj) as (keyof T)[]) {
-    if (obj[key] !== undefined) {
-      result[key] = obj[key];
-    }
-  }
-  return result;
-}
-
-function defined<T extends Record<string, unknown>>(obj: T): T {
-  const result: any = {};
-  for (const key of Object.keys(obj)) {
-    if (obj[key] !== undefined) {
-      result[key] = obj[key];
-    }
-  }
-  return result as T;
-}
-
-function pickDefined<T extends Record<string, unknown>>(obj: T): T {
-  const result: any = {};
-  for (const key of Object.keys(obj)) {
-    if (obj[key] !== undefined) {
-      result[key] = obj[key];
-    }
-  }
-  return result as T;
 }

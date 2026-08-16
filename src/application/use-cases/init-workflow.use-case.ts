@@ -3,8 +3,8 @@ import type { WorkflowConfig } from "../../domain/entities/workflow-config.entit
 import type { ConfigRepository } from "../../domain/ports/config-repository.port.js";
 import type { GitRepository } from "../../domain/ports/git-repository.port.js";
 import { ConfigValidatorService } from "../../domain/services/config-validator.service.js";
-import type { PresetName } from "../../infrastructure/config/presets.js";
-import { presets } from "../../infrastructure/config/presets.js";
+import type { PresetName } from "../../domain/config/presets.js";
+import { presets } from "../../domain/config/presets.js";
 
 export interface InitWorkflowInput {
   /** Start from this preset when `config` is not provided. */
