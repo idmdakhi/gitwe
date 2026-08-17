@@ -8,12 +8,8 @@ import { ValidationError } from "../../domain/errors/index.js";
  * Fetch configured remotes and update the current topic branch
  * from its workflow parent.
  *
- * Equivalent to:
- *   gitwe update --fetch
- *
- * By default the update is performed with merge.
- * Use `--rebase` to rebase the topic onto its parent.
  */
+// sync = fetch remote + update from workflow parent
 export function syncCommand(): Command {
   return new Command("sync")
     .description("fetch the remote and update the current topic branch from its parent")

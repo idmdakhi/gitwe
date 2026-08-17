@@ -1,0 +1,36 @@
+# .gitwe/hooks.yaml
+version: 1
+
+path: .gitwe/hooks
+
+# هوک‌های inline (بدون نیاز به فایل جداگانه)
+inline:
+  pre-start: "echo '🚀 Starting branch $GITWE_BRANCH'"
+  post-finish: "echo '✅ Finished $GITWE_BRANCH → $GITWE_TARGET'"
+
+# هوک‌های پیشرفته با تنظیمات کامل
+advanced:
+  pre-finish:
+    script: .gitwe/hooks/pre-finish-advanced
+    when: "type == 'release'"
+    continueOnError: false
+    stdin: true
+
+  post-tag:
+    script: .gitwe/hooks/post-tag-advanced
+    when: "tagName =~ '^v[0-9]+'"
+    continueOnError: true
+    stdin: true
+
+# هوک‌های مخصوص نوع شاخه
+typeOverrides:
+  release:
+    pre-finish: .gitwe/hooks/pre-finish-release
+    post-finish:
+      script: .gitwe/hooks/post-finish-release
+      continueOnError: true
+
+  hotfix:
+    pre-finish:
+      script: .gitwe/hooks/pre-finish-hotfix
+      when: "target == 'main'"

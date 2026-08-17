@@ -42,11 +42,17 @@ merge:
 
 hooks:
   enabled: true
-  path: .gitwe/hooks
+  path: .gitwe/hook.yaml | .gitwe/hooks
+  inline:
+    pre-start: "echo 'Starting branch $GITWE_BRANCH'"
+    post-finish: "echo 'Finished $GITWE_BRANCH → $GITWE_TARGET'"
 
 versioning:
   enabled: true
   path: .gitwe/version.yaml
+  tagTypes: [release, hotfix]
+  tagTargets: [root] # root = no base on baseBranches
+  tagPrefix: v
 
 changelog:
   enabled: false
