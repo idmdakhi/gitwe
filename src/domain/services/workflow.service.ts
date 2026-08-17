@@ -159,7 +159,7 @@ export class WorkflowService {
   // ---- remotes --------------------------------------------------------------
 
   get defaultRemote(): string {
-    return this.config.remote?.name ?? "origin";
+    return this.config.remote?.primary ?? "origin";
   }
 
   pushRemotesFor(type: BranchType): readonly string[] {

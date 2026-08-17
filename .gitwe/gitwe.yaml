@@ -53,7 +53,7 @@ changelog:
   path: ".gitwe/changelog.md"
 
 remote:
-  name: origin
+  primary: origin
   autoFetch: true
   fetch: [origin]
   autoPush: false

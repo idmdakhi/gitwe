@@ -71,7 +71,7 @@ function applyOverrides(
     next = {
       ...next,
       remote: {
-        name: overrides.remote,
+        primary: overrides.remote,
         autoFetch: next.remote?.autoFetch ?? true,
         fetch: [overrides.remote],
         autoPush: next.remote?.autoPush ?? false,

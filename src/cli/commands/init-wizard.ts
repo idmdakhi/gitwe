@@ -103,11 +103,11 @@ export async function runInitWizard(
   }
 
   // ---- remote -----------------------------------------------------------
-  const remoteName = await ask("Default remote name", config.remote?.name ?? "origin");
+  const remoteName = await ask("Default remote name", config.remote?.primary ?? "origin");
   config = {
     ...config,
     remote: {
-      name: remoteName,
+      primary: remoteName,
       autoFetch: config.remote?.autoFetch ?? true,
       fetch: [remoteName],
       autoPush: config.remote?.autoPush ?? false,
@@ -162,7 +162,7 @@ export async function runInitWizard(
   print(`  base branches: ${config.baseBranches.map((b) => b.name).join(", ")}`);
   print(`  branch types:  ${config.branchTypes.map((t) => `${t.name} (${t.prefix})`).join(", ")}`);
   print(`  merge:         ${config.merge?.strategy ?? "merge"}`);
-  print(`  remote:        ${config.remote?.name ?? "origin"}`);
+  print(`  remote:        ${config.remote?.primary ?? "origin"}`);
   print(
     `  versioning:    ${config.versioning?.enabled ? `on (${config.versioning.tagPrefix})` : "off"}`,
   );
@@ -227,7 +227,7 @@ export function applyInitOverrides(
     next = {
       ...next,
       remote: {
-        name: overrides.remote,
+        primary: overrides.remote,
         autoFetch: next.remote?.autoFetch ?? true,
         fetch: [overrides.remote],
         autoPush: next.remote?.autoPush ?? false,

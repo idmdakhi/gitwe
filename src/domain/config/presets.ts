@@ -46,7 +46,7 @@ export function classicPreset(): WorkflowConfig {
       bumpRules: { minor: ["release"], patch: ["hotfix"] },
     },
     remote: {
-      name: "origin",
+      primary: "origin",
       autoFetch: true,
       fetch: ["origin"],
       autoPush: false,
@@ -67,7 +67,7 @@ export function githubPreset(): WorkflowConfig {
     ],
     merge: { strategy: "squash", deleteOnFinish: ["feature", "bugfix"] },
     remote: {
-      name: "origin",
+      primary: "origin",
       autoFetch: true,
       fetch: ["origin"],
       autoPush: false,
@@ -98,7 +98,7 @@ export function gitlabPreset(): WorkflowConfig {
     ],
     merge: { strategy: "merge", deleteOnFinish: ["feature", "hotfix"] },
     remote: {
-      name: "origin",
+      primary: "origin",
       autoFetch: true,
       fetch: ["origin"],
       autoPush: false,

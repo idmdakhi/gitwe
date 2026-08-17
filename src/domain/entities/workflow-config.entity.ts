@@ -69,7 +69,7 @@ export interface ChangelogConfig {
 }
 
 export interface RemoteConfig {
-  readonly name: string;
+  readonly primary: string;
   readonly autoFetch: boolean;
   readonly fetch: readonly string[];
   readonly autoPush: boolean;
