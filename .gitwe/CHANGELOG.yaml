@@ -1,3 +1,5 @@
+# .gitwe/changelog.yaml
+version: 1
+
 enabled: false
-path: "CHANGELOG.md"
-template: ".gitwe/CHANGELOG.template.md"
+templatePath: ".gitwe/changelog.template.md"

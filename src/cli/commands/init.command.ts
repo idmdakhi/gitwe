@@ -92,7 +92,7 @@ function applyOverrides(
     const enabled = overrides.versioningEnabled ?? currentVersioning?.enabled ?? false;
     const tagPrefix = overrides.tagPrefix ?? currentVersioning?.tagPrefix ?? "v";
     const path = overrides.versioningPath ?? currentVersioning?.path;
-    const tag = currentVersioning?.tag ?? [];
+    const tag = currentVersioning?.tagTypes ?? [];
     const bumpRules = currentVersioning?.bumpRules;
 
     newVersioning = omitUndefined({
@@ -165,7 +165,7 @@ export function initCommand(): Command {
           force?: boolean;
           preset: string;
           defaults: boolean;
-          file?: string;
+          path?: string;
           createBranches?: boolean;
           branch: string[];
           prefix: string[];
@@ -224,7 +224,7 @@ export function initCommand(): Command {
         // ---------- ساخت deps و اجرای Engine.init ----------
         const deps = buildEngineDeps({
           ...globals,
-          ...(opts.file ? { config: opts.file } : {}),
+          ...(opts.path ? { config: opts.path } : {}),
         });
 
         const engine = await Engine.init(deps, {

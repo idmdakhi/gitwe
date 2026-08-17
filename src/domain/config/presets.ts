@@ -10,9 +10,27 @@ export function classicPreset(): WorkflowConfig {
       { name: "develop", aliases: ["dev"], base: "main", protected: true },
     ],
     branchTypes: [
-      { name: "feature", aliases: ["feat"], base: "develop", target: ["develop"], prefix: "feature/" },
-      { name: "release", aliases: ["rel"], base: "develop", target: ["main", "develop"], prefix: "release/" },
-      { name: "hotfix", aliases: ["fix"], base: "main", target: ["main", "develop"], prefix: "hotfix/" },
+      {
+        name: "feature",
+        aliases: ["feat"],
+        base: "develop",
+        target: ["develop"],
+        prefix: "feature/",
+      },
+      {
+        name: "release",
+        aliases: ["rel"],
+        base: "develop",
+        target: ["main", "develop"],
+        prefix: "release/",
+      },
+      {
+        name: "hotfix",
+        aliases: ["fix"],
+        base: "main",
+        target: ["main", "develop"],
+        prefix: "hotfix/",
+      },
       { name: "support", aliases: ["lts"], base: "main", target: ["main"], prefix: "support/" },
     ],
     merge: {
@@ -24,10 +42,16 @@ export function classicPreset(): WorkflowConfig {
     versioning: {
       enabled: true,
       tagPrefix: "v",
-      tag: ["release", "hotfix"],
+      tagTypes: ["release", "hotfix"],
       bumpRules: { minor: ["release"], patch: ["hotfix"] },
     },
-    remote: { name: "origin", autoFetch: true, fetch: ["origin"], autoPush: false, push: ["origin"] },
+    remote: {
+      name: "origin",
+      autoFetch: true,
+      fetch: ["origin"],
+      autoPush: false,
+      push: ["origin"],
+    },
   };
 }
 
@@ -42,7 +66,13 @@ export function githubPreset(): WorkflowConfig {
       { name: "bugfix", aliases: ["fix"], base: "main", target: ["main"], prefix: "bugfix/" },
     ],
     merge: { strategy: "squash", deleteOnFinish: ["feature", "bugfix"] },
-    remote: { name: "origin", autoFetch: true, fetch: ["origin"], autoPush: false, push: ["origin"] },
+    remote: {
+      name: "origin",
+      autoFetch: true,
+      fetch: ["origin"],
+      autoPush: false,
+      push: ["origin"],
+    },
   };
 }
 
@@ -58,10 +88,22 @@ export function gitlabPreset(): WorkflowConfig {
     ],
     branchTypes: [
       { name: "feature", aliases: ["feat"], base: "main", target: ["main"], prefix: "feature/" },
-      { name: "hotfix", aliases: ["fix"], base: "production", target: ["production", "main"], prefix: "hotfix/" },
+      {
+        name: "hotfix",
+        aliases: ["fix"],
+        base: "production",
+        target: ["production", "main"],
+        prefix: "hotfix/",
+      },
     ],
     merge: { strategy: "merge", deleteOnFinish: ["feature", "hotfix"] },
-    remote: { name: "origin", autoFetch: true, fetch: ["origin"], autoPush: false, push: ["origin"] },
+    remote: {
+      name: "origin",
+      autoFetch: true,
+      fetch: ["origin"],
+      autoPush: false,
+      push: ["origin"],
+    },
   };
 }
 

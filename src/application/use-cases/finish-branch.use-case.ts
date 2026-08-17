@@ -5,7 +5,10 @@ import {
   ValidationError,
 } from "../../domain/errors/index.js";
 import type { WorkflowService } from "../../domain/services/workflow.service.js";
-import { VersionCalculatorService } from "../../domain/services/version-calculator.service.js";
+import {
+  SemVer,
+  VersionCalculatorService,
+} from "../../domain/services/version-calculator.service.js";
 import type { GitRepository, TagOptions } from "../../domain/ports/git-repository.port.js";
 import type { HookRunner } from "../../domain/ports/hook-runner.port.js";
 import type { Logger } from "../../domain/ports/logger.port.js";
@@ -14,6 +17,9 @@ import type {
   OperationStateStore,
 } from "../../domain/ports/operation-state-store.port.js";
 import { omitUndefined } from "../../utils.js";
+import { join } from "node:path";
+import { BranchType } from "../../domain/entities/branch-type.entity.js";
+import yaml from "js-yaml";
 
 export interface FinishBranchInput {
   readonly branch: string;
@@ -268,10 +274,7 @@ export class FinishBranchUseCase {
     }
 
     // ---- Tagging ----------------------------------------------------------
-    const shouldTag =
-      state.tagOverride !== undefined
-        ? state.tagOverride
-        : !state.noTag && this.workflow.shouldTag(type);
+    const shouldTag = state.tagOverride ?? this.workflow.shouldTagForFinish(type, state.targets);
 
     if (shouldTag && !done.has("tag")) {
       let tagName: string;
@@ -400,5 +403,91 @@ export class FinishBranchUseCase {
       startedAt: new Date().toISOString(),
     };
     await this.stateStore.write(record);
+  }
+
+  // src/application/use-cases/finish-branch.use-case.ts
+
+  private async createTag(state: FinishStateData, type: BranchType): Promise<string> {
+    const versioning = this.workflow.config.versioning;
+    if (!versioning?.enabled) {
+      throw new Error("Versioning is disabled");
+    }
+
+    const tagPrefix = versioning.tagPrefix ?? "v";
+    const format = versioning.format ?? "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}";
+
+    // ۱. تعیین نوع افزایش نسخه
+    const bump = state.bump ?? this.workflow.versionBumpFor(type);
+    let version: SemVer;
+
+    if (state.currentVersion && bump !== "none") {
+      version = this.versions.bump(state.currentVersion, bump);
+    } else {
+      // fallback: استفاده از timestamp برای نسخه‌های بدون currentVersion
+      const now = new Date();
+      version = {
+        major: now.getFullYear(),
+        minor: now.getMonth() + 1,
+        patch: now.getDate(),
+      };
+    }
+
+    // ۲. جایگزینی در قالب اصلی
+    let tagName = format
+      .replace(/{{tagPrefix}}/g, tagPrefix)
+      .replace(/{{major}}/g, String(version.major))
+      .replace(/{{minor}}/g, String(version.minor))
+      .replace(/{{patch}}/g, String(version.patch));
+
+    // ۳. افزودن prerelease (در صورت فعال بودن)
+    if (versioning.prerelease?.enabled && version.prerelease) {
+      const prereleaseFormat = versioning.prerelease.format || "{{type}}.{{number}}";
+      // استخراج نوع prerelease از bumpRules (مثلاً "alpha")
+      const prereleaseType = versioning.bumpRules?.prerelease?.[0] ?? "rc";
+      const numberMatch = version.prerelease.match(/\d+$/);
+      const number = numberMatch ? parseInt(numberMatch[0], 10) : 0;
+      const prereleaseStr = prereleaseFormat
+        .replace(/{{type}}/g, prereleaseType)
+        .replace(/{{number}}/g, String(number + 1));
+      tagName += `-${prereleaseStr}`;
+    }
+
+    // ۴. ایجاد تگ در git
+    const tagOptions: TagOptions = {
+      annotated: versioning.annotated !== false,
+      sign: versioning.sign === true,
+      ...(versioning.signingKey ? { signingKey: versioning.signingKey } : {}),
+      message: state.tagMessage ?? `Release ${tagName}`,
+    };
+
+    await this.git.createTag(tagName, tagOptions);
+
+    // ۵. به‌روزرسانی فایل version.yaml (در صورت فعال بودن autoCommit)
+    if (versioning.autoCommit && state.currentVersion) {
+      const versionFilePath = join(this.git.cwd, ".gitwe/version.yaml");
+      // محاسبه نسخه جدید به‌صورت string
+      const newVersion = this.versions.format(version, tagPrefix);
+
+      // خواندن فایل فعلی، به‌روزرسانی فیلد version و ذخیره مجدد
+      const raw = await this.git.raw(["cat-file", "--textconv", versionFilePath]);
+      const currentContent = yaml.load(raw) as Record<string, any>;
+      currentContent.version = newVersion;
+      const updatedYaml = yaml.dump(currentContent, { lineWidth: 100 });
+
+      // نوشتن فایل (از طریق git یا fs)
+      await this.git.raw(["add", versionFilePath]);
+      const message =
+        versioning.commitMessage?.replace(/{{version}}/g, newVersion) ??
+        `chore: bump version to ${newVersion}`;
+      await this.git.raw(["commit", "-m", message]);
+    }
+
+    // ۶. ارسال تگ به ریموت (در صورت فعال بودن pushTags)
+    if (versioning.pushTags) {
+      const remote = this.workflow.defaultRemote;
+      await this.git.pushTags(remote, tagName);
+    }
+
+    return tagName;
   }
 }

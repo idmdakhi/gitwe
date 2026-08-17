@@ -30,7 +30,16 @@ export class ConfigValidationResult {
 export class ConfigValidatorService {
   validate(config: WorkflowConfig): ConfigValidationResult {
     const issues: ValidationIssue[] = [];
-
+    if (config.versioning?.tagTargets) {
+      for (const target of config.versioning.tagTargets) {
+        if (!config.baseBranches.some((b) => b.name === target)) {
+          issues.push({
+            path: "versioning.tagTargets",
+            message: `target branch "${target}" not found in baseBranches`,
+          });
+        }
+      }
+    }
     this.checkBaseBranches(config, issues);
     this.checkBranchTypes(config, issues);
     this.checkMergeConfig(config, issues);
@@ -78,7 +87,10 @@ export class ConfigValidatorService {
       let cursor: string | undefined = start.base;
       while (cursor !== undefined) {
         if (seen.has(cursor)) {
-          issues.push({ path: `baseBranches.${start.name}`, message: "base branch tree contains a cycle" });
+          issues.push({
+            path: `baseBranches.${start.name}`,
+            message: "base branch tree contains a cycle",
+          });
           break;
         }
         seen.add(cursor);
@@ -124,7 +136,10 @@ export class ConfigValidatorService {
       }
 
       if (t.target.length === 0) {
-        issues.push({ path: `branchTypes.${t.name}.target`, message: "at least one target is required" });
+        issues.push({
+          path: `branchTypes.${t.name}.target`,
+          message: "at least one target is required",
+        });
       }
       for (const target of t.target) {
         if (!baseBranches.some((b) => b.name === target)) {

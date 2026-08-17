@@ -30,18 +30,37 @@ export interface HookConfig {
 
 export type VersionBump = "major" | "minor" | "patch" | "prerelease" | "none";
 
+// domain/entities/versioning-config.entity.ts (جدید)
 export interface VersioningConfig {
-  readonly enabled: boolean;
-  readonly path?: string;
-  readonly tagPrefix: string;
-  /** Branch types that get tagged on finish. */
-  readonly tag: readonly string[];
-  readonly bumpRules?: {
-    readonly major?: readonly string[];
-    readonly minor?: readonly string[];
-    readonly patch?: readonly string[];
-    readonly prerelease?: readonly string[];
+  enabled: boolean;
+  path?: string;
+  tagPrefix?: string;
+  tagTypes?: readonly string[];
+  tagTargets?: readonly string[];
+  bumpRules?: {
+    major?: readonly string[];
+    minor?: readonly string[];
+    patch?: readonly string[];
+    prerelease?: readonly string[];
   };
+  format?: string;
+  annotated?: boolean;
+  sign?: boolean;
+  signingKey?: string;
+  pushTags?: boolean;
+  autoCommit?: boolean;
+  commitMessage?: string;
+  prerelease?: {
+    enabled: boolean;
+    format: string;
+    types: readonly string[];
+  };
+}
+
+export interface PrereleaseConfig {
+  enabled: boolean;
+  format: string;
+  types: readonly string[];
 }
 
 export interface ChangelogConfig {

@@ -127,7 +127,7 @@ export async function runInitWizard(
       versioning: {
         enabled: true,
         tagPrefix,
-        tag: config.versioning?.tag ?? ["release", "hotfix"],
+        tagTypes: config.versioning?.tagTypes ?? ["release", "hotfix"],
         bumpRules: config.versioning?.bumpRules ?? {
           minor: ["release"],
           patch: ["hotfix"],

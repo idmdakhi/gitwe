@@ -125,11 +125,25 @@ export class WorkflowService {
   }
 
   shouldTag(type: BranchType): boolean {
-    return this.config.versioning?.enabled === true && (this.config.versioning.tag?.includes(type.name) ?? false);
+    return this.shouldTagForFinish(type, type.target);
   }
 
   tagPrefix(): string {
     return this.config.versioning?.tagPrefix ?? "v";
+  }
+
+  shouldTagForFinish(type: BranchType, targets: readonly string[]): boolean {
+    const versioning = this.config.versioning;
+    if (!versioning?.enabled) return false;
+    const typeBased = versioning.tagTypes?.includes(type.name) ?? false;
+    const targetBased =
+      versioning.tagTargets?.some((target) => {
+        if (target === "root") {
+          return targets.includes(this.rootBranch.name);
+        }
+        return targets.includes(target);
+      }) ?? false;
+    return typeBased || targetBased;
   }
 
   versionBumpFor(type: BranchType): VersionBump {

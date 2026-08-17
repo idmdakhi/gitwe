@@ -11,8 +11,12 @@ gitwe looks for, in order: `gitwe.json`, `.gitwe.json`, `gitwe.yaml`, `gitwe.yml
   "remote": "origin",
   "tagPrefix": "v",
   "hooks": { "enabled": true, "path": ".gitwe/hooks" },
-  "baseBranches": [/* ... */],
-  "branchTypes": [/* ... */],
+  "baseBranches": [
+    /* ... */
+  ],
+  "branchTypes": [
+    /* ... */
+  ],
 }
 ```
 
@@ -42,8 +46,8 @@ has no parent.
 | `name`   | string | —       | git branch name                |
 | `parent` | string | —       | base branch it integrates into |
 
-`` is what makes classic git-flow work: after a release or hotfix is merged
-into `main`, `develop` is brought back in sync automatically.
+``is what makes classic git-flow work: after a release or hotfix is merged
+into`main`, `develop` is brought back in sync automatically.
 
 ## Topic types
 
@@ -103,3 +107,87 @@ branchTypes:
 
 `gitwe start spike caching` and `gitwe finish spike --squash` exist as soon as the type
 is in the file.
+
+## Versioning
+
+Controls automatic tag creation and version bumping on `finish`.
+
+| Field        | Type       | Description                                                                               |
+| ------------ | ---------- | ----------------------------------------------------------------------------------------- |
+| `enabled`    | `boolean`  | Enable versioning (default: `false`)                                                      |
+| `file`       | `string`   | Path to a separate version config file (optional)                                         |
+| `tagPrefix`  | `string`   | Prefix for tags (default: `v`)                                                            |
+| `tag`        | `string[]` | **Type-based**: topic types that get tagged on finish (e.g., `["release", "hotfix"]`)     |
+| `tagTargets` | `string[]` | **Target-based**: target branches that trigger tagging. Use `"root"` for the root branch. |
+| `bumpRules`  | `object`   | Rules for version bump: `major`, `minor`, `patch`, `prerelease`                           |
+
+### Separate version file
+
+You can move advanced settings to a separate file (e.g., `.gitwe/version.yaml`):
+
+```yaml
+# .gitwe/version.yaml
+tagPrefix: v
+format: "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}"
+annotated: true
+pushTags: false
+autoCommit: true
+commitMessage: "chore: bump version to {{version}}"
+prerelease:
+  enabled: false
+  format: "{{type}}.{{number}}"
+  types: ["alpha", "beta", "rc"]
+```
+
+Tagging logic
+Tagging occurs if any of these conditions is true:
+
+The topic type is listed in tag.
+
+Any of the merge targets is listed in tagTargets (or is the root branch).
+
+This is an OR logic, so both can work together.
+
+Examples
+Type-based only (classic git-flow):
+
+```yaml
+versioning:
+  enabled: true
+  tag: [release, hotfix]
+  bumpRules:
+    minor: [release]
+    patch: [hotfix]
+
+# Target-based only (GitHub Flow):
+versioning:
+  enabled: true
+  tagTargets: [root]
+  bumpRules:
+    patch: [feature]
+# Both (release types get tagged, and any merge to main also gets tagged):
+versioning:
+  enabled: true
+  tag: [release]
+  tagTargets: [root]
+
+```
+
+#### ۴.۲. به‌روزرسانی `docs/commands.md`
+
+در بخش `finish`، توضیح دهید که `--tag`/`--no-tag` می‌توانند تنظیمات فایل را override کنند:
+
+```markdown
+### `gitwe finish [name]`
+
+... (بقیه توضیحات)
+
+**Tagging behaviour:**
+By default, tags are created based on the `versioning` section of your workflow. You can override with:
+
+- `--tag` : force tag creation
+- `--no-tag` : suppress tag creation
+- `--tagname <name>` : use a specific tag name
+- `--current-version <semver>` : base version for bumping
+- `--major`, `--minor`, `--patch` : force a specific bump level
+```

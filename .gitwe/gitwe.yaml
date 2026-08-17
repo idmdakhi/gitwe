@@ -46,11 +46,11 @@ hooks:
 
 versioning:
   enabled: true
-  tagPrefix: v
-  tag: [release, hotfix]
-  bumpRules:
-    minor: [release]
-    patch: [hotfix]
+  path: .gitwe/version.yaml
+
+changelog:
+  enabled: false
+  path: ".gitwe/changelog.md"
 
 remote:
   name: origin
