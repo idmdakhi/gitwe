@@ -9,7 +9,11 @@ import {
   SemVer,
   VersionCalculatorService,
 } from "../../domain/services/version-calculator.service.js";
-import type { GitRepository, TagOptions } from "../../domain/ports/git-repository.port.js";
+import type {
+  GitRepository,
+  PushOptions,
+  TagOptions,
+} from "../../domain/ports/git-repository.port.js";
 import type { HookRunner } from "../../domain/ports/hook-runner.port.js";
 import type { Logger } from "../../domain/ports/logger.port.js";
 import type {
@@ -213,7 +217,8 @@ export class FinishBranchUseCase {
 
     // ---- Fetch (if enabled) ------------------------------------------------
     if (state.fetch && !done.has("fetch")) {
-      for (const remote of this.workflow.fetchRemotes()) {
+      const fetchRemotes = this.workflow.fetchRemotesFor(type);
+      for (const remote of fetchRemotes) {
         await this.git.fetch(remote);
       }
       done.add("fetch");
@@ -307,6 +312,7 @@ export class FinishBranchUseCase {
     // ---- Push (if requested) ----------------------------------------------
     if (state.push && !done.has("push")) {
       const remotes = this.workflow.pushRemotesFor(type);
+      const pushOpts = this.workflow.getPushOptionsFor(type);
 
       // Pre‑push validation: ensure each target is not behind its remote
       for (const remote of remotes) {
@@ -328,7 +334,12 @@ export class FinishBranchUseCase {
       for (const remote of remotes) {
         for (const target of state.targets) {
           try {
-            await this.git.push(remote, target, { followTags: true });
+            // استفاده از pushOpts به‌همراه اولویت state.force
+            await this.git.push(remote, target, {
+              followTags: pushOpts.followTags ?? true,
+              force: state.force ? true : undefined,
+              forceWithLease: !state.force ? pushOpts.forceWithLease : undefined,
+            } as PushOptions | undefined);
           } catch (error) {
             if (error instanceof GitCommandError) {
               const msg = error.message.toLowerCase();
@@ -404,8 +415,6 @@ export class FinishBranchUseCase {
     };
     await this.stateStore.write(record);
   }
-
-  // src/application/use-cases/finish-branch.use-case.ts
 
   private async createTag(state: FinishStateData, type: BranchType): Promise<string> {
     const versioning = this.workflow.config.versioning;

@@ -1,11 +1,10 @@
 import type { BaseBranch } from "../entities/base-branch.entity.js";
 import type { BranchType, ResolvedBranch } from "../entities/branch-type.entity.js";
-import type {
-  MergeStrategy,
-  VersionBump,
-  WorkflowConfig,
-} from "../entities/workflow-config.entity.js";
+import type { RemoteOverride } from "../entities/remote-config.entity.js";
+import type { VersionBump } from "../entities/versioning-config.entity.js";
+import type { MergeStrategy, WorkflowConfig } from "../entities/workflow-config.entity.js";
 import { ValidationError } from "../errors/index.js";
+import type { PushOptions } from "../ports/git-repository.port.js";
 
 /**
  * Read-only lookups and derived rules over a {@link WorkflowConfig}.
@@ -159,15 +158,95 @@ export class WorkflowService {
   // ---- remotes --------------------------------------------------------------
 
   get defaultRemote(): string {
-    return this.config.remote?.primary ?? "origin";
+    return this.config.remote?.default ?? "origin";
+  }
+
+  private resolveOverride(type: BranchType, field: keyof RemoteOverride): any {
+    const remote = this.config.remote;
+    if (!remote) return undefined;
+
+    // ۱. اولویت با type override
+    const typeOverride = remote.typeOverrides?.[type.name] as RemoteOverride | undefined;
+    if (typeOverride && typeOverride[field] !== undefined) {
+      return typeOverride[field];
+    }
+
+    // ۲. سپس نوع override (global for types)
+    const typeDefaults = remote.typeOverrides?.pushOptions;
+    if (field === "pushOptions" && typeDefaults !== undefined) {
+      return typeDefaults;
+    }
+
+    // ۳. سپس base override (از شاخه پایه‌ی type)
+    const baseOverride = remote.baseOverrides?.[type.base] as RemoteOverride | undefined;
+    if (baseOverride && baseOverride[field] !== undefined) {
+      return baseOverride[field];
+    }
+
+    // ۴. سپس base override global
+    const baseDefaults = remote.baseOverrides?.pushOptions;
+    if (field === "pushOptions" && baseDefaults !== undefined) {
+      return baseDefaults;
+    }
+
+    return undefined;
   }
 
   pushRemotesFor(type: BranchType): readonly string[] {
+    const push = this.resolveOverride(type, "push");
+    if (push) return push;
     if (type.pushRemote) return [type.pushRemote];
     return this.config.remote?.push ?? [this.defaultRemote];
   }
 
+  fetchRemotesFor(type: BranchType): readonly string[] {
+    const fetch = this.resolveOverride(type, "fetch");
+    if (fetch) return fetch;
+    return this.config.remote?.fetch ?? [this.defaultRemote];
+  }
+
+  /**
+   * Global fetch remotes (no branch type context)
+   */
   fetchRemotes(): readonly string[] {
     return this.config.remote?.fetch ?? [this.defaultRemote];
+  }
+
+  getPushOptionsFor(type?: BranchType): PushOptions {
+    const defaultOpts: PushOptions = {
+      forceWithLease: false,
+      followTags: true,
+      ...(this.config.remote?.pushOptions || {}),
+    };
+
+    if (!type) return defaultOpts;
+
+    const opts = this.resolveOverride(type, "pushOptions") as PushOptions | undefined;
+    if (opts) {
+      return { ...defaultOpts, ...opts };
+    }
+
+    // چک کردن global pushOptions در typeOverrides و baseOverrides
+    const typePushOpts = this.config.remote?.typeOverrides?.pushOptions;
+    if (typePushOpts) {
+      return { ...defaultOpts, ...typePushOpts };
+    }
+
+    const basePushOpts = this.config.remote?.baseOverrides?.pushOptions;
+    if (basePushOpts) {
+      return { ...defaultOpts, ...basePushOpts };
+    }
+
+    return defaultOpts;
+  }
+
+  shouldAutoFetchFor(type: BranchType): boolean {
+    const autoFetch = this.resolveOverride(type, "autoFetch");
+    return autoFetch !== undefined ? autoFetch : (this.config.remote?.autoFetch ?? true);
+  }
+
+  shouldAutoPushFor(type: BranchType): boolean {
+    const autoPush = this.resolveOverride(type, "autoPush");
+    return autoPush !== undefined ? autoPush : (this.config.remote?.autoPush ?? false);
   }
 }

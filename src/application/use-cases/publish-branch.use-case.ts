@@ -1,6 +1,6 @@
 import { ValidationError } from "../../domain/errors/index.js";
 import type { WorkflowService } from "../../domain/services/workflow.service.js";
-import type { GitRepository } from "../../domain/ports/git-repository.port.js";
+import type { GitRepository, PushOptions } from "../../domain/ports/git-repository.port.js";
 import type { HookRunner } from "../../domain/ports/hook-runner.port.js";
 import type { Logger } from "../../domain/ports/logger.port.js";
 
@@ -25,9 +25,13 @@ export class PublishBranchUseCase {
       throw new ValidationError(`branch "${resolved.branch}" does not exist locally`);
     }
 
-    await this.hooks.run("pre-publish", { branch: resolved.branch, branchType: resolved.type.name });
+    await this.hooks.run("pre-publish", {
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+    });
 
     const remotes = this.workflow.pushRemotesFor(resolved.type);
+    const pushOpts = this.workflow.getPushOptionsFor(resolved.type);
     for (const remote of remotes) {
       if (!(await this.git.remoteExists(remote))) {
         throw new ValidationError(`remote "${remote}" is not configured`);
@@ -35,11 +39,16 @@ export class PublishBranchUseCase {
       this.logger.info(`pushing ${resolved.branch} to ${remote}`);
       await this.git.push(remote, resolved.branch, {
         setUpstream: true,
-        ...(input.force !== undefined ? { force: input.force } : {}),
-      });
+        force: input.force ? true : undefined,
+        forceWithLease: !input.force ? pushOpts.forceWithLease : undefined,
+        followTags: pushOpts.followTags,
+      } as PushOptions | undefined);
     }
 
-    await this.hooks.run("post-publish", { branch: resolved.branch, branchType: resolved.type.name });
+    await this.hooks.run("post-publish", {
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+    });
     return remotes;
   }
 }

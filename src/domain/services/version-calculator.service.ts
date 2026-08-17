@@ -1,4 +1,4 @@
-import type { VersionBump } from "../entities/workflow-config.entity.js";
+import type { VersionBump } from "../entities/versioning-config.entity.js";
 import { ValidationError } from "../errors/index.js";
 
 export interface SemVer {

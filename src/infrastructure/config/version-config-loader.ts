@@ -3,10 +3,8 @@ import { readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import yaml from "js-yaml";
-import type {
-  VersioningConfig,
-  WorkflowConfig,
-} from "../../domain/entities/workflow-config.entity.js";
+import type { WorkflowConfig } from "../../domain/entities/workflow-config.entity.js";
+import { VersioningConfig } from "../../domain/entities/versioning-config.entity.js";
 
 export interface VersionConfigLoaderOptions {
   root: string;
