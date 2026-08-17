@@ -50,11 +50,13 @@ versioning:
 
 changelog:
   enabled: false
-  path: ".gitwe/changelog.md"
+  path: .gitwe/changelog.yaml
 
 remote:
-  primary: origin
-  autoFetch: true
+  path: .gitwe/remote.yaml
+  name: origin # for gitwe vscode < v0.23 [deprecated]
+  default: origin
   fetch: [origin]
-  autoPush: false
+  autoFetch: true
   push: [origin]
+  autoPush: false

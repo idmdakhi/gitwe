@@ -6,12 +6,12 @@ import { style } from "../output.js";
 import { presets, type PresetName } from "../../domain/config/presets.js";
 import type {
   WorkflowConfig,
-  VersioningConfig,
   ChangelogConfig,
 } from "../../domain/entities/workflow-config.entity.js";
 import { runInitWizard, applyInitOverrides } from "./init-wizard.js";
 import { isInteractive } from "../prompts.js";
 import { omitUndefined, parseKeyValuePairs } from "../../utils.js";
+import { VersioningConfig } from "../../domain/entities/versioning-config.entity.js";
 
 const PRESETS = ["classic", "github", "gitlab"] as const;
 
@@ -71,7 +71,7 @@ function applyOverrides(
     next = {
       ...next,
       remote: {
-        primary: overrides.remote,
+        default: overrides.remote,
         autoFetch: next.remote?.autoFetch ?? true,
         fetch: [overrides.remote],
         autoPush: next.remote?.autoPush ?? false,

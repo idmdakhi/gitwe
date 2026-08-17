@@ -191,3 +191,159 @@ By default, tags are created based on the `versioning` section of your workflow.
 - `--current-version <semver>` : base version for bumping
 - `--major`, `--minor`, `--patch` : force a specific bump level
 ```
+
+## Remote Configuration
+
+### Fields
+
+| Field                        | Type     | Default    | Description                                      |
+| ---------------------------- | -------- | ---------- | ------------------------------------------------ |
+| `file`                       | string   | -          | Path to separate remote config file              |
+| `default`                    | string   | `origin`   | Primary remote name                              |
+| `fetch`                      | string[] | `[origin]` | Remotes to fetch from                            |
+| `push`                       | string[] | `[origin]` | Remotes to push to                               |
+| `autoFetch`                  | boolean  | `true`     | Auto-fetch before operations                     |
+| `autoPush`                   | boolean  | `false`    | Auto-push after finish (still requires `--push`) |
+| `pushOptions.forceWithLease` | boolean  | `false`    | Use `--force-with-lease` for pushes              |
+| `pushOptions.followTags`     | boolean  | `true`     | Push tags along with branches                    |
+
+### Override Precedence
+
+1. **Type override** (`typeOverrides.<type>`) - highest priority
+2. **Base override** (`baseOverrides.<base>`) - middle priority
+3. **Global settings** - lowest priority (fallback)
+
+### Example
+
+```yaml
+# .gitwe/remote.yaml
+version: 1
+
+default: origin
+fetch: [origin, upstream]
+push: [origin]
+autoFetch: true
+autoPush: false
+pushOptions:
+  forceWithLease: false
+  followTags: true
+
+baseOverrides:
+  main:
+    remote: origin
+    fetch: [origin]
+    autoFetch: true
+  develop:
+    remote: upstream
+    fetch: [upstream]
+    autoFetch: true
+
+typeOverrides:
+  feature:
+    fetch: [origin, upstream]
+    push: [origin]
+  release:
+    push: [upstream]
+    autoPush: true
+  hotfix:
+    push: [origin]
+    autoFetch: false
+```
+
+---
+
+### 🧪 تست‌های واحد
+
+**فایل: `tests/domain/remote-config.test.ts`** (جدید)
+
+```typescript
+import { describe, expect, it } from "vitest";
+import { WorkflowService } from "../../src/domain/services/workflow.service.js";
+import { classicPreset } from "../../src/domain/config/presets.js";
+import type { RemoteConfig } from "../../src/domain/entities/remote-config.entity.js";
+
+describe("RemoteConfig", () => {
+  it("should use default remote when no overrides", () => {
+    const config = classicPreset();
+    const workflow = new WorkflowService(config);
+    const feature = workflow.requireBranchType("feature");
+
+    expect(workflow.defaultRemote).toBe("origin");
+    expect(workflow.pushRemotesFor(feature)).toEqual(["origin"]);
+    expect(workflow.fetchRemotesFor(feature)).toEqual(["origin"]);
+  });
+
+  it("should use type override when present", () => {
+    const config = {
+      ...classicPreset(),
+      remote: {
+        default: "origin",
+        fetch: ["origin"],
+        push: ["origin"],
+        autoFetch: true,
+        autoPush: false,
+        typeOverrides: {
+          feature: {
+            fetch: ["origin", "upstream"],
+            push: ["origin"],
+          },
+        },
+      } as RemoteConfig,
+    };
+    const workflow = new WorkflowService(config);
+    const feature = workflow.requireBranchType("feature");
+
+    expect(workflow.fetchRemotesFor(feature)).toEqual(["origin", "upstream"]);
+  });
+
+  it("should use base override when present", () => {
+    const config = {
+      ...classicPreset(),
+      remote: {
+        default: "origin",
+        fetch: ["origin"],
+        push: ["origin"],
+        autoFetch: true,
+        autoPush: false,
+        baseOverrides: {
+          develop: {
+            fetch: ["upstream"],
+            remote: "upstream",
+          },
+        },
+      } as RemoteConfig,
+    };
+    const workflow = new WorkflowService(config);
+    const feature = workflow.requireBranchType("feature");
+
+    // feature base is develop, so it should inherit from develop override
+    expect(workflow.fetchRemotesFor(feature)).toEqual(["upstream"]);
+  });
+
+  it("should merge pushOptions correctly", () => {
+    const config = {
+      ...classicPreset(),
+      remote: {
+        default: "origin",
+        fetch: ["origin"],
+        push: ["origin"],
+        autoFetch: true,
+        autoPush: false,
+        pushOptions: { forceWithLease: false, followTags: true },
+        typeOverrides: {
+          release: {
+            push: ["upstream"],
+            pushOptions: { forceWithLease: true },
+          },
+        },
+      } as RemoteConfig,
+    };
+    const workflow = new WorkflowService(config);
+    const release = workflow.requireBranchType("release");
+
+    const opts = workflow.getPushOptionsFor(release);
+    expect(opts.forceWithLease).toBe(true);
+    expect(opts.followTags).toBe(true); // inherited from global
+  });
+});
+```

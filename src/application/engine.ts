@@ -28,6 +28,7 @@ import {
 } from "../domain/services/config-editor.service.js";
 import { omitUndefined } from "../utils.js";
 import { VersionConfigLoader } from "../infrastructure/config/version-config-loader.js";
+import { RemoteConfigLoader } from "../infrastructure/config/remote-config-loader.js";
 
 export interface EngineDeps {
   readonly configRepo: ConfigRepository;
@@ -58,13 +59,20 @@ export class Engine {
   static async create(deps: EngineDeps): Promise<Engine> {
     const config = await deps.configRepo.load();
     if (!config) throw new NotInitializedError();
+
     const loader = new VersionConfigLoader();
     const versioning = await loader.load({
       root: deps.git.cwd,
       mainConfig: config,
     });
-    const enrichedConfig = { ...config, versioning };
-    const workflow = new WorkflowService(enrichedConfig);
+
+    const remoteLoader = new RemoteConfigLoader();
+    const remote = await remoteLoader.load({
+      root: deps.git.cwd,
+      mainConfig: config,
+    });
+
+    const workflow = new WorkflowService({ ...config, versioning, remote });
     return new Engine(workflow, { logger: silentLogger, ...deps });
   }
 

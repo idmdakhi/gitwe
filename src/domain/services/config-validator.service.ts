@@ -40,6 +40,8 @@ export class ConfigValidatorService {
         }
       }
     }
+    // Validate remote overrides
+    this.validateRemoteOverrides(config, issues);
     this.checkBaseBranches(config, issues);
     this.checkBranchTypes(config, issues);
     this.checkMergeConfig(config, issues);
@@ -166,6 +168,80 @@ export class ConfigValidatorService {
       if (!knownTypes.has(name)) {
         issues.push({ path: "merge.branchTypes", message: `unknown branch type "${name}"` });
       }
+    }
+  }
+
+  private validateRemoteOverrides(config: WorkflowConfig, issues: ValidationIssue[]): void {
+    const remote = config.remote;
+    if (!remote) return;
+
+    const allRemotes = new Set([...remote.fetch, ...remote.push]);
+
+    // اعتبارسنجی baseOverrides
+    if (remote.baseOverrides) {
+      for (const [key, override] of Object.entries(remote.baseOverrides)) {
+        if (key === "pushOptions") continue;
+        if (!config.baseBranches.some((b) => b.name === key)) {
+          issues.push({
+            path: `remote.baseOverrides.${key}`,
+            message: `base branch "${key}" not found in baseBranches`,
+          });
+        }
+        this.validateOverride(allRemotes, `remote.baseOverrides.${key}`, override, issues);
+      }
+    }
+
+    // اعتبارسنجی typeOverrides
+    if (remote.typeOverrides) {
+      for (const [key, override] of Object.entries(remote.typeOverrides)) {
+        if (key === "pushOptions") continue;
+        if (!config.branchTypes.some((t) => t.name === key)) {
+          issues.push({
+            path: `remote.typeOverrides.${key}`,
+            message: `branch type "${key}" not found in branchTypes`,
+          });
+        }
+        this.validateOverride(allRemotes, `remote.typeOverrides.${key}`, override, issues);
+      }
+    }
+  }
+
+  private validateOverride(
+    allRemotes: Set<string>,
+    path: string,
+    override: any,
+    issues: ValidationIssue[],
+  ): void {
+    if (!override || typeof override !== "object") return;
+
+    if (override.remote && !allRemotes.has(override.remote)) {
+      issues.push({
+        path: `${path}.remote`,
+        message: `remote "${override.remote}" not listed in global fetch/push`,
+      });
+    }
+    if (override.fetch) {
+      for (const r of override.fetch) {
+        if (!allRemotes.has(r)) {
+          issues.push({
+            path: `${path}.fetch`,
+            message: `remote "${r}" not listed in global fetch list`,
+          });
+        }
+      }
+    }
+    if (override.push) {
+      for (const r of override.push) {
+        if (!allRemotes.has(r)) {
+          issues.push({
+            path: `${path}.push`,
+            message: `remote "${r}" not listed in global push list`,
+          });
+        }
+      }
+    }
+    if (override.pushOptions) {
+      // اعتبارسنجی pushOptions (اختیاری)
     }
   }
 }

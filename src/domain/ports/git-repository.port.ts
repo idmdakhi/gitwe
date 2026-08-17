@@ -12,9 +12,15 @@ export interface TagOptions {
 }
 
 export interface PushOptions {
+  /** Set upstream tracking (--set-upstream) */
   readonly setUpstream?: boolean;
+  /** Force push (--force) - use with caution */
   readonly force?: boolean;
+  /** Force push with lease (--force-with-lease) - safer than --force */
+  readonly forceWithLease?: boolean;
+  /** Push tags along with branches (--follow-tags) */
   readonly followTags?: boolean;
+  /** Delete remote branch (--delete) */
   readonly delete?: boolean;
 }
 

@@ -1,5 +1,7 @@
 import type { BaseBranch } from "./base-branch.entity.js";
 import type { BranchType } from "./branch-type.entity.js";
+import { RemoteConfig } from "./remote-config.entity.js";
+import { VersioningConfig } from "./versioning-config.entity.js";
 
 export type MergeStrategy = "merge" | "squash" | "rebase";
 
@@ -28,52 +30,9 @@ export interface HookConfig {
   readonly path: string;
 }
 
-export type VersionBump = "major" | "minor" | "patch" | "prerelease" | "none";
-
-// domain/entities/versioning-config.entity.ts (جدید)
-export interface VersioningConfig {
-  enabled: boolean;
-  path?: string;
-  tagPrefix?: string;
-  tagTypes?: readonly string[];
-  tagTargets?: readonly string[];
-  bumpRules?: {
-    major?: readonly string[];
-    minor?: readonly string[];
-    patch?: readonly string[];
-    prerelease?: readonly string[];
-  };
-  format?: string;
-  annotated?: boolean;
-  sign?: boolean;
-  signingKey?: string;
-  pushTags?: boolean;
-  autoCommit?: boolean;
-  commitMessage?: string;
-  prerelease?: {
-    enabled: boolean;
-    format: string;
-    types: readonly string[];
-  };
-}
-
-export interface PrereleaseConfig {
-  enabled: boolean;
-  format: string;
-  types: readonly string[];
-}
-
 export interface ChangelogConfig {
   readonly enabled: boolean;
   readonly path?: string;
-}
-
-export interface RemoteConfig {
-  readonly primary: string;
-  readonly autoFetch: boolean;
-  readonly fetch: readonly string[];
-  readonly autoPush: boolean;
-  readonly push: readonly string[];
 }
 
 export interface WorkflowConfig {

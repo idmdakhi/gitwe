@@ -239,7 +239,8 @@ export class ShellGitRepository implements GitRepository {
   async push(remote: string, branch: string, options: PushOptions = {}): Promise<void> {
     const args = ["push"];
     if (options.setUpstream) args.push("--set-upstream");
-    if (options.force) args.push("--force-with-lease");
+    if (options.force) args.push("--force");
+    if (options.forceWithLease) args.push("--force-with-lease");
     if (options.followTags) args.push("--follow-tags");
     if (options.delete) {
       args.push("--delete", remote, branch);
