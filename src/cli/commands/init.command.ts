@@ -2,9 +2,8 @@ import { Command } from "commander";
 import { buildEngineDeps } from "../container.js";
 import { globalOptions, action } from "./shared.js";
 import { Engine } from "../../application/engine.js";
-import { printStructured, success, style, print } from "../output.js";
-import type { PresetName } from "../../domain/config/presets.js";
-import { presets } from "../../domain/config/presets.js";
+import { style } from "../output.js";
+import { presets, type PresetName } from "../../domain/config/presets.js";
 import type {
   WorkflowConfig,
   VersioningConfig,

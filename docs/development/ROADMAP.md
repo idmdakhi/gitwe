@@ -34,9 +34,8 @@ Design proposals live in [`docs/rfcs/`](./rfcs/).
 
 - **Architecture boundary audit (P0.1, see `TODO.md`).** A manual audit
   already found a confirmed `application → infrastructure` violation
-  (`InitWorkflowUseCase` importing from `infrastructure/config/presets.ts`)
-  and an in-progress, incomplete migration of the Preset implementation onto
-  a new `domain/config/presets.ts`. Finish the audit, canonicalise on the
+  (`InitWorkflowUseCase` importing from `domain/config/presets.ts`)
+  and an in-progress,. Finish the audit, canonicalise on the
   domain-layer implementation, and — critically — add an automated boundary
   check (lint rule or CI script) so `domain`/`application` importing
   `infrastructure` fails the build instead of relying on review to catch it.
@@ -63,9 +62,7 @@ Design proposals live in [`docs/rfcs/`](./rfcs/).
 - New contributors can follow the docs without asking basic questions on Discussions.
 - Zero `domain`/`application` imports of `infrastructure` remain, and a CI
   check fails the build if a new one is introduced (P0.1-F in `TODO.md`).
-- Exactly one Preset implementation exists (`domain/config/presets.ts`); the
-  legacy `infrastructure/config/presets.ts` is either deleted or reduced to a
-  re-export, per the P0.1 migration plan.
+- Exactly one Preset implementation exists (`domain/config/presets.ts`);.
 
 ---
 

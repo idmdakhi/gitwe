@@ -51,7 +51,7 @@ describe("VersionCalculatorService", () => {
 
 `config-validator.service.test.ts` and `workflow.service.test.ts` follow the
 same pattern against `classicPreset()` from
-`src/infrastructure/config/presets.ts` (presets are plain data, so importing
+`src/domain/config/presets.ts` (presets are plain data, so importing
 them from a domain test doesn't cross the layer boundary — nothing infrastructure-specific
 is exercised).
 
@@ -86,8 +86,8 @@ pattern (a small fake per port) over introducing a mocking library.
   Architecture rewrite and do not match the CLI actually wired in
   `src/cli/program.ts` (see the note at the top of
   [commands.md](../commands.md)). Re-aligning them is tracked in
-  [TODO.md](./TODO.md) under *"Re-enable the currently disabled jobs"* and
-  *"Verify e2e workflows still work after the 1.0 rewrite."*
+  [TODO.md](./TODO.md) under _"Re-enable the currently disabled jobs"_ and
+  _"Verify e2e workflows still work after the 1.0 rewrite."_
 - **CLI layer** (`src/cli/commands/*.command.ts`) is excluded from coverage
   and has no dedicated tests; it's kept intentionally thin (argument parsing +
   one `Engine` call + `console.log`) so that most of its logic is really
