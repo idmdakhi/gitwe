@@ -41,7 +41,7 @@ merge:
     branchTypes: [feature]
 
 hooks:
-  enabled: true
+  enabled: false
   config: .gitwe/hook.yaml
   path: .gitwe/hooks
   inline:
