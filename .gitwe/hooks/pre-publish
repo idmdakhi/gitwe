@@ -1,15 +1,5 @@
 #!/bin/bash
-# .gitwe/hooks/pre-publish
-# اطمینان از اینکه remote مورد نظر وجود دارد
-
-REMOTE="${GITWE_REMOTE:-origin}"
-
-echo "🔍 Checking remote '$REMOTE'..."
-
-if ! git remote get-url "$REMOTE" >/dev/null 2>&1; then
-  echo "❌ Remote '$REMOTE' does not exist!"
-  exit 1
-fi
-
-echo "✅ Remote '$REMOTE' exists"
+# .gitwe/hooks/<hook-name>
+# هوک پیش‌فرض - برای فعال‌سازی، این فایل را ویرایش کنید
+echo "ℹ️ Hook $0 is not implemented. Skipping."
 exit 0

@@ -1,10 +1,5 @@
 #!/bin/bash
-# .gitwe/hooks/post-start
-# ثبت اطلاعات شاخه جدید در فایل لاگ
-
-LOG_FILE=".gitwe/branch.log"
-
-echo "[$(date -Iseconds)] STARTED: $GITWE_BRANCH (type: $GITWE_TYPE, base: $GITWE_BASE)" >> "$LOG_FILE"
-
-echo "📝 Logged branch creation"
+# .gitwe/hooks/<hook-name>
+# هوک پیش‌فرض - برای فعال‌سازی، این فایل را ویرایش کنید
+echo "ℹ️ Hook $0 is not implemented. Skipping."
 exit 0

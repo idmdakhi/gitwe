@@ -1,28 +1,4 @@
 #!/usr/bin/env node
-// .gitwe/hooks/post-publish
-// بعد از انتشار، آپدیت وضعیت در Jira یا GitHub
-
-const fs = require("fs");
-
-const data = JSON.parse(fs.readFileSync(0, "utf8"));
-const branch = data.branch;
-const remote = data.remote;
-
-console.log(`📝 Updating issue status for ${branch}...`);
-
-// مثال: استخراج شماره issue از نام شاخه
-const issueMatch = branch.match(/feature\/([A-Z]+-\d+)/);
-if (issueMatch) {
-  const issueKey = issueMatch[1];
-  console.log(`   Issue: ${issueKey}`);
-  console.log(`   Remote: ${remote}`);
-
-  // اینجا می‌توانید با API Jira/GitHub صحبت کنید
-  // await updateIssueStatus(issueKey, 'In Review');
-
-  console.log(`✅ Issue ${issueKey} updated`);
-} else {
-  console.log(`ℹ️ No issue key found in branch name`);
-}
-
+// .gitwe/hooks/<hook-name>
+console.log("ℹ️ Hook is not implemented. Skipping.");
 process.exit(0);

@@ -1,26 +1,4 @@
 #!/usr/bin/env node
-// .gitwe/hooks/pre-checkout
-// ذخیره تغییرات قبل از تغییر شاخه
-
-const { execSync } = require("child_process");
-const fs = require("fs");
-
-const data = JSON.parse(fs.readFileSync(0, "utf8"));
-const branch = data.branch;
-
-console.log(`💾 Saving current state before checkout to ${branch}...`);
-
-try {
-  // ذخیره تغییرات در stash
-  const status = execSync("git status --porcelain", { encoding: "utf8" });
-  if (status.trim()) {
-    console.log("   Stashing changes...");
-    execSync('git stash push -m "Auto-stash before checkout"', { stdio: "inherit" });
-  } else {
-    console.log("   No changes to stash");
-  }
-  process.exit(0);
-} catch (error) {
-  console.error(`❌ Failed to stash changes: ${error.message}`);
-  process.exit(1);
-}
+// .gitwe/hooks/<hook-name>
+console.log("ℹ️ Hook is not implemented. Skipping.");
+process.exit(0);

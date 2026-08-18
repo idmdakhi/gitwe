@@ -1,13 +1,5 @@
 #!/bin/bash
-# .gitwe/hooks/pre-start
-# بررسی می‌کند که آیا شاخه‌ای با نام مشابه وجود دارد
-
-echo "🔍 Checking if branch '$GITWE_BRANCH' already exists..."
-
-if git show-ref --verify --quiet "refs/heads/$GITWE_BRANCH"; then
-  echo "❌ Branch '$GITWE_BRANCH' already exists!"
-  exit 1
-fi
-
-echo "✅ Branch name is available"
+# .gitwe/hooks/<hook-name>
+# هوک پیش‌فرض - برای فعال‌سازی، این فایل را ویرایش کنید
+echo "ℹ️ Hook $0 is not implemented. Skipping."
 exit 0

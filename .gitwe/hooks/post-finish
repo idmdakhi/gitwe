@@ -1,17 +1,5 @@
 #!/bin/bash
-# .gitwe/hooks/post-finish
-# ارسال پیام به Slack بعد از پایان شاخه
-
-WEBHOOK_URL="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-
-MESSAGE="✅ Branch *$GITWE_BRANCH* finished successfully!
-• Type: $GITWE_TYPE
-• Merged into: $GITWE_TARGET
-• Tag: $GITWE_TAG_NAME
-• Deleted: $GITWE_BRANCH_DELETED"
-
-curl -X POST -H 'Content-type: application/json' \
-  --data "{\"text\":\"$MESSAGE\"}" \
-  "$WEBHOOK_URL" 2>/dev/null || echo "⚠️ Failed to send Slack notification"
-
+# .gitwe/hooks/<hook-name>
+# هوک پیش‌فرض - برای فعال‌سازی، این فایل را ویرایش کنید
+echo "ℹ️ Hook $0 is not implemented. Skipping."
 exit 0

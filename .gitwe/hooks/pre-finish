@@ -1,15 +1,5 @@
 #!/bin/bash
-# .gitwe/hooks/pre-finish
-# اطمینان از اینکه working tree پاک است
-
-echo "🧹 Checking working tree status..."
-
-if ! git diff --quiet || ! git diff --cached --quiet; then
-  echo "❌ Working tree is dirty! Commit or stash changes before finishing."
-  echo "   Uncommitted changes:"
-  git status --porcelain
-  exit 1
-fi
-
-echo "✅ Working tree is clean"
+# .gitwe/hooks/<hook-name>
+# هوک پیش‌فرض - برای فعال‌سازی، این فایل را ویرایش کنید
+echo "ℹ️ Hook $0 is not implemented. Skipping."
 exit 0
