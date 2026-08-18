@@ -6,8 +6,8 @@ import type { HookContext, HookName, HookRunner } from "../../domain/ports/hook-
 import type { HookConfig, HookDefinition } from "../../domain/entities/hook-config.entity.js";
 import { GitweError } from "../../domain/errors/index.js";
 
-const execFileAsync = promisify(execFile);
-const execAsync = promisify(exec);
+// const execFileAsync = promisify(execFile);
+// const execAsync = promisify(exec);
 
 export interface HookRunnerOptions {
   root: string;
@@ -185,6 +185,7 @@ export class FileHookRunner implements HookRunner {
     const env: Record<string, string> = {};
 
     if (context.branch) env.GITWE_BRANCH = context.branch;
+    if (context.config) env.GITWE_CONFIG = context.config;
     if (context.branchType) env.GITWE_TYPE = context.branchType;
     else if (context.type) env.GITWE_TYPE = context.type;
     if (context.base) env.GITWE_BASE = context.base;
@@ -241,7 +242,7 @@ export class FileHookRunner implements HookRunner {
     continueOnError?: boolean,
   ): Promise<void> {
     try {
-      const { stdout, stderr } = await execFileAsync(script, [], {
+      const { stdout, stderr } = spawn(script, [], {
         cwd: this.root,
         env,
         shell: true,
@@ -261,10 +262,10 @@ export class FileHookRunner implements HookRunner {
     continueOnError?: boolean,
   ): Promise<void> {
     try {
-      const { stdout, stderr } = await execAsync(command, {
+      const { stdout, stderr } = spawn(command, {
         cwd: this.root,
         env,
-        shell: true as any,
+        shell: true,
       });
       if (this.verbose) {
         if (stdout) console.error(stdout);
@@ -285,7 +286,7 @@ export class FileHookRunner implements HookRunner {
       const child = spawn(script, [], {
         cwd: this.root,
         env,
-        shell: true as any,
+        shell: true,
         stdio: ["pipe", "pipe", "pipe"],
       });
 

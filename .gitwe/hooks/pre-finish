@@ -1,5 +1,5 @@
 #!/bin/bash
-# .gitwe/hooks/<hook-name>
+# .gitwe/hooks/pre-finish
 # هوک پیش‌فرض - برای فعال‌سازی، این فایل را ویرایش کنید
 echo "ℹ️ Hook $0 is not implemented. Skipping."
 exit 0

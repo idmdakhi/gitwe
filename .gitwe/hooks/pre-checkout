@@ -1,4 +1,4 @@
 #!/usr/bin/env node
-// .gitwe/hooks/<hook-name>
+// .gitwe/hooks/pre-checkout
 console.log("ℹ️ Hook is not implemented. Skipping.");
 process.exit(0);
