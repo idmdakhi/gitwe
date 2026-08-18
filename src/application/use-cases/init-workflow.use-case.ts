@@ -27,7 +27,12 @@ export class InitWorkflowUseCase {
   async execute(input: InitWorkflowInput): Promise<WorkflowConfig> {
     await this.hooks.run("pre-init", {
       operation: "pre-init",
-      extra: { preset: input.preset, force: input.force },
+      force: input.force === true,
+      extra: {
+        preset: input.preset,
+        force: input.force === true,
+        createBranches: input.createBranches !== false,
+      },
     });
 
     const existing = await this.configRepo.load();
@@ -48,11 +53,13 @@ export class InitWorkflowUseCase {
 
     this.validator.validate(config).assertValid();
 
+    const createdBranches: string[] = [];
     if (input.createBranches !== false) {
       for (const base of config.baseBranches) {
         if (!(await this.git.branchExists(base.name))) {
           const startPoint = base.base ?? "HEAD";
           await this.git.createBranch(base.name, startPoint);
+          createdBranches.push(base.name);
         }
       }
     }
@@ -61,7 +68,15 @@ export class InitWorkflowUseCase {
 
     await this.hooks.run("post-init", {
       operation: "post-init",
-      extra: { config, createdBranches: input.createBranches },
+      force: input.force === true,
+      extra: {
+        preset: input.preset,
+        force: input.force === true,
+        createBranches: input.createBranches !== false,
+        createdBranches,
+        workflowName: config.name,
+        configPath: this.configRepo.path,
+      },
     });
 
     return config;

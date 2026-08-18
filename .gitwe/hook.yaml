@@ -1,36 +1,50 @@
-# .gitwe/hooks.yaml
+# .gitwe/hook.yaml
+# Recommended shape after the FileHookRunner fix.
+#
+# - `path` is ONLY the directory of executable scripts (not this yaml file).
+# - Point the workflow definition at this file via a separate field if your
+#   loader supports it; otherwise keep loading this file and set path below.
 version: 1
 
+# Directory for filesystem hooks: .gitwe/hooks/<hook-name>
 path: .gitwe/hooks
 
-# هوک‌های inline (بدون نیاز به فایل جداگانه)
+# One-liner commands (env: GITWE_BRANCH, GITWE_TYPE, GITWE_BASE, GITWE_TARGET, …)
 inline:
-  pre-start: "echo '🚀 Starting branch $GITWE_BRANCH'"
-  post-finish: "echo '✅ Finished $GITWE_BRANCH → $GITWE_TARGET'"
+  pre-start: 'echo "🚀 Starting branch $GITWE_BRANCH"'
+  post-finish: 'echo "✅ Finished $GITWE_BRANCH → $GITWE_TARGET"'
 
-# هوک‌های پیشرفته با تنظیمات کامل
+# Full definitions (when / continueOnError / stdin / parallel)
 advanced:
   pre-finish:
-    script: .gitwe/hooks/pre-finish-advanced
+    script: .gitwe/hooks/pre-finish
+    # only runs when the topic type is release (now actually evaluated)
     when: "type == 'release'"
     continueOnError: false
-    stdin: true
+    stdin: false
 
   post-tag:
-    script: .gitwe/hooks/post-tag-advanced
+    script: .gitwe/hooks/post-tag
     when: "tagName =~ '^v[0-9]+'"
     continueOnError: true
-    stdin: true
+    stdin: false
 
-# هوک‌های مخصوص نوع شاخه
+  post-publish:
+    script: .gitwe/hooks/post-publish
+    stdin: true
+    continueOnError: true
+
+# Per branch-type overrides (highest priority)
 typeOverrides:
   release:
-    pre-finish: .gitwe/hooks/pre-finish-release
+    pre-finish:
+      script: .gitwe/hooks/pre-finish
+      when: "type == 'release'"
     post-finish:
-      script: .gitwe/hooks/post-finish-release
+      script: .gitwe/hooks/post-finish
       continueOnError: true
 
   hotfix:
     pre-finish:
-      script: .gitwe/hooks/pre-finish-hotfix
+      script: .gitwe/hooks/pre-finish
       when: "target == 'main'"

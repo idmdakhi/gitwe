@@ -1,6 +1,6 @@
-import { execFile, exec } from "node:child_process";
+import { execFile, exec, ExecFileOptions, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { promisify } from "node:util";
 import type { HookContext, HookName, HookRunner } from "../../domain/ports/hook-runner.port.js";
 import type { HookConfig, HookDefinition } from "../../domain/entities/hook-config.entity.js";
@@ -15,6 +15,17 @@ export interface HookRunnerOptions {
   verbose?: boolean;
 }
 
+/**
+ * Runs configured hooks (typeOverrides → advanced → inline → filesystem scripts).
+ *
+ * Fixes vs previous version:
+ * - `when` is evaluated for every definition (was never applied in the live path)
+ * - dead / broken `getDefinition` removed
+ * - script vs shell-command resolution uses existence on disk, not brittle prefixes
+ * - parallel group failures are collected and rethrown unless continueOnError
+ * - extra context keys are exported as GITWE_* env vars
+ * - path is treated as the scripts directory only (not a yaml file path)
+ */
 export class FileHookRunner implements HookRunner {
   constructor(
     private readonly root: string,
@@ -28,17 +39,23 @@ export class FileHookRunner implements HookRunner {
     const definitions = this.getAllDefinitions(name, context);
     if (definitions.length === 0) return;
 
-    // گروه‌بندی بر اساس parallel
-    const parallelGroup = definitions.filter((d) => d.parallel);
-    const sequentialGroup = definitions.filter((d) => !d.parallel);
+    const parallelGroup = definitions.filter((d) => d.parallel === true);
+    const sequentialGroup = definitions.filter((d) => d.parallel !== true);
 
-    // اجرای موازی
-    const promises: Promise<void>[] = parallelGroup.map((def) =>
-      this.runDefinition(def, name, context),
-    );
-    await Promise.allSettled(promises); // یا Promise.all
+    // Parallel: run all, then fail if any hard failure occurred.
+    if (parallelGroup.length > 0) {
+      const settled = await Promise.allSettled(
+        parallelGroup.map((def) => this.runDefinition(def, name, context)),
+      );
+      const hardFailures = settled.filter(
+        (r): r is PromiseRejectedResult => r.status === "rejected",
+      );
+      if (hardFailures.length > 0) {
+        const first = hardFailures[0]!.reason;
+        throw first instanceof Error ? first : new GitweError("HOOK_FAILED", String(first));
+      }
+    }
 
-    // اجرای ترتیبی
     for (const def of sequentialGroup) {
       await this.runDefinition(def, name, context);
     }
@@ -50,29 +67,25 @@ export class FileHookRunner implements HookRunner {
     context: HookContext,
   ): Promise<void> {
     if (!this.config.enabled) return;
+
     const script = this.resolveScript(definition, name);
     if (!script) return;
 
     const env = this.buildEnv(context);
-    const stdin = this.buildStdin(context, definition.stdin);
+    const useStdin = definition.stdin === true;
+    const stdin = useStdin ? this.buildStdin(context) : undefined;
 
     try {
       if (this.verbose) {
         console.error(`[gitwe] Running hook: ${name} (${script})`);
       }
 
-      if (definition.stdin) {
-        // اجرا با JSON در STDIN
+      if (useStdin) {
         await this.runWithStdin(script, stdin, env, definition.continueOnError);
+      } else if (this.isShellCommand(script)) {
+        await this.runInline(script, env, definition.continueOnError);
       } else {
-        // اجرای معمولی با متغیرهای محیطی
-        if (script.startsWith("echo ") || script.startsWith("npm ") || script.startsWith("node ")) {
-          // دستور inline
-          await this.runInline(script, env, definition.continueOnError);
-        } else {
-          // فایل اسکریپت
-          await this.runScript(script, env, definition.continueOnError);
-        }
+        await this.runScript(script, env, definition.continueOnError);
       }
     } catch (error) {
       if (definition.continueOnError) {
@@ -83,11 +96,14 @@ export class FileHookRunner implements HookRunner {
     }
   }
 
+  /**
+   * Collect definitions from typeOverrides, advanced, inline, and filesystem.
+   * Each entry is filtered by optional `when` before returning.
+   */
   private getAllDefinitions(name: HookName, context: HookContext): HookDefinition[] {
     const definitions: HookDefinition[] = [];
-    const type = context.branchType;
+    const type = context.branchType ?? context.type;
 
-    // ۱. تعاریف از typeOverrides (اگر نوع شاخه مشخص باشد)
     if (type && this.config.typeOverrides?.[type]) {
       const typeHook = this.config.typeOverrides[type]?.[name];
       if (typeHook) {
@@ -95,25 +111,24 @@ export class FileHookRunner implements HookRunner {
       }
     }
 
-    // ۲. تعاریف advanced (اگر وجود داشته باشد و هنوز از نوع override استفاده نکرده‌ایم)
     const advanced = this.config.advanced?.[name];
     if (advanced) {
       definitions.push(advanced);
     }
 
-    // ۳. تعاریف inline
     const inline = this.config.inline?.[name];
     if (inline) {
       definitions.push({ script: inline });
     }
 
-    // ۴. فایل اسکریپت در مسیر پیش‌فرض (اگر وجود داشته باشد)
-    const scriptPath = join(this.root, this.config.path, name);
+    const scriptsDir = this.scriptsDirectory();
+    const scriptPath = join(scriptsDir, name);
     if (existsSync(scriptPath)) {
       definitions.push({ script: scriptPath });
     }
 
-    // حذف تعاریف تکراری بر اساس script (اختیاری)
+    // Deduplicate by script path/command while preserving first-seen order
+    // (typeOverrides first → advanced → inline → file).
     const unique = new Map<string, HookDefinition>();
     for (const def of definitions) {
       const key = def.script;
@@ -122,77 +137,101 @@ export class FileHookRunner implements HookRunner {
       }
     }
 
-    return Array.from(unique.values());
+    return Array.from(unique.values()).filter((d) => !d.when || this.evaluateWhen(d.when, context));
   }
 
-  private getDefinition(name: HookName, context: HookContext): HookDefinition | null {
-    const type = context.branchType;
-
-    // ۱. اولویت با typeOverrides (اگر نوع شاخه مشخص باشد)
-    if (type && this.config.typeOverrides?.[type]) {
-      const typeHook = this.config.typeOverrides[type]?.[name];
-      if (typeHook) {
-        return typeof typeHook === "string" ? { script: typeHook } : typeHook;
-      }
+  /** Directory that holds executable hook scripts (never a YAML file path). */
+  private scriptsDirectory(): string {
+    const raw = this.config.path || ".gitwe/hooks";
+    // Tolerate legacy values that pointed at a yaml file or "a | b" docs typos.
+    if (raw.endsWith(".yaml") || raw.endsWith(".yml") || raw.includes("|")) {
+      return join(this.root, ".gitwe/hooks");
     }
-
-    // ۲. سپس advanced hooks
-    const advanced = this.config.advanced?.[name];
-    if (advanced) return advanced;
-
-    // ۳. سپس inline hooks
-    const inline = this.config.inline?.[name];
-    if (inline) return { script: inline };
-
-    // ۴. در نهایت فایل اسکریپت در مسیر پیش‌فرض
-    const scriptPath = join(this.root, this.config.path, name);
-    if (existsSync(scriptPath)) {
-      return { script: scriptPath };
-    }
-
-    if (definition && definition.when && !this.evaluateWhen(definition.when, context)) {
-      return null;
-    }
-    return definition;
+    return isAbsolute(raw) ? raw : join(this.root, raw);
   }
 
   private resolveScript(definition: HookDefinition, name: HookName): string | null {
-    if (definition.script) return definition.script;
+    if (definition.script) {
+      const s = definition.script;
+      if (this.isShellCommand(s)) return s;
+      if (isAbsolute(s)) return existsSync(s) ? s : null;
+      const abs = join(this.root, s);
+      if (existsSync(abs)) return abs;
+      // Relative path that does not exist — still return it so shell can try
+      // (e.g. PATH binaries used as "script" by mistake); prefer null for clarity.
+      return existsSync(s) ? s : abs;
+    }
 
-    // fallback به مسیر پیش‌فرض
-    const scriptPath = join(this.root, this.config.path, name);
-    return existsSync(scriptPath) ? scriptPath : null;
+    const fallback = join(this.scriptsDirectory(), name);
+    return existsSync(fallback) ? fallback : null;
+  }
+
+  /**
+   * Treat as a shell one-liner when it looks like a command, not a filesystem path.
+   * Paths: no spaces (or only as part of a real existing path), or start with ./ /
+   * Commands: contain shell metacharacters / spaces and do not exist as a file.
+   */
+  private isShellCommand(script: string): boolean {
+    if (existsSync(script) || existsSync(join(this.root, script))) {
+      return false;
+    }
+    // Common inline patterns and anything with spaces / metacharacters
+    if (/[\s|&;<>$`]/.test(script)) return true;
+    if (/^(echo|npm|npx|node|bash|sh|curl|wget)\b/.test(script)) return true;
+    return false;
   }
 
   private buildEnv(context: HookContext): NodeJS.ProcessEnv {
     const env: Record<string, string> = {};
+
     if (context.branch) env.GITWE_BRANCH = context.branch;
     if (context.branchType) env.GITWE_TYPE = context.branchType;
+    else if (context.type) env.GITWE_TYPE = context.type;
     if (context.base) env.GITWE_BASE = context.base;
-    if (context.target)
+    if (context.target !== undefined) {
       env.GITWE_TARGET = Array.isArray(context.target) ? context.target.join(",") : context.target;
+    }
     if (context.dryRun !== undefined) env.GITWE_DRY_RUN = String(context.dryRun);
     if (context.force !== undefined) env.GITWE_FORCE = String(context.force);
     if (context.tagName) env.GITWE_TAG_NAME = context.tagName;
     if (context.oldName) env.GITWE_OLD_NAME = context.oldName;
     if (context.newName) env.GITWE_NEW_NAME = context.newName;
     if (context.remote) env.GITWE_REMOTE = context.remote;
+    env.GITWE_OPERATION = context.operation;
+
+    // Surface common extra keys used by sample scripts
+    const extra = context.extra ?? {};
+    if (extra.deleted !== undefined) env.GITWE_BRANCH_DELETED = String(extra.deleted);
+    if (extra.mergedInto !== undefined) {
+      env.GITWE_MERGED_INTO = Array.isArray(extra.mergedInto)
+        ? extra.mergedInto.join(",")
+        : String(extra.mergedInto);
+    }
+    for (const [k, v] of Object.entries(extra)) {
+      if (v === undefined || v === null) continue;
+      const key = `GITWE_${k.replace(/([a-z])([A-Z])/g, "$1_$2").toUpperCase()}`;
+      if (!(key in env)) {
+        env[key] = Array.isArray(v) ? v.join(",") : String(v);
+      }
+    }
+
     return { ...process.env, ...env };
   }
 
-  private buildStdin(context: HookContext, enable: boolean = false): string | undefined {
-    if (!enable) return undefined;
+  private buildStdin(context: HookContext): string {
     return JSON.stringify({
       operation: context.operation,
       branch: context.branch,
-      type: context.branchType,
+      type: context.branchType ?? context.type,
       base: context.base,
       target: context.target,
       dryRun: context.dryRun,
       force: context.force,
       tagName: context.tagName,
+      oldName: context.oldName,
+      newName: context.newName,
       remote: context.remote,
-      extra: context.extra || {},
+      extra: context.extra ?? {},
     });
   }
 
@@ -211,19 +250,8 @@ export class FileHookRunner implements HookRunner {
         if (stdout) console.error(stdout);
         if (stderr) console.error(stderr);
       }
-    } catch (error: any) {
-      const code = error.code ?? 1;
-      if (code === 2 && continueOnError) {
-        // کد ۲ = Warning, ادامه بده
-        console.warn(`[gitwe] Hook warning (exit code 2): ${error.message}`);
-        return;
-      }
-      if (code !== 0 && !continueOnError) {
-        throw new GitweError(
-          "HOOK_FAILED",
-          `Hook "${script}" exited with code ${code}: ${error.message}`,
-        );
-      }
+    } catch (error: unknown) {
+      this.handleExecError(error, script, continueOnError);
     }
   }
 
@@ -236,21 +264,14 @@ export class FileHookRunner implements HookRunner {
       const { stdout, stderr } = await execAsync(command, {
         cwd: this.root,
         env,
-        shell: true,
+        shell: true as any,
       });
       if (this.verbose) {
         if (stdout) console.error(stdout);
         if (stderr) console.error(stderr);
       }
-    } catch (error: any) {
-      const code = error.code ?? 1;
-      if (code === 2 && continueOnError) {
-        console.warn(`[gitwe] Hook warning (exit code 2): ${error.message}`);
-        return;
-      }
-      if (code !== 0 && !continueOnError) {
-        throw new GitweError("HOOK_FAILED", `Hook command failed: ${error.message}`);
-      }
+    } catch (error: unknown) {
+      this.handleExecError(error, command, continueOnError);
     }
   }
 
@@ -261,10 +282,10 @@ export class FileHookRunner implements HookRunner {
     continueOnError?: boolean,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      const child = execFile(script, [], {
+      const child = spawn(script, [], {
         cwd: this.root,
         env,
-        shell: true,
+        shell: true as any,
         stdio: ["pipe", "pipe", "pipe"],
       });
 
@@ -275,11 +296,11 @@ export class FileHookRunner implements HookRunner {
 
       let stdout = "";
       let stderr = "";
-      child.stdout?.on("data", (data) => {
-        stdout += data;
+      child.stdout?.on("data", (data: Buffer | string) => {
+        stdout += data.toString();
       });
-      child.stderr?.on("data", (data) => {
-        stderr += data;
+      child.stderr?.on("data", (data: Buffer | string) => {
+        stderr += data.toString();
       });
 
       child.on("close", (code) => {
@@ -287,9 +308,10 @@ export class FileHookRunner implements HookRunner {
           if (stdout) console.error(stdout);
           if (stderr) console.error(stderr);
         }
+
         if (stdout) {
           try {
-            const result = JSON.parse(stdout);
+            const result = JSON.parse(stdout) as { continue?: boolean; message?: string };
             if (result.continue === false) {
               reject(
                 new GitweError(
@@ -299,12 +321,24 @@ export class FileHookRunner implements HookRunner {
               );
               return;
             }
-          } catch {}
+          } catch {
+            // stdout is not JSON — ignore
+          }
         }
-        if (code === 0) return resolve();
+
+        if (code === 0) {
+          resolve();
+          return;
+        }
         if (code === 2 && continueOnError) {
           console.warn(`[gitwe] Hook warning (exit code 2): ${stderr || stdout}`);
-          return resolve();
+          resolve();
+          return;
+        }
+        if (continueOnError) {
+          console.warn(`[gitwe] Hook failed (exit ${code}) but continueOnError is true`);
+          resolve();
+          return;
         }
         reject(new GitweError("HOOK_FAILED", `Hook "${script}" failed with code ${code}`));
       });
@@ -313,26 +347,105 @@ export class FileHookRunner implements HookRunner {
     });
   }
 
-  private evaluateWhen(condition: string | undefined, context: HookContext): boolean {
-    if (!condition) return true;
+  private handleExecError(error: unknown, label: string, continueOnError?: boolean): void {
+    const err = error as { code?: number | string; message?: string };
+    const code = typeof err.code === "number" ? err.code : 1;
+    const message = err.message ?? String(error);
 
-    // جایگزینی متغیرهای ساده
+    if (code === 2 && continueOnError) {
+      console.warn(`[gitwe] Hook warning (exit code 2): ${message}`);
+      return;
+    }
+    if (code !== 0 && continueOnError) {
+      console.warn(`[gitwe] Hook failed but continueOnError is true: ${message}`);
+      return;
+    }
+    if (code !== 0) {
+      throw new GitweError("HOOK_FAILED", `Hook "${label}" exited with code ${code}: ${message}`);
+    }
+  }
+
+  /**
+   * Safe-ish predicate evaluator for `when` strings.
+   * Supports:
+   *   type == 'release'
+   *   target == 'main'
+   *   tagName == 'v1.0.0'
+   *   branch == 'feature/x'
+   *   type != 'hotfix'
+   *   tagName =~ '^v[0-9]'   (converted to JS RegExp test)
+   *
+   * Does not execute arbitrary JS beyond a constrained expression rewrite.
+   */
+  private evaluateWhen(condition: string, context: HookContext): boolean {
+    if (!condition || !condition.trim()) return true;
+
+    const type = context.branchType ?? context.type ?? "";
+    const target = Array.isArray(context.target)
+      ? context.target.join(",")
+      : (context.target ?? "");
+    const tagName = context.tagName ?? "";
+    const branch = context.branch ?? "";
+
+    // Regex form: field =~ 'pattern' or field =~ "pattern"
+    const regexMatch = condition.match(/^\s*(type|target|tagName|branch)\s*=~\s*['"](.+?)['"]\s*$/);
+    if (regexMatch) {
+      const field = regexMatch[1]!;
+      const pattern = regexMatch[2]!;
+      const value =
+        field === "type"
+          ? type
+          : field === "target"
+            ? target
+            : field === "tagName"
+              ? tagName
+              : branch;
+      try {
+        return new RegExp(pattern).test(value);
+      } catch {
+        return false;
+      }
+    }
+
+    // Equality / inequality: field == 'value' | field != "value"
+    const cmpMatch = condition.match(
+      /^\s*(type|target|tagName|branch)\s*(==|!=)\s*['"](.*?)['"]\s*$/,
+    );
+    if (cmpMatch) {
+      const field = cmpMatch[1]!;
+      const op = cmpMatch[2]!;
+      const expected = cmpMatch[3]!;
+      const value =
+        field === "type"
+          ? type
+          : field === "target"
+            ? target
+            : field === "tagName"
+              ? tagName
+              : branch;
+      return op === "==" ? value === expected : value !== expected;
+    }
+
+    // Fallback: very constrained rewrite (same fields only, no free identifiers)
     let expr = condition
-      .replace(/\btype\b/g, `"${context.branchType || ""}"`)
-      .replace(
-        /\btarget\b/g,
-        `"${Array.isArray(context.target) ? context.target.join(",") : context.target || ""}"`,
-      )
-      .replace(/\btagName\b/g, `"${context.tagName || ""}"`)
-      .replace(/\bbranch\b/g, `"${context.branch || ""}"`);
+      .replace(/\btype\b/g, JSON.stringify(type))
+      .replace(/\btarget\b/g, JSON.stringify(target))
+      .replace(/\btagName\b/g, JSON.stringify(tagName))
+      .replace(/\bbranch\b/g, JSON.stringify(branch));
 
-    // بررسی عملگرهای ساده
+    // Block anything that still looks like a free identifier or call
+    if (
+      /[a-zA-Z_$][a-zA-Z0-9_$]*\s*\(/.test(expr) ||
+      /\b(process|require|global|Function)\b/.test(expr)
+    ) {
+      return false;
+    }
+
     try {
-      // استفاده از Function constructor برای eval کردن شرط (ایمنی نسبی)
-      const fn = new Function(`return !!( ${expr} )`);
-      return fn();
+      // eslint-disable-next-line no-new-func
+      const fn = new Function(`return !!(${expr});`);
+      return Boolean(fn());
     } catch {
-      // در صورت خطا، شرط را false در نظر می‌گیریم
       return false;
     }
   }

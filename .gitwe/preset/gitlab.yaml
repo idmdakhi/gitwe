@@ -56,15 +56,15 @@ merge:
 
 hooks:
   enabled: true
-  path: .gitwe/hooks
+  config: .gitwe/hooks
 
 versioning:
   enabled: false
-  path: .gitwe/VERSION.yaml
+  config: .gitwe/VERSION.yaml
 
 changelog:
   enabled: false
-  path: .gitwe/CHANGELOG.yaml
+  config: .gitwe/CHANGELOG.yaml
 
 remote:
   name: origin

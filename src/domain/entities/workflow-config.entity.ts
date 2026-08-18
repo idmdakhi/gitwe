@@ -1,7 +1,7 @@
 import { HookName } from "../ports/hook-runner.port.js";
 import type { BaseBranch } from "./base-branch.entity.js";
 import type { BranchType } from "./branch-type.entity.js";
-import { HookDefinition } from "./hook-config.entity.js";
+import { HookConfig } from "./hook-config.entity.js";
 import { RemoteConfig } from "./remote-config.entity.js";
 import { VersioningConfig } from "./versioning-config.entity.js";
 
@@ -27,21 +27,9 @@ export interface MergeConfig {
   readonly squash?: SquashConfig;
 }
 
-export interface HookConfig {
-  readonly enabled: boolean;
-  readonly path: string;
-  inline?: Partial<Record<HookName, string>>;
-  advanced?: Partial<Record<HookName, HookDefinition>>;
-  typeOverrides?: {
-    [typeName: string]: {
-      [K in HookName]?: string | HookDefinition;
-    };
-  };
-}
-
 export interface ChangelogConfig {
   readonly enabled: boolean;
-  readonly path?: string;
+  readonly config?: string;
 }
 
 export interface WorkflowConfig {

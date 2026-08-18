@@ -16,11 +16,13 @@ export class HookConfigLoader {
     const { root, mainConfig, explicitFile } = options;
     const mainHooks = mainConfig.hooks ?? {
       enabled: true,
-      path: ".gitwe/hooks.yaml",
+      config: ".gitwe/hooks.yaml",
+      path: ".gitwe/hooks",
     };
 
-    let filePath = explicitFile ?? mainHooks.path ?? ".gitwe/hooks.yaml";
+    let filePath = explicitFile ?? mainHooks.config ?? ".gitwe/hook.yaml";
     filePath = join(root, filePath);
+    const scriptsPath = mainHooks.path ?? ".gitwe/hooks";
 
     let fileConfig: Partial<HookConfig> = {};
     if (existsSync(filePath)) {
@@ -31,6 +33,7 @@ export class HookConfigLoader {
     const merged: HookConfig = {
       enabled: mainHooks.enabled ?? fileConfig.enabled ?? true,
       path: mainHooks.path ?? fileConfig.path ?? ".gitwe/hooks.yaml",
+      config: mainHooks.config ?? scriptsPath ?? ".gitwe/hooks",
       inline: { ...fileConfig.inline, ...mainHooks.inline },
       advanced: { ...fileConfig.advanced, ...mainHooks.advanced },
       typeOverrides: { ...fileConfig.typeOverrides, ...mainHooks.typeOverrides },

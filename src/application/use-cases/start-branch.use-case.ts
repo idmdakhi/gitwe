@@ -35,7 +35,13 @@ export class StartBranchUseCase {
       throw new ValidationError(`branch "${resolved.branch}" already exists`);
     }
 
-    await this.hooks.run("pre-start", { branch: resolved.branch, branchType: type.name, base: baseName });
+    await this.hooks.run("pre-start", {
+      operation: "pre-start",
+      branch: resolved.branch,
+      branchType: type.name,
+      base: baseName,
+      extra: { fetch: input.fetch === true, shortName },
+    });
 
     if (input.fetch) {
       for (const remote of this.workflow.fetchRemotes()) {
@@ -47,7 +53,13 @@ export class StartBranchUseCase {
     await this.git.createBranch(resolved.branch, baseName);
     await this.git.checkout(resolved.branch);
 
-    await this.hooks.run("post-start", { branch: resolved.branch, branchType: type.name, base: baseName });
+    await this.hooks.run("post-start", {
+      operation: "post-start",
+      branch: resolved.branch,
+      branchType: type.name,
+      base: baseName,
+      extra: { shortName },
+    });
 
     return resolved;
   }

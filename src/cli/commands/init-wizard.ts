@@ -147,8 +147,16 @@ export async function runInitWizard(
   config = {
     ...config,
     hooks: hooksOn
-      ? { enabled: true, path: config.hooks?.path ?? ".gitwe/hooks" }
-      : { enabled: false, path: config.hooks?.path ?? ".gitwe/hooks" },
+      ? {
+          enabled: true,
+          path: config.hooks?.path ?? ".gitwe/hooks",
+          config: config.hooks?.config ?? ".gitwe/hooks.yaml",
+        }
+      : {
+          enabled: false,
+          path: config.hooks?.path ?? ".gitwe/hooks",
+          config: config.hooks?.config ?? ".gitwe/hooks.yaml",
+        },
   };
 
   // ---- create missing bases ---------------------------------------------

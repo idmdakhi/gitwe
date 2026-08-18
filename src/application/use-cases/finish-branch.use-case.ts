@@ -175,7 +175,15 @@ export class FinishBranchUseCase {
       bump,
     };
 
-    await this.hooks.run("pre-finish", { branch: state.branch, branchType: state.typeName });
+    await this.hooks.run("pre-finish", {
+      operation: "pre-finish",
+      branch: state.branch,
+      branchType: state.typeName,
+      target: state.targets as string[],
+      dryRun: false,
+      force: state.force,
+      extra: { squash: state.squash, push: state.push, keep: state.keep },
+    });
     return this.runFrom(state);
   }
 
@@ -390,8 +398,21 @@ export class FinishBranchUseCase {
 
     // ---- Cleanup ----------------------------------------------------------
     await this.stateStore.clear();
-    await this.hooks.run("post-finish", { branch: state.branch, branchType: type.name });
-
+    await this.hooks.run("post-finish", {
+      operation: "post-finish",
+      branch: state.branch,
+      branchType: type.name,
+      target: (state.mergedInto.length > 0 ? state.mergedInto : state.targets) as string[],
+      tagName: state.tag,
+      force: state.force,
+      extra: {
+        deleted,
+        mergedInto: state.mergedInto,
+        keep: state.keep,
+        keepRemote: state.keepRemote,
+        pushed: state.push,
+      },
+    });
     return {
       branch: state.branch,
       mergedInto: state.mergedInto,

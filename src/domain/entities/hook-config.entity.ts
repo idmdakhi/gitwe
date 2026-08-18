@@ -15,9 +15,10 @@ export interface HookDefinition {
 
 export interface HookConfig {
   /** فعال/غیرفعال کردن کلی hooks */
-  enabled: boolean;
+  readonly enabled: boolean;
   /** مسیر پیش‌فرض برای فایل‌های اسکریپت */
-  path: string;
+  readonly path: string;
+  readonly config: string;
   /** Hookهای inline (دستورات مستقیم) */
   inline?: Partial<Record<HookName, string>>;
   /** Hookهای پیشرفته با تنظیمات کامل */

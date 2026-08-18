@@ -8,7 +8,7 @@ export interface PrereleaseConfig {
 // domain/entities/versioning-config.entity.ts (جدید)
 export interface VersioningConfig {
   enabled: boolean;
-  path?: string;
+  config?: string;
   tagPrefix?: string;
   tagTypes?: readonly string[];
   tagTargets?: readonly string[];

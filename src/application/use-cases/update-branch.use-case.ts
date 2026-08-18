@@ -24,14 +24,22 @@ export class UpdateBranchUseCase {
     if (!resolved) throw new ValidationError(`"${input.branch}" is not a recognised topic branch`);
 
     const base = resolved.type.base;
-    await this.hooks.run("pre-update", { branch: resolved.branch, branchType: resolved.type.name, base });
+    const strategy = input.rebase ? "rebase" : "merge";
+
+    await this.hooks.run("pre-update", {
+      operation: "pre-update",
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+      base,
+      extra: { rebase: input.rebase === true, fetch: input.fetch === true, strategy },
+    });
 
     if (input.fetch) {
       for (const remote of this.workflow.fetchRemotes()) await this.git.fetch(remote, base);
     }
 
     await this.git.checkout(resolved.branch);
-    this.logger.info(`updating ${resolved.branch} from ${base} (${input.rebase ? "rebase" : "merge"})`);
+    this.logger.info(`updating ${resolved.branch} from ${base} (${strategy})`);
 
     try {
       if (input.rebase) {
@@ -44,6 +52,12 @@ export class UpdateBranchUseCase {
       throw new ConflictError(`conflict updating ${resolved.branch} from ${base}`, conflicts);
     }
 
-    await this.hooks.run("post-update", { branch: resolved.branch, branchType: resolved.type.name, base });
+    await this.hooks.run("post-update", {
+      operation: "post-update",
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+      base,
+      extra: { rebase: input.rebase === true, strategy },
+    });
   }
 }

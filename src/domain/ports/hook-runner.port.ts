@@ -22,18 +22,18 @@ export type HookName =
 
 export interface HookContext {
   readonly operation: HookName;
-  readonly branch?: string;
-  readonly branchType?: string;
-  readonly base?: string;
-  readonly target?: string | string[];
-  readonly dryRun?: boolean;
-  readonly force?: boolean;
-  readonly tagName?: string;
-  readonly oldName?: string;
-  readonly newName?: string;
-  readonly remote?: string;
-  readonly extra?: Record<string, unknown>;
-  readonly type?: string;
+  readonly branch?: string | undefined;
+  readonly branchType?: string | undefined;
+  readonly base?: string | undefined;
+  readonly target?: string | string[] | undefined;
+  readonly dryRun?: boolean | undefined;
+  readonly force?: boolean | undefined;
+  readonly tagName?: string | undefined;
+  readonly oldName?: string | undefined;
+  readonly newName?: string | undefined;
+  readonly remote?: string | undefined;
+  readonly extra?: Record<string, unknown> | undefined;
+  readonly type?: string | undefined;
 }
 
 export interface HookRunner {

@@ -17,7 +17,7 @@ export class VersionConfigLoader {
     const { root, mainConfig, explicitFile } = options;
     const mainVersioning = mainConfig.versioning ?? { enabled: false };
 
-    let filePath = explicitFile ?? mainVersioning.path ?? ".gitwe/version.yaml";
+    let filePath = explicitFile ?? mainVersioning.config ?? ".gitwe/version.yaml";
     filePath = join(root, filePath);
 
     let fileConfig: Partial<VersioningConfig> = {};
