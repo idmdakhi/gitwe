@@ -4,6 +4,7 @@ import type { ConfigRepository } from "../../domain/ports/config-repository.port
 import type { GitRepository } from "../../domain/ports/git-repository.port.js";
 import { ConfigValidatorService } from "../../domain/services/config-validator.service.js";
 import { presets, type PresetName } from "../../domain/config/presets.js";
+import { HookRunner } from "../../domain/ports/hook-runner.port.js";
 
 export interface InitWorkflowInput {
   /** Start from this preset when `config` is not provided. */
@@ -19,10 +20,16 @@ export class InitWorkflowUseCase {
   constructor(
     private readonly configRepo: ConfigRepository,
     private readonly git: GitRepository,
+    private readonly hooks: HookRunner,
     private readonly validator = new ConfigValidatorService(),
   ) {}
 
   async execute(input: InitWorkflowInput): Promise<WorkflowConfig> {
+    await this.hooks.run("pre-init", {
+      operation: "pre-init",
+      extra: { preset: input.preset, force: input.force },
+    });
+
     const existing = await this.configRepo.load();
     if (existing && !input.force) {
       throw new ConfigError(
@@ -51,6 +58,12 @@ export class InitWorkflowUseCase {
     }
 
     await this.configRepo.save(config);
+
+    await this.hooks.run("post-init", {
+      operation: "post-init",
+      extra: { config, createdBranches: input.createBranches },
+    });
+
     return config;
   }
 }

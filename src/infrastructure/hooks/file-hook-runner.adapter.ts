@@ -25,10 +25,31 @@ export class FileHookRunner implements HookRunner {
   async run(name: HookName, context: HookContext): Promise<void> {
     if (!this.config.enabled) return;
 
-    const type = context.branchType;
-    const definition = this.getDefinition(name, type);
-    if (!definition) return;
+    const definitions = this.getAllDefinitions(name, context);
+    if (definitions.length === 0) return;
 
+    // گروه‌بندی بر اساس parallel
+    const parallelGroup = definitions.filter((d) => d.parallel);
+    const sequentialGroup = definitions.filter((d) => !d.parallel);
+
+    // اجرای موازی
+    const promises: Promise<void>[] = parallelGroup.map((def) =>
+      this.runDefinition(def, name, context),
+    );
+    await Promise.allSettled(promises); // یا Promise.all
+
+    // اجرای ترتیبی
+    for (const def of sequentialGroup) {
+      await this.runDefinition(def, name, context);
+    }
+  }
+
+  async runDefinition(
+    definition: HookDefinition,
+    name: HookName,
+    context: HookContext,
+  ): Promise<void> {
+    if (!this.config.enabled) return;
     const script = this.resolveScript(definition, name);
     if (!script) return;
 
@@ -62,7 +83,51 @@ export class FileHookRunner implements HookRunner {
     }
   }
 
-  private getDefinition(name: HookName, type?: string): HookDefinition | null {
+  private getAllDefinitions(name: HookName, context: HookContext): HookDefinition[] {
+    const definitions: HookDefinition[] = [];
+    const type = context.branchType;
+
+    // ۱. تعاریف از typeOverrides (اگر نوع شاخه مشخص باشد)
+    if (type && this.config.typeOverrides?.[type]) {
+      const typeHook = this.config.typeOverrides[type]?.[name];
+      if (typeHook) {
+        definitions.push(typeof typeHook === "string" ? { script: typeHook } : typeHook);
+      }
+    }
+
+    // ۲. تعاریف advanced (اگر وجود داشته باشد و هنوز از نوع override استفاده نکرده‌ایم)
+    const advanced = this.config.advanced?.[name];
+    if (advanced) {
+      definitions.push(advanced);
+    }
+
+    // ۳. تعاریف inline
+    const inline = this.config.inline?.[name];
+    if (inline) {
+      definitions.push({ script: inline });
+    }
+
+    // ۴. فایل اسکریپت در مسیر پیش‌فرض (اگر وجود داشته باشد)
+    const scriptPath = join(this.root, this.config.path, name);
+    if (existsSync(scriptPath)) {
+      definitions.push({ script: scriptPath });
+    }
+
+    // حذف تعاریف تکراری بر اساس script (اختیاری)
+    const unique = new Map<string, HookDefinition>();
+    for (const def of definitions) {
+      const key = def.script;
+      if (!unique.has(key)) {
+        unique.set(key, def);
+      }
+    }
+
+    return Array.from(unique.values());
+  }
+
+  private getDefinition(name: HookName, context: HookContext): HookDefinition | null {
+    const type = context.branchType;
+
     // ۱. اولویت با typeOverrides (اگر نوع شاخه مشخص باشد)
     if (type && this.config.typeOverrides?.[type]) {
       const typeHook = this.config.typeOverrides[type]?.[name];
@@ -85,7 +150,10 @@ export class FileHookRunner implements HookRunner {
       return { script: scriptPath };
     }
 
-    return null;
+    if (definition && definition.when && !this.evaluateWhen(definition.when, context)) {
+      return null;
+    }
+    return definition;
   }
 
   private resolveScript(definition: HookDefinition, name: HookName): string | null {
@@ -192,48 +260,80 @@ export class FileHookRunner implements HookRunner {
     env: NodeJS.ProcessEnv,
     continueOnError?: boolean,
   ): Promise<void> {
-    // اجرای اسکریپت با ارسال JSON به STDIN
-    const child = execFileAsync(script, [], {
-      cwd: this.root,
-      env,
-      shell: true,
-      input: stdin,
-    });
-    try {
-      const { stdout, stderr } = await child;
-      if (this.verbose) {
-        if (stdout) console.error(stdout);
-        if (stderr) console.error(stderr);
+    return new Promise((resolve, reject) => {
+      const child = execFile(script, [], {
+        cwd: this.root,
+        env,
+        shell: true,
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+
+      if (stdin) {
+        child.stdin?.write(stdin);
+        child.stdin?.end();
       }
-      // بررسی خروجی JSON (اختیاری)
-      if (stdout) {
-        try {
-          const result = JSON.parse(stdout);
-          if (result.continue === false) {
-            throw new GitweError(
-              "HOOK_BLOCKED",
-              `Hook "${script}" blocked the operation: ${result.message || "no reason given"}`,
-            );
-          }
-          if (result.message && this.verbose) {
-            console.error(`[gitwe] Hook message: ${result.message}`);
-          }
-        } catch (parseError) {
-          // اگر خروجی JSON نبود، نادیده بگیر
-          if (this.verbose) {
-            console.error(`[gitwe] Hook stdout (not JSON): ${stdout}`);
-          }
+
+      let stdout = "";
+      let stderr = "";
+      child.stdout?.on("data", (data) => {
+        stdout += data;
+      });
+      child.stderr?.on("data", (data) => {
+        stderr += data;
+      });
+
+      child.on("close", (code) => {
+        if (this.verbose) {
+          if (stdout) console.error(stdout);
+          if (stderr) console.error(stderr);
         }
-      }
-    } catch (error: any) {
-      const code = error.code ?? 1;
-      if (code === 2 && continueOnError) {
-        console.warn(`[gitwe] Hook warning (exit code 2): ${error.message}`);
-        return;
-      }
-      if (code !== 0 && !continueOnError) {
-        throw new GitweError("HOOK_FAILED", `Hook "${script}" failed: ${error.message}`);
-      }
+        if (stdout) {
+          try {
+            const result = JSON.parse(stdout);
+            if (result.continue === false) {
+              reject(
+                new GitweError(
+                  "HOOK_BLOCKED",
+                  `Hook "${script}" blocked the operation: ${result.message || "no reason given"}`,
+                ),
+              );
+              return;
+            }
+          } catch {}
+        }
+        if (code === 0) return resolve();
+        if (code === 2 && continueOnError) {
+          console.warn(`[gitwe] Hook warning (exit code 2): ${stderr || stdout}`);
+          return resolve();
+        }
+        reject(new GitweError("HOOK_FAILED", `Hook "${script}" failed with code ${code}`));
+      });
+
+      child.on("error", reject);
+    });
+  }
+
+  private evaluateWhen(condition: string | undefined, context: HookContext): boolean {
+    if (!condition) return true;
+
+    // جایگزینی متغیرهای ساده
+    let expr = condition
+      .replace(/\btype\b/g, `"${context.branchType || ""}"`)
+      .replace(
+        /\btarget\b/g,
+        `"${Array.isArray(context.target) ? context.target.join(",") : context.target || ""}"`,
+      )
+      .replace(/\btagName\b/g, `"${context.tagName || ""}"`)
+      .replace(/\bbranch\b/g, `"${context.branch || ""}"`);
+
+    // بررسی عملگرهای ساده
+    try {
+      // استفاده از Function constructor برای eval کردن شرط (ایمنی نسبی)
+      const fn = new Function(`return !!( ${expr} )`);
+      return fn();
+    } catch {
+      // در صورت خطا، شرط را false در نظر می‌گیریم
+      return false;
     }
   }
 }

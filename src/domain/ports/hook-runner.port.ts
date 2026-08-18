@@ -33,6 +33,7 @@ export interface HookContext {
   readonly newName?: string;
   readonly remote?: string;
   readonly extra?: Record<string, unknown>;
+  readonly type?: string;
 }
 
 export interface HookRunner {

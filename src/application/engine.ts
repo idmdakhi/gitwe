@@ -3,7 +3,7 @@ import { NotInitializedError, ValidationError } from "../domain/errors/index.js"
 import { WorkflowService } from "../domain/services/workflow.service.js";
 import type { ConfigRepository } from "../domain/ports/config-repository.port.js";
 import type { GitRepository, TagOptions } from "../domain/ports/git-repository.port.js";
-import type { HookRunner } from "../domain/ports/hook-runner.port.js";
+import type { HookContext, HookRunner } from "../domain/ports/hook-runner.port.js";
 import type { Logger } from "../domain/ports/logger.port.js";
 import { silentLogger } from "../domain/ports/logger.port.js";
 import type { OperationStateStore } from "../domain/ports/operation-state-store.port.js";
@@ -29,6 +29,8 @@ import {
 import { omitUndefined } from "../utils.js";
 import { VersionConfigLoader } from "../infrastructure/config/version-config-loader.js";
 import { RemoteConfigLoader } from "../infrastructure/config/remote-config-loader.js";
+import { HookConfigLoader } from "../infrastructure/config/hook-config-loader.js";
+import { FileHookRunner } from "../infrastructure/hooks/file-hook-runner.adapter.js";
 
 export interface EngineDeps {
   readonly configRepo: ConfigRepository;
@@ -72,12 +74,25 @@ export class Engine {
       mainConfig: config,
     });
 
-    const workflow = new WorkflowService({ ...config, versioning, remote });
-    return new Engine(workflow, { logger: silentLogger, ...deps });
+    const hookLoader = new HookConfigLoader();
+    const hookConfig = await hookLoader.load({
+      root: deps.git.cwd,
+      mainConfig: config,
+    });
+
+    // ساخت HookRunner با تنظیمات کامل
+    const hooks = new FileHookRunner(
+      deps.git.cwd,
+      hookConfig,
+      !!deps.logger, // یا از options.verbose استفاده کنید
+    );
+
+    const workflow = new WorkflowService({ ...config, versioning, remote, hooks: hookConfig });
+    return new Engine(workflow, { logger: silentLogger, ...deps, hooks });
   }
 
   static async init(deps: EngineDeps, options: InitEngineOptions): Promise<Engine> {
-    const useCase = new InitWorkflowUseCase(deps.configRepo, deps.git);
+    const useCase = new InitWorkflowUseCase(deps.configRepo, deps.git, deps.hooks);
     const config = await useCase.execute({
       preset: options.preset,
       config: options.config,
@@ -105,7 +120,7 @@ export class Engine {
     typeOrBranch: string,
     nameOrPrefix?: string,
   ): Promise<{ branch: string; shortName: string | null; type: string | null }> {
-    // ---- full branch name only ------------------------------------------
+    // ---- حالت اول: نام کامل شاخه ------------------------------------------
     if (nameOrPrefix === undefined) {
       const branch = typeOrBranch;
       if (!(await this.deps.git.branchExists(branch))) {
@@ -114,8 +129,23 @@ export class Engine {
           "pass an existing branch name, or: gitwe checkout <type> <name>",
         );
       }
-      await this.deps.git.checkout(branch);
+
+      // resolve قبل از checkout (برای هوک post-checkout)
       const resolved = this.workflow.resolveBranch(branch);
+
+      await this.deps.hooks.run("pre-checkout", {
+        operation: "pre-checkout",
+        branch,
+      });
+
+      await this.deps.git.checkout(branch);
+
+      await this.deps.hooks.run("post-checkout", {
+        operation: "post-checkout",
+        branch,
+        type: resolved?.type.name,
+      } as HookContext);
+
       return {
         branch,
         shortName: resolved?.shortName ?? null,
@@ -123,7 +153,7 @@ export class Engine {
       };
     }
 
-    // ---- type + name / unique prefix ------------------------------------
+    // ---- حالت دوم: type + name / prefix ------------------------------------
     const type = this.workflow.requireBranchType(typeOrBranch);
     const all = await this.deps.git.listBranches(`${type.prefix}*`);
 
@@ -151,7 +181,20 @@ export class Engine {
     }
 
     const resolved = candidates[0]!;
+
+    await this.deps.hooks.run("pre-checkout", {
+      operation: "pre-checkout",
+      branch: resolved.branch,
+    });
+
     await this.deps.git.checkout(resolved.branch);
+
+    await this.deps.hooks.run("post-checkout", {
+      operation: "post-checkout",
+      branch: resolved.branch,
+      type: resolved.type.name,
+    });
+
     return {
       branch: resolved.branch,
       shortName: resolved.shortName,
@@ -295,7 +338,20 @@ export class Engine {
       );
     }
 
+    await this.deps.hooks.run("pre-rename", {
+      operation: "pre-rename",
+      oldName: current,
+      newName: to,
+    } as HookContext);
+
     await this.deps.git.renameBranch(current, to);
+
+    await this.deps.hooks.run("post-rename", {
+      operation: "post-rename",
+      oldName: current,
+      newName: to,
+      type: resolved.type.name,
+    });
 
     return {
       from: current,
@@ -305,11 +361,26 @@ export class Engine {
     };
   }
 
-  track(branchOrType: string, name?: string): Promise<{ branch: string; remote: string }> {
-    return new TrackBranchUseCase(this.workflow, this.deps.git, this.deps.logger).execute({
-      branchOrType,
-      name,
+  // src/application/engine.ts
+
+  async track(branchOrType: string, name?: string): Promise<{ branch: string; remote: string }> {
+    // Pre-track hook: اطلاعات ورودی را ارسال می‌کنیم
+    await this.deps.hooks.run("pre-track", {
+      operation: "pre-track",
+      extra: { branchOrType, name },
     });
+
+    const useCase = new TrackBranchUseCase(this.workflow, this.deps.git, this.deps.logger);
+    const result = await useCase.execute({ branchOrType, name });
+
+    // Post-track hook: نتیجه اجرا را ارسال می‌کنیم
+    await this.deps.hooks.run("post-track", {
+      operation: "post-track",
+      branch: result.branch,
+      remote: result.remote,
+    });
+
+    return result;
   }
 
   get config(): WorkflowConfig {
@@ -477,10 +548,15 @@ export class Engine {
 
     // --- Create ---
     if (name) {
-      await this.deps.git.createTag(
-        name,
-        omitUndefined({ annotated: true, message: options.message }) as TagOptions,
-      );
+      await this.deps.hooks.run("pre-tag", {
+        operation: "pre-tag",
+        tagName: name,
+        extra: options,
+      });
+      await this.deps.git.createTag(name, {
+        annotated: true,
+        message: options.message,
+      } as TagOptions);
       const result: any = { tags: await this.deps.git.listTags(), created: name };
 
       if (options.push) {
@@ -493,6 +569,11 @@ export class Engine {
         result.pushedAll = true;
       }
 
+      await this.deps.hooks.run("post-tag", {
+        operation: "post-tag",
+        tagName: name,
+        extra: { pushed: options.push, deleted: options.delete },
+      });
       return result;
     }
 

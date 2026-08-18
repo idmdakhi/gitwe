@@ -14,7 +14,10 @@ export interface HookConfigLoaderOptions {
 export class HookConfigLoader {
   async load(options: HookConfigLoaderOptions): Promise<HookConfig> {
     const { root, mainConfig, explicitFile } = options;
-    const mainHooks = mainConfig.hooks ?? { enabled: true, path: ".gitwe/hooks.yaml" };
+    const mainHooks = mainConfig.hooks ?? {
+      enabled: true,
+      path: ".gitwe/hooks.yaml",
+    };
 
     let filePath = explicitFile ?? mainHooks.path ?? ".gitwe/hooks.yaml";
     filePath = join(root, filePath);
