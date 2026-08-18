@@ -4,6 +4,7 @@ import { FileHookRunner } from "../infrastructure/hooks/file-hook-runner.adapter
 import { FileOperationStateStore } from "../infrastructure/state/file-operation-state-store.adapter.js";
 import { ConsoleLogger } from "../infrastructure/logger/console-logger.adapter.js";
 import type { EngineDeps } from "../application/engine.js";
+import { HookConfig } from "../domain/entities/hook-config.entity.js";
 
 export interface GlobalOptions {
   readonly cwd: string;
@@ -21,7 +22,15 @@ export function buildEngineDeps(options: GlobalOptions): EngineDeps {
   const stateStore = new FileOperationStateStore(root);
   // Hook config is only known after loading the workflow file; default to
   // enabled + `.gitwe/hooks` and let callers override once config is loaded.
-  const hooks = new FileHookRunner(root, ".gitwe/hooks", true);
+  const defaultHookConfig: HookConfig = {
+    enabled: true,
+    path: ".gitwe/hooks",
+    config: ".gitwe/hooks.yaml",
+    inline: {},
+    advanced: {},
+    typeOverrides: {},
+  };
+  const hooks = new FileHookRunner(root, defaultHookConfig, true);
 
   return { configRepo, git, hooks, stateStore, logger };
 }

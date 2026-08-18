@@ -1,0 +1,10 @@
+#!/bin/bash
+# .gitwe/hooks/post-start
+# ثبت اطلاعات شاخه جدید در فایل لاگ
+
+LOG_FILE=".gitwe/branch.log"
+
+echo "[$(date -Iseconds)] STARTED: $GITWE_BRANCH (type: $GITWE_TYPE, base: $GITWE_BASE)" >> "$LOG_FILE"
+
+echo "📝 Logged branch creation"
+exit 0

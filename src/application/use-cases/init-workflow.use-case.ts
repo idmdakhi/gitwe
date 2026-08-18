@@ -4,6 +4,7 @@ import type { ConfigRepository } from "../../domain/ports/config-repository.port
 import type { GitRepository } from "../../domain/ports/git-repository.port.js";
 import { ConfigValidatorService } from "../../domain/services/config-validator.service.js";
 import { presets, type PresetName } from "../../domain/config/presets.js";
+import { HookRunner } from "../../domain/ports/hook-runner.port.js";
 
 export interface InitWorkflowInput {
   /** Start from this preset when `config` is not provided. */
@@ -19,10 +20,21 @@ export class InitWorkflowUseCase {
   constructor(
     private readonly configRepo: ConfigRepository,
     private readonly git: GitRepository,
+    private readonly hooks: HookRunner,
     private readonly validator = new ConfigValidatorService(),
   ) {}
 
   async execute(input: InitWorkflowInput): Promise<WorkflowConfig> {
+    await this.hooks.run("pre-init", {
+      operation: "pre-init",
+      force: input.force === true,
+      extra: {
+        preset: input.preset,
+        force: input.force === true,
+        createBranches: input.createBranches !== false,
+      },
+    });
+
     const existing = await this.configRepo.load();
     if (existing && !input.force) {
       throw new ConfigError(
@@ -41,16 +53,32 @@ export class InitWorkflowUseCase {
 
     this.validator.validate(config).assertValid();
 
+    const createdBranches: string[] = [];
     if (input.createBranches !== false) {
       for (const base of config.baseBranches) {
         if (!(await this.git.branchExists(base.name))) {
           const startPoint = base.base ?? "HEAD";
           await this.git.createBranch(base.name, startPoint);
+          createdBranches.push(base.name);
         }
       }
     }
 
     await this.configRepo.save(config);
+
+    await this.hooks.run("post-init", {
+      operation: "post-init",
+      force: input.force === true,
+      extra: {
+        preset: input.preset,
+        force: input.force === true,
+        createBranches: input.createBranches !== false,
+        createdBranches,
+        workflowName: config.name,
+        configPath: this.configRepo.path,
+      },
+    });
+
     return config;
   }
 }

@@ -91,7 +91,7 @@ function applyOverrides(
   ) {
     const enabled = overrides.versioningEnabled ?? currentVersioning?.enabled ?? false;
     const tagPrefix = overrides.tagPrefix ?? currentVersioning?.tagPrefix ?? "v";
-    const path = overrides.versioningPath ?? currentVersioning?.path;
+    const path = overrides.versioningPath ?? currentVersioning?.config;
     const tag = currentVersioning?.tagTypes ?? [];
     const bumpRules = currentVersioning?.bumpRules;
 
@@ -114,7 +114,7 @@ function applyOverrides(
 
   if (overrides.changelogEnabled !== undefined || overrides.changelogPath !== undefined) {
     const enabled = overrides.changelogEnabled ?? currentChangelog?.enabled ?? false;
-    const path = overrides.changelogPath ?? currentChangelog?.path;
+    const path = overrides.changelogPath ?? currentChangelog?.config;
 
     newChangelog = omitUndefined({
       enabled,

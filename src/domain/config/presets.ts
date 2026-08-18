@@ -38,7 +38,7 @@ export function classicPreset(): WorkflowConfig {
       deleteOnFinish: ["feature", "release", "hotfix"],
       squash: { enabled: true, default: false, branchTypes: ["feature"] },
     },
-    hooks: { enabled: true, path: ".gitwe/hooks" },
+    hooks: { enabled: true, path: ".gitwe/hooks", config: ".gitwe/hooks.yaml" },
     versioning: {
       enabled: true,
       tagPrefix: "v",

@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+// .gitwe/hooks/<hook-name>
+console.log('ℹ️ Hook is not implemented. Skipping.');
+process.exit(0);

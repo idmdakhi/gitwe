@@ -23,7 +23,14 @@ export class DeleteBranchUseCase {
       throw new ValidationError(`"${resolved.branch}" is protected and cannot be deleted`);
     }
 
-    await this.hooks.run("pre-delete", { branch: resolved.branch, branchType: resolved.type.name });
+    await this.hooks.run("pre-delete", {
+      operation: "pre-delete",
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+      base: resolved.type.base,
+      force: input.force === true,
+      extra: { remote: input.remote === true, force: input.force === true },
+    });
 
     const current = await this.git.currentBranch();
     if (current === resolved.branch) {
@@ -31,14 +38,28 @@ export class DeleteBranchUseCase {
     }
     await this.git.deleteBranch(resolved.branch, input.force ?? false);
 
+    const deletedRemotes: string[] = [];
     if (input.remote) {
       for (const remote of this.workflow.pushRemotesFor(resolved.type)) {
         if (await this.git.remoteBranchExists(remote, resolved.branch)) {
           await this.git.deleteRemoteBranch(remote, resolved.branch);
+          deletedRemotes.push(remote);
         }
       }
     }
 
-    await this.hooks.run("post-delete", { branch: resolved.branch, branchType: resolved.type.name });
+    await this.hooks.run("post-delete", {
+      operation: "post-delete",
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+      base: resolved.type.base,
+      force: input.force === true,
+      extra: {
+        remote: input.remote === true,
+        force: input.force === true,
+        deletedRemotes,
+        deleted: true,
+      },
+    });
   }
 }

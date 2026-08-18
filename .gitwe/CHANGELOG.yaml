@@ -2,4 +2,5 @@
 version: 1
 
 enabled: false
-templatePath: ".gitwe/changelog.template.md"
+template:
+  path: ".gitwe/changelog.template"

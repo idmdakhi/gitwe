@@ -1,0 +1,16 @@
+#!/bin/bash
+# .gitwe/hooks/post-tag
+# بعد از ایجاد تگ، اجرای deploy خودکار
+
+if [[ "$GITWE_TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "🚀 Deploying version $GITWE_TAG_NAME..."
+
+  # مثال: اجرای دستور deploy
+  # ./scripts/deploy.sh "$GITWE_TAG_NAME"
+
+  echo "✅ Deploy triggered for $GITWE_TAG_NAME"
+else
+  echo "ℹ️ Tag '$GITWE_TAG_NAME' is not a version tag, skipping deploy"
+fi
+
+exit 0

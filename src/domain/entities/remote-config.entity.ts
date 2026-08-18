@@ -43,7 +43,7 @@ export interface TypeRemoteOverrides {
 
 export interface RemoteConfig {
   /** Path to separate remote config file (optional) */
-  path?: string | undefined;
+  config?: string | undefined;
 
   /** Primary/default remote name (formerly "name") */
   default: string;

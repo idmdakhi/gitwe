@@ -25,13 +25,20 @@ export class PublishBranchUseCase {
       throw new ValidationError(`branch "${resolved.branch}" does not exist locally`);
     }
 
-    await this.hooks.run("pre-publish", {
-      branch: resolved.branch,
-      branchType: resolved.type.name,
-    });
-
     const remotes = this.workflow.pushRemotesFor(resolved.type);
     const pushOpts = this.workflow.getPushOptionsFor(resolved.type);
+
+    await this.hooks.run("pre-publish", {
+      operation: "pre-publish",
+      branch: resolved.branch,
+      branchType: resolved.type.name,
+      base: resolved.type.base,
+      force: input.force === true,
+      // Primary remote for scripts that only read GITWE_REMOTE
+      remote: remotes[0],
+      extra: { remotes: [...remotes], force: input.force === true },
+    });
+
     for (const remote of remotes) {
       if (!(await this.git.remoteExists(remote))) {
         throw new ValidationError(`remote "${remote}" is not configured`);
@@ -46,8 +53,13 @@ export class PublishBranchUseCase {
     }
 
     await this.hooks.run("post-publish", {
+      operation: "post-publish",
       branch: resolved.branch,
       branchType: resolved.type.name,
+      base: resolved.type.base,
+      force: input.force === true,
+      remote: remotes[0],
+      extra: { remotes: [...remotes], force: input.force === true },
     });
     return remotes;
   }

@@ -1,0 +1,15 @@
+#!/bin/bash
+# .gitwe/hooks/pre-finish
+# اطمینان از اینکه working tree پاک است
+
+echo "🧹 Checking working tree status..."
+
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "❌ Working tree is dirty! Commit or stash changes before finishing."
+  echo "   Uncommitted changes:"
+  git status --porcelain
+  exit 1
+fi
+
+echo "✅ Working tree is clean"
+exit 0

@@ -41,19 +41,26 @@ merge:
     branchTypes: [feature]
 
 hooks:
-  enabled: true
+  enabled: false
+  config: .gitwe/hook.yaml
   path: .gitwe/hooks
+  inline:
+    pre-start: "echo 'Starting branch $GITWE_BRANCH'"
+    post-finish: "echo 'Finished $GITWE_BRANCH → $GITWE_TARGET'"
 
 versioning:
   enabled: true
-  path: .gitwe/version.yaml
+  config: .gitwe/version.yaml
+  tagTypes: [release, hotfix]
+  tagTargets: [root] # root = no base on baseBranches
+  tagPrefix: v
 
 changelog:
   enabled: false
-  path: .gitwe/changelog.yaml
+  config: .gitwe/changelog.yaml
 
 remote:
-  path: .gitwe/remote.yaml
+  config: .gitwe/remote.yaml
   name: origin # for gitwe vscode < v0.23 [deprecated]
   default: origin
   fetch: [origin]

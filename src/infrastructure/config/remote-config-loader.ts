@@ -30,7 +30,7 @@ export class RemoteConfigLoader {
       autoPush: false,
     };
 
-    let filePath = explicitFile ?? mainRemote.path ?? ".gitwe/remote.yaml";
+    let filePath = explicitFile ?? mainRemote.config ?? ".gitwe/remote.yaml";
     filePath = join(root, filePath);
 
     let fileConfig: any = {};
