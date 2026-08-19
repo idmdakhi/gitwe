@@ -34,8 +34,11 @@ import { logCommand } from "./commands/log.command.js";
 import { graphCommand } from "./commands/graph.command.js";
 import { rebaseCommand } from "./commands/rebase.command.js";
 import { configCommand } from "./commands/config.command.js";
+import { CliConfig } from "../domain/entities/workflow-config.entity.js";
+import { applyAliases } from "./aliases.js";
+import { setInteractive } from "./prompts.js";
 
-export async function buildProgram(): Promise<Command> {
+export async function buildProgram(cliConfig?: CliConfig): Promise<Command> {
   const program = new Command("gitwe")
     .description("A configurable git branching-workflow engine")
     .version(version)
@@ -45,6 +48,11 @@ export async function buildProgram(): Promise<Command> {
     .option("-v, --verbose", "verbose logging", false)
     .option("--dry-run", "simulate without making changes (where supported)", false)
     .option("--format <format>", "output format: text | json | yaml", "text");
+
+  if (cliConfig) {
+    if (cliConfig.color === false) setColorEnabled(false);
+    if (cliConfig.interactive === false) setInteractive(false);
+  }
 
   program.hook("preAction", (thisCommand) => {
     const opts = thisCommand.opts<{ color?: boolean }>();
@@ -78,17 +86,17 @@ export async function buildProgram(): Promise<Command> {
   program.addCommand(rebaseCommand());
   program.addCommand(configCommand());
 
+  if (cliConfig?.aliases) applyAliases(program, cliConfig.aliases);
+
   return program;
 }
 
-export async function run(argv: string[] = process.argv): Promise<0 | 1> {
+export async function run(argv: string[] = process.argv, cliConfig?: CliConfig): Promise<0 | 1> {
   try {
-    const program = await buildProgram();
+    const program = await buildProgram(cliConfig);
     await program.parseAsync(argv);
     return 0;
   } catch (error) {
-    // If the error is already handled by the action() wrapper, it will have set process.exitCode.
-    // For unhandled errors, we set exit code 1 and print a generic message.
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);
     } else {

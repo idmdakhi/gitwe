@@ -74,6 +74,6 @@ cli:
   color: true
   aliases:
     fs: finish feature
-    rs: release start
-    hf: hotfix start
-    st: status
+    rs: start release
+    hf: start hotfix
+    st: overview

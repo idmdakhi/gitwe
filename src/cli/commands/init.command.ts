@@ -4,14 +4,10 @@ import { globalOptions, action } from "./shared.js";
 import { Engine } from "../../application/engine.js";
 import { style } from "../output.js";
 import { presets, type PresetName } from "../../domain/config/presets.js";
-import type {
-  WorkflowConfig,
-  ChangelogConfig,
-} from "../../domain/entities/workflow-config.entity.js";
-import { runInitWizard, applyInitOverrides } from "./init-wizard.js";
+import type { WorkflowConfig } from "../../domain/entities/workflow-config.entity.js";
+import { runInitWizard } from "./init-wizard.js";
 import { isInteractive } from "../prompts.js";
 import { omitUndefined, parseKeyValuePairs } from "../../utils.js";
-import { VersioningConfig } from "../../domain/entities/versioning-config.entity.js";
 
 const PRESETS = ["classic", "github", "gitlab"] as const;
 
@@ -21,7 +17,7 @@ function collect(value: string, previous: string[]): string[] {
   return previous;
 }
 
-// اعمال تغییرات روی preset (برای حالت غیرتعاملی)
+// اعمال تغییرات ساده روی preset (بدون بخش‌های اضافی)
 function applyOverrides(
   config: WorkflowConfig,
   overrides: {
@@ -30,14 +26,11 @@ function applyOverrides(
     remote?: string | undefined;
     versioningEnabled?: boolean | undefined;
     tagPrefix?: string | undefined;
-    versioningPath?: string | undefined;
-    changelogEnabled?: boolean | undefined;
-    changelogPath?: string | undefined;
   },
 ): WorkflowConfig {
   let next = config;
 
-  // ---- تغییر نام شاخه‌های پایه ------------------------------------------
+  // ---- تغییر نام شاخه‌های پایه ----
   if (overrides.branchRenames && Object.keys(overrides.branchRenames).length > 0) {
     const renameMap = new Map(Object.entries(overrides.branchRenames));
     const bases = next.baseBranches.map((b) => ({
@@ -53,7 +46,7 @@ function applyOverrides(
     next = { ...next, baseBranches: bases, branchTypes: types };
   }
 
-  // ---- تغییر پیشوند نوع شاخه ------------------------------------------
+  // ---- تغییر پیشوند نوع شاخه ----
   if (overrides.prefixOverrides && Object.keys(overrides.prefixOverrides).length > 0) {
     const types = next.branchTypes.map((t) => {
       const p = overrides.prefixOverrides?.[t.name];
@@ -66,67 +59,44 @@ function applyOverrides(
     next = { ...next, branchTypes: types };
   }
 
-  // ---- تغییر ریموت ----------------------------------------------------
+  // ---- تغییر ریموت ----
   if (overrides.remote) {
     next = {
       ...next,
       remote: {
         default: overrides.remote,
-        autoFetch: next.remote?.autoFetch ?? true,
+        autoFetch: true,
         fetch: [overrides.remote],
-        autoPush: next.remote?.autoPush ?? false,
+        autoPush: false,
         push: [overrides.remote],
       },
     };
   }
 
-  // ---- تنظیمات نسخه‌گذاری ---------------------------------------------
-  const currentVersioning = next.versioning;
-  let newVersioning = currentVersioning;
-
-  if (
-    overrides.versioningEnabled !== undefined ||
-    overrides.tagPrefix !== undefined ||
-    overrides.versioningPath !== undefined
-  ) {
-    const enabled = overrides.versioningEnabled ?? currentVersioning?.enabled ?? false;
-    const tagPrefix = overrides.tagPrefix ?? currentVersioning?.tagPrefix ?? "v";
-    const path = overrides.versioningPath ?? currentVersioning?.config;
-    const tag = currentVersioning?.tagTypes ?? [];
-    const bumpRules = currentVersioning?.bumpRules;
-
-    newVersioning = omitUndefined({
-      enabled,
-      tagPrefix,
-      ...(path !== undefined ? { path } : {}),
-      tag,
-      ...(bumpRules ? { bumpRules } : {}),
-    }) as VersioningConfig;
+  // ---- تنظیمات نسخه‌گذاری ----
+  if (overrides.versioningEnabled !== undefined || overrides.tagPrefix !== undefined) {
+    const enabled = overrides.versioningEnabled ?? next.versioning?.enabled ?? false;
+    const tagPrefix = overrides.tagPrefix ?? next.versioning?.tagPrefix ?? "v";
+    const current = next.versioning ?? { enabled: false, tagPrefix: "v" };
+    next = {
+      ...next,
+      versioning: {
+        ...current,
+        enabled,
+        tagPrefix,
+        tagTypes: current.tagTypes ?? ["release", "hotfix"],
+        tagTargets: current.tagTargets ?? ["root"],
+        bumpRules: current.bumpRules ?? {
+          minor: ["release"],
+          patch: ["hotfix"],
+        },
+      },
+    };
   }
 
-  if (newVersioning !== currentVersioning) {
-    next = omitUndefined({ ...next, versioning: newVersioning }) as WorkflowConfig;
-  }
-
-  // ---- تنظیمات Changelog ----------------------------------------------
-  const currentChangelog = next.changelog;
-  let newChangelog = currentChangelog;
-
-  if (overrides.changelogEnabled !== undefined || overrides.changelogPath !== undefined) {
-    const enabled = overrides.changelogEnabled ?? currentChangelog?.enabled ?? false;
-    const path = overrides.changelogPath ?? currentChangelog?.config;
-
-    newChangelog = omitUndefined({
-      enabled,
-      ...(path !== undefined ? { path } : {}),
-    }) as ChangelogConfig;
-  }
-
-  if (newChangelog !== currentChangelog) {
-    next = omitUndefined({ ...next, changelog: newChangelog }) as WorkflowConfig;
-  }
-
-  return next;
+  // حذف بخش‌های اضافی (hooks, changelog, cli) در صورت وجود
+  const { hooks, changelog, cli, ...cleanConfig } = next as any;
+  return cleanConfig as WorkflowConfig;
 }
 
 export function initCommand(): Command {
@@ -152,12 +122,6 @@ export function initCommand(): Command {
     .option("-r, --remote <name>", "default remote name")
     .option("--versioning-enabled", "enable versioning (tags on release/hotfix)")
     .option("--tag-prefix <prefix>", "version tag prefix (default: v)")
-    .option(
-      "--versioning-path <path>",
-      "path to versioning config file (default: .gitwe/VERSION.yaml)",
-    )
-    .option("--changelog-enabled", "enable changelog generation")
-    .option("--changelog-path <path>", "path to changelog file (default: CHANGELOG.md)")
     .action(
       action(async function (this: Command, out) {
         const globals = globalOptions(this);
@@ -172,9 +136,6 @@ export function initCommand(): Command {
           remote?: string;
           versioningEnabled?: boolean;
           tagPrefix?: string;
-          versioningPath?: string;
-          changelogEnabled?: boolean;
-          changelogPath?: string;
         }>();
 
         const presetName = opts.preset as PresetName;
@@ -182,31 +143,29 @@ export function initCommand(): Command {
           throw Object.assign(new Error(`unknown preset "${presetName}"`), {});
         }
 
-        // ---------- تشخیص حالت تعاملی ----------
+        // تشخیص حالت تعاملی
         const interactive = isInteractive() && !opts.defaults && globals.format === "text";
 
         let config: WorkflowConfig;
         let createBranches: boolean;
 
         if (interactive) {
-          // ---------- حالت تعاملی (ویزارد) ----------
+          // حالت تعاملی (ویزارد ساده)
           const wizardResult = await runInitWizard(opts.preset as PresetName);
           config = wizardResult.config;
           createBranches = wizardResult.createBranches;
 
           // اعمال گزینه‌های خط فرمان (اولویت با خط فرمان)
           if (opts.branch.length || opts.prefix.length || opts.remote) {
-            config = applyInitOverrides(
-              config,
-              omitUndefined({
-                branchRenames: opts.branch.length ? parseKeyValuePairs(opts.branch) : undefined,
-                prefixOverrides: opts.prefix.length ? parseKeyValuePairs(opts.prefix) : undefined,
-                remote: opts.remote,
-              }),
-            );
+            const overrides: any = {
+              branchRenames: opts.branch.length ? parseKeyValuePairs(opts.branch) : undefined,
+              prefixOverrides: opts.prefix.length ? parseKeyValuePairs(opts.prefix) : undefined,
+              remote: opts.remote,
+            };
+            config = applyOverrides(config, omitUndefined(overrides));
           }
         } else {
-          // ---------- حالت غیرتعاملی ----------
+          // حالت غیرتعاملی
           const baseConfig = presets[presetName]();
           config = applyOverrides(baseConfig, {
             branchRenames: opts.branch.length ? parseKeyValuePairs(opts.branch) : undefined,
@@ -214,14 +173,11 @@ export function initCommand(): Command {
             remote: opts.remote,
             versioningEnabled: opts.versioningEnabled,
             tagPrefix: opts.tagPrefix,
-            versioningPath: opts.versioningPath,
-            changelogEnabled: opts.changelogEnabled,
-            changelogPath: opts.changelogPath,
           });
           createBranches = opts.createBranches !== false;
         }
 
-        // ---------- ساخت deps و اجرای Engine.init ----------
+        // ساخت deps و اجرای Engine.init
         const deps = buildEngineDeps({
           ...globals,
           ...(opts.path ? { config: opts.path } : {}),
@@ -233,7 +189,7 @@ export function initCommand(): Command {
           createBranches,
         });
 
-        // ---------- نمایش خروجی ----------
+        // نمایش خروجی
         const data = {
           preset: presetName,
           path: deps.configRepo.path,
@@ -242,7 +198,6 @@ export function initCommand(): Command {
           branchTypes: engine.config.branchTypes.map((t) => t.name),
         };
 
-        // استفاده از out.ok به جای success و print مستقیم
         const first = engine.config.branchTypes[0]?.name ?? "feature";
         out.ok({
           data,
