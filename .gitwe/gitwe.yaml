@@ -67,3 +67,13 @@ remote:
   autoFetch: true
   push: [origin]
   autoPush: false
+
+cli:
+  enabled: true
+  interactive: true
+  color: true
+  aliases:
+    fs: finish feature
+    rs: start release
+    hf: start hotfix
+    st: overview

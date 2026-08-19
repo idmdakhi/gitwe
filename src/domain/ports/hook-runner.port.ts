@@ -34,6 +34,7 @@ export interface HookContext {
   readonly remote?: string | undefined;
   readonly extra?: Record<string, unknown> | undefined;
   readonly type?: string | undefined;
+  readonly config?: string | undefined;
 }
 
 export interface HookRunner {

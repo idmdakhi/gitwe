@@ -6,8 +6,14 @@ import { stdin as input, stdout as output } from "node:process";
  * No extra dependency — keeps gitwe lean for CI and library use.
  * When stdin is not a TTY, callers should skip the wizard and use --defaults.
  */
+let interactiveEnabled = true;
+
+export function setInteractive(enabled: boolean): void {
+  interactiveEnabled = enabled;
+}
+
 export function isInteractive(): boolean {
-  return Boolean(input.isTTY && output.isTTY);
+  return interactiveEnabled && Boolean(input.isTTY && output.isTTY);
 }
 
 function createRl(): readline.Interface {
