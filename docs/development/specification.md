@@ -1,992 +1,130 @@
-**استاندارد مستقل (Vendor-Neutral Specification)**
-
-- git-flow فقط یکی از پیاده‌سازی‌ها (Implementation) باشد.
-- GitHub Flow یک Implementation دیگر باشد.
-- GitLab Flow، Trunk-Based Development و Workflowهای سفارشی نیز همگی بر اساس همین Specification تعریف شوند.
-- `gitwe` نیز اولین Reference Implementation این استاندارد باشد.
-
----
-
-# Git Workflow Specification (GitWS)
-
-**Version:** 1.0 Draft
-
-**Status:** Draft
-
-**License:** Open Specification
-
----
-
-# Volume 1
-
-## Core Specification
-
----
-
-# Part I
-
-## Foundations
-
-### Chapter 1
-
-Introduction
-
-- Purpose
-- Scope
-- Terminology
-- Conformance
-- Compatibility
-
----
-
-### Chapter 2
-
-Repository Model
-
-تعریف رسمی:
-
-- Repository
-- Working Tree
-- Index
-- HEAD
-- Reference
-- Ref Namespace
-- Branch
-- Remote
-- Tag
-- Commit
-- Merge Base
-
----
-
-### Chapter 3
-
-Workflow Model
-
-موجودیت‌های اصلی:
-
-```
-Workflow
-
-Base Branch
-
-Topic Type
-
-Topic Branch
-
-Lifecycle
-
-Operation
-
-State
-
-Hook
-
-Policy
-
-Strategy
-```
-
----
-
-# Part II
-
-Configuration Specification
-
----
-
-## Chapter 4
-
-Configuration File
-
-```
-gitws.json
-
-gitws.yaml
-
-gitws.yml
-```
-
-نسخه:
-
-```
-schemaVersion
-```
-
----
-
-## Chapter 5
-
-Workflow Metadata
-
-```
-id
-
-name
-
-description
-
-version
-
-author
-
-license
-
-homepage
-```
-
----
-
-## Chapter 6
-
-Repository Settings
-
-```
-defaultRemote
-
-defaultBranch
-
-fetchPolicy
-
-pushPolicy
-
-prPolicy
-
-tagPolicy
-```
-
----
-
-## Chapter 7
-
-Base Branch Definition
-
-```
-main
-
-develop
-
-staging
-
-production
-
-support/*
-```
-
-Properties
-
-```
-name
-
-parent
-
-remote
-
-protected
-
-strategy
-
-permissions
-```
-
----
-
-## Chapter 8
-
-Topic Types
-
-```
-feature
-
-release
-
-hotfix
-
-bugfix
-
-experiment
-
-spike
-
-support
-
-custom
-```
-
-Properties
-
-```
-prefix
-
-parent
-
-keep
-
-tag
-
-strategy
-
-hooks
-
-metadata
-```
-
----
-
-## Chapter 9
-
-Naming Rules
-
-```
-regex
-
-length
-
-reserved names
-
-case sensitivity
-
-unicode
-
-separator
-```
-
----
-
-## Chapter 10
-
-Policies
-
-```
-merge
-
-delete
-
-tag
-
-publish
-
-review
-
-approval
-
-protection
-```
-
----
-
-# Part III
-
-Command Specification
-
----
-
-## Chapter 11
-
-Global Options
-
-```
---config
-
---cwd
-
---verbose
-
---json
-
---yaml
-
---color
-
---no-color
-
---dry-run
-```
-
----
-
-## Chapter 12
-
-Init
-
-Lifecycle
-
-Preconditions
-
-Outputs
-
-Errors
-
-Examples
-
----
-
-## Chapter 13
-
-Start
-
-```
-start feature
-
-start release
-
-start hotfix
-```
-
----
-
-## Chapter 14
-
-Update
-
----
-
-## Chapter 15
-
-Publish
-
----
-
-## Chapter 16
-
-Track
-
----
-
-## Chapter 17
-
-Finish
-
-تمام مراحل دقیق:
-
-```
-validate
-
-fetch
-
-checkout
-
-merge
-
-tag
-
-update
-
-push
-
-delete
-
-cleanup
-```
-
----
-
-## Chapter 18
-
-Delete
-
----
-
-## Chapter 19
-
-Rename
-
----
-
-## Chapter 20
-
-Checkout
-
----
-
-## Chapter 21
-
-List
-
----
-
-## Chapter 22
-
-Overview
-
----
-
-## Chapter 23
-
-Doctor
-
----
-
-## Chapter 24
-
-Validate
-
----
-
-## Chapter 25
-
-Version
-
----
-
-# Part IV
-
-State Machine Specification
-
----
-
-## Branch Lifecycle
-
-```
-Created
-
-CheckedOut
-
-Published
-
-Updating
-
-Ready
-
-Finishing
-
-Merged
-
-Tagged
-
-Deleted
-
-Archived
-
-Failed
-
-Aborted
-```
-
----
-
-## Finish State Machine
-
-```
-Idle
-
-↓
-
-Validate
-
-↓
-
-PreHook
-
-↓
-
-Fetch
-
-↓
-
-SyncCheck
-
-↓
-
-CheckoutParent
-
-↓
-
-Merge
-
-↓
-
-Conflict
-
-↓
-
-Resume
-
-↓
-
-Tag
-
-↓
-
-Push
-
-↓
-
-DeleteRemote
-
-↓
-
-DeleteLocal
-
-↓
-
-PostHook
-
-↓
-
-Completed
-```
-
----
-
-تمام Transitionها تعریف رسمی خواهند داشت.
-
----
-
-# Part V
-
-Hook Specification
-
----
-
-## Hook Discovery
-
-```
-.gitws/hooks
-
-.git/hooks
-
-custom path
-```
-
----
-
-## Hook Types
-
-```
-pre-init
-
-post-init
-
-pre-start
-
-post-start
-
-pre-update
-
-post-update
-
-pre-finish
-
-post-finish
-
-pre-delete
-
-post-delete
-
-pre-tag
-
-post-tag
-```
-
----
-
-## Hook Contract
-
-Environment
-
-```
-GITWS_BRANCH
-
-GITWS_PARENT
-
-GITWS_TOPIC
-
-GITWS_REMOTE
-
-...
-```
-
-STDIN
-
-JSON Context
-
-STDOUT
-
-STDERR
-
-Exit Code
-
----
-
-# Part VI
-
-Merge Strategy Specification
-
----
-
-Strategies
-
-```
-merge
-
-fast-forward
-
-no-ff
-
-squash
-
-rebase
-
-rebase-merge
-
-cherry-pick
-
-ours
-
-theirs
-
-custom
-```
-
----
-
-هر Strategy
-
-```
-algorithm
-
-rollback
-
-resume
-
-conflict policy
-```
-
----
-
-# Part VII
-
-Remote Specification
-
----
-
-```
-fetch
-
-push
-
-mirror
-
-multi remote
-
-priority
-
-fallback
-```
-
----
-
-# Part VIII
-
-Tag Specification
-
----
-
-Annotated
-
-Lightweight
-
-Signed
-
-Semantic Version
-
-Custom Format
-
----
-
-# Part IX
-
-Conflict Resolution
-
----
-
-Conflict Types
-
-```
-merge
-
-rebase
-
-cherry-pick
-
-stash
-
-apply
-
-binary
-```
-
----
-
-Recovery
-
-```
-continue
-
-abort
-
-rollback
-```
-
----
-
-# Part X
-
-Error Specification
-
----
-
-Error Codes
-
-```
-E1000 Config
-
-E2000 Git
-
-E3000 Workflow
-
-E4000 Hook
-
-E5000 Network
-
-E6000 Internal
-```
-
-مثلاً
-
-```
-E1001
-
-Missing Parent Branch
-
-Recovery
-
-Severity
-
-Retry
-
-```
-
----
-
-# Part XI
-
-JSON Schema
-
----
-
-تمام Objectها
-
-```
-Workflow
-
-Branch
-
-Topic
-
-Hook
-
-Result
-
-Error
-
-Status
-
-Report
-```
-
-دارای JSON Schema رسمی خواهند بود.
-
----
-
-# Part XII
-
-Output Specification
-
----
-
-```
-text
-
-table
-
-json
-
-yaml
-```
-
-همراه با
-
-```
-schemaVersion
-
-command
-
-status
-
-warnings
-
-errors
-
-data
-```
-
----
-
-# Part XIII
-
-Library API
-
----
-
-Interfaces
-
-```
-Engine
-
-Workflow
-
-Repository
-
-HookRunner
-
-StateStore
-
-Logger
-```
-
-Contracts
-
-```
-start()
-
-finish()
-
-update()
-
-doctor()
-
-validate()
-
-```
-
----
-
-# Part XIV
-
-Extension Specification
-
----
-
-Plugin API
-
-Custom Strategy
-
-Custom Hook
-
-Custom Validator
-
-Custom Output
-
----
-
-# Part XV
-
-Workflow Profiles
-
----
-
-## Git Flow
-
-کاملاً مطابق git-flow
-
----
-
-## GitHub Flow
-
-Implementation
-
----
-
-## GitLab Flow
-
-Implementation
-
----
-
-## Trunk Based
-
-Implementation
-
----
-
-## Enterprise Flow
-
-Implementation
-
----
-
-## Custom Flow
-
-Implementation
-
----
-
-# Part XVI
-
-Compliance
-
-هر پیاده‌سازی باید سطح انطباق خود را اعلام کند، مانند:
-
-```
-GitWS 1.0 Core
-
-GitWS 1.0 Hooks
-
-GitWS 1.0 State Machine
-
-GitWS 1.0 JSON
-
-GitWS 1.0 Enterprise
-```
-
-مثال:
-
-```
-gitwe 1.0
-
-✓ Core
-
-✓ Commands
-
-✓ JSON
-
-✓ Hooks
-
-✓ Git Flow Profile
-
-✓ GitHub Flow Profile
-
-✓ GitLab Flow Profile
-
-✓ Enterprise Extensions
-```
-
----
-
-## پیشنهاد برای توسعه بلندمدت
-
-اگر این Specification را به‌صورت کتاب طراحی کنیم، نتیجه چیزی در حدود **۱۵۰۰ تا ۲۰۰۰ صفحه** مستندات خواهد بود که شامل:
-
-- Specification هسته (Core)
-- مدل دامنه (Domain Model)
-- قراردادهای CLI و API
-- State Machineهای رسمی
-- JSON Schemaها
-- Error Catalog
-- Hook API
-- Profileهای استاندارد (Git Flow، GitHub Flow، GitLab Flow، Trunk-Based)
-- تست‌های انطباق (Conformance Tests)
-
-چنین ساختاری می‌تواند به مرجع رسمی `gitwe` تبدیل شود و حتی این امکان را فراهم کند که سایر ابزارها نیز خود را به‌عنوان **GitWS-compliant** معرفی کنند.
+# Git Workflow Specification (GitWS) — draft outline
+
+**Status:** early draft — an outline, not filled-in prose. Nothing in this
+document is implemented or binding; it does not describe gitwe's current
+behaviour (see the [guides](../guides/commands.md) and
+[workflow definition reference](../guides/workflow-definition.md) for that).
+
+## Vision
+
+A vendor-neutral specification for git branching workflows, where git-flow,
+GitHub Flow, GitLab Flow, trunk-based development, and custom workflows are
+all just *implementations* of the same underlying model — with gitwe as the
+first reference implementation.
+
+## Outline
+
+The draft is organised as three volumes. Each part below is currently a
+chapter list with no filled-in content; expanding a part into real prose is
+a good first RFC-sized contribution.
+
+### Volume 1 — Core specification
+
+**Part I — Foundations**
+1. Introduction (purpose, scope, terminology, conformance, compatibility)
+2. Repository model (repository, working tree, index, `HEAD`, reference,
+   ref namespace, branch, remote, tag, commit, merge base)
+3. Workflow model (workflow, base branch, topic type, topic branch,
+   lifecycle, operation, state, hook, policy, strategy)
+
+**Part II — Configuration specification**
+4. Configuration file (`gitws.json`/`gitws.yaml`/`gitws.yml`, `schemaVersion`)
+5. Workflow metadata (`id`, `name`, `description`, `version`, `author`,
+   `license`, `homepage`)
+6. Repository settings (`defaultRemote`, `defaultBranch`, fetch/push/PR/tag
+   policy)
+7. Base branch definition (properties: `name`, `parent`, `remote`,
+   `protected`, `strategy`, `permissions`)
+8. Topic types (properties: `prefix`, `parent`, `keep`, `tag`, `strategy`,
+   `hooks`, `metadata`)
+9. Naming rules (regex, length, reserved names, case sensitivity, unicode,
+   separator)
+10. Policies (merge, delete, tag, publish, review, approval, protection)
+
+**Part III — Command specification**
+11. Global options (`--config`, `--cwd`, `--verbose`, `--json`, `--yaml`,
+    `--color`, `--no-color`, `--dry-run`)
+12–25. One chapter per command (`init`, `start`, `update`, `publish`,
+    `track`, `finish`, `delete`, `rename`, `checkout`, `list`, `overview`,
+    `doctor`, `validate`, `version`), each with lifecycle, preconditions,
+    outputs, errors, examples. `finish`'s chapter is the one already
+    sketched in most detail: validate → fetch → checkout → merge → tag →
+    update → push → delete → cleanup.
+
+### Volume 2 — Behavioural specification
+
+**Part IV — State machine specification.** A formal branch lifecycle
+(created → checked out → published → updating → ready → finishing → merged
+→ tagged → deleted → archived, with failed/aborted as terminal error
+states) and a formal `finish` state machine (idle → validate → pre-hook →
+fetch → sync-check → checkout parent → merge → conflict → resume → tag →
+push → delete remote → delete local → post-hook → completed), with every
+transition formally defined.
+
+**Part V — Hook specification.** Hook discovery paths, the full hook-name
+list, and the hook contract (environment variables, stdin JSON context,
+stdout/stderr, exit code). gitwe's current implementation of this part is
+documented in the [hooks guide](../guides/hooks.md) — the environment
+variable prefix there is `GITWE_*`, not `GITWS_*` as originally sketched
+here; reconciling the two prefixes (or explicitly scoping the spec as
+`GITWS_*` with gitwe mapping onto it) is an open question.
+
+**Part VI — Merge strategy specification.** `merge`, `fast-forward`,
+`no-ff`, `squash`, `rebase`, `rebase-merge`, `cherry-pick`, `ours`,
+`theirs`, `custom` — each with its algorithm, rollback behaviour, resume
+behaviour, and conflict policy. gitwe currently implements `merge`,
+`squash`, and `rebase`; `cherry-pick` and `rebase-merge` are proposed in
+[RFC-0002](./rfcs/0002-finish-strategies.md).
+
+**Part VII — Remote specification.** Fetch, push, mirroring, multi-remote,
+priority, fallback. gitwe's current implementation is documented in
+[RFC-0001](./rfcs/0001-multi-remote.md) and the
+[workflow definition reference](../guides/workflow-definition.md#remote-configuration).
+
+**Part VIII — Tag specification.** Annotated, lightweight, signed,
+semantic-version, and custom tag formats.
+
+**Part IX — Conflict resolution.** (Not yet outlined beyond the title.)
+
+**Part X — Error specification.** A formal error taxonomy — gitwe's current
+approximation is the `GitweError` subclass hierarchy with stable `code`s,
+described in [architecture overview](../architecture/overview.md#domain).
+
+### Volume 3 — Interoperability specification
+
+**Part XI — JSON Schema.** Formal schemas for the configuration file and
+every command's machine-readable output; see
+[RFC-0004](./rfcs/0004-machine-readable-output.md) for gitwe's current,
+narrower version of this (a stable envelope shape, published schema
+documents still outstanding).
+
+**Part XII — Output specification.** Text, JSON, YAML, and table output
+contracts.
+
+**Part XIII — Library API.** The programmatic surface implementations
+should expose — see gitwe's current `Engine` class
+([architecture overview](../architecture/overview.md#application)) as one
+concrete example.
+
+**Part XIV — Extension specification.** How an implementation can be
+extended without a general-purpose plugin system — see
+["2.0 and later: extensibility"](./roadmap.md#20-and-later-extensibility)
+for gitwe's current thinking here.
+
+**Part XV — Workflow profiles.** Formal descriptions of `classic`
+(git-flow), `github`, `gitlab`, and trunk-based profiles as instances of the
+spec, so tools can validate "is this a valid GitHub Flow config" the same
+way they validate config syntax.
+
+**Part XVI — Compliance.** What it means for a tool to claim conformance
+with a given spec version.
+
+## Status and next steps
+
+This is a long-term, exploratory document — not a near-term roadmap item.
+If you want to help, picking one part and turning its chapter list into
+actual prose (with examples, and cross-references to how gitwe currently
+implements the equivalent behaviour) is more valuable than expanding the
+outline further. Coordinate via an issue or discussion first, per the
+[RFC process](./rfcs/README.md#process), since a full specification effort
+is a significant undertaking.

@@ -1,36 +1,35 @@
 # RFC-0004: Machine-Readable Output & Schema
 
-| Field         | Value             |
-| ------------- | ----------------- |
-| **Status**    | Draft             |
-| **Date**      | 2026-08-01        |
-| **Target**    | 1.1               |
-| **Priority**  | High              |
-| **Author(s)** | gitwe maintainers |
-| **Related**   | —                 |
+| Field | Value |
+| --- | --- |
+| **Status** | Implemented (schema documents still outstanding — see below) |
+| **Target** | 1.1 |
+| **Priority** | High |
 
 ## Summary
 
-Make every major gitwe command emit stable, versioned JSON (and YAML) suitable for CI, scripts and external tooling. Introduce an explicit `schemaVersion` field and publish JSON Schema documents.
+Every gitwe command emits stable, versioned JSON (and YAML) suitable for CI,
+scripts, and external tooling, through an explicit `schemaVersion` field and
+a consistent envelope.
 
 ## Motivation
 
-- CI systems need reliable structured data (`overview`, `finish` result, list of branches, …).
-- The current `--format json` on `overview` is a good start but lacks a schema version and is not consistent across commands.
-- External tools (dashboards, bots, IDE extensions) cannot safely parse the output without a contract.
+- CI systems need reliable structured data (`overview`, a `finish` result, a
+  list of branches, ...).
+- Ad-hoc JSON on a couple of commands isn't enough — external tools
+  (dashboards, bots, IDE extensions) can't safely parse output without a
+  contract that's consistent across every command.
 
-## Detailed Design
+## Design (as implemented)
 
 ### Common envelope
-
-Every machine-readable response follows the same top-level shape:
 
 ```json
 {
   "schemaVersion": 1,
   "command": "overview",
   "ok": true,
-  "data": {/* command-specific payload */},
+  "data": { "...": "command-specific payload" },
   "warnings": [],
   "error": null
 }
@@ -47,73 +46,47 @@ On failure:
   "warnings": [],
   "error": {
     "code": "CONFLICT",
-    "message": "…",
-    "hint": "…",
+    "message": "...",
+    "hint": "...",
     "files": ["src/app.ts"]
   }
 }
 ```
 
-### Commands that gain full support
-
-| Command               | Notes                                              |
-| --------------------- | -------------------------------------------------- |
-| `overview` / `status` | Already partially present; migrate to the envelope |
-| `start`               | Return the created branch + start point            |
-| `finish`              | Full `FinishResult` + any tags / updated branches  |
-| `list` (per type)     | Array of `BranchStatus`                            |
-| `doctor` (RFC-0003)   | List of findings                                   |
-| `version`             | `{ "version": "1.0.0", "schemaVersion": 1 }`       |
-| `config list`         | The normalised workflow definition                 |
-
-Global flag:
+### Global flag
 
 ```
---format text|json|yaml          # default text
+--format text | json | yaml | table
 ```
 
-(The existing `--json` on some paths becomes an alias for `--format json`.)
+`text` is the default. `table` is accepted everywhere but currently renders
+the same as `text` — see the [roadmap](../roadmap.md#p1--11-stability--dx).
 
-### Schema documents
+### Where it lives
 
-Published under `docs/schemas/`:
-
-- `overview.v1.json`
-- `finish.v1.json`
-- `doctor.v1.json`
-- …
-
-A simple `$id` and `$schema` make them usable by ordinary JSON-Schema validators.
-
-### Layer impact
-
-| Layer            | Changes                                                                 |
-| ---------------- | ----------------------------------------------------------------------- |
-| `cli/output.ts`  | Central helpers `printJson`, `printYaml`, envelope builder              |
-| `cli/commands/*` | Every action that currently prints free-form text gains a format branch |
-| `application`    | No change – the engine already returns structured objects               |
-| docs             | New `docs/schemas/` + reference in `commands.md`                        |
-| tests            | Snapshot tests for the JSON shape of each command                       |
+`src/cli/output.ts` implements the envelope builder and the `CommandOutput`
+facade (`out.ok()`/`out.fail()`/`out.note()`/`out.warn()`) that every command
+in `src/cli/commands/` uses, so `--format json|yaml` behaves consistently
+without individual commands branching on format themselves. See
+["CLI"](../../architecture/overview.md#cli) in the architecture overview.
 
 ### Backward compatibility
 
-- Human-readable (text) output stays the default and is unchanged.
-- Existing `overview --format json` is upgraded to the new envelope; a short deprecation note is added for one minor release if the raw shape was being scraped.
+Human-readable (`text`) output is unchanged and remains the default.
 
-## Alternatives Considered
+## Still outstanding
 
-1. **Keep ad-hoc JSON per command**  
-   Rejected – tooling writers hate special-casing.
+- **Published JSON Schema documents** (`docs/schemas/*.v1.json`) — not yet
+  written. The envelope shape above is stable, but there's no
+  machine-checkable schema file yet for tooling to validate against.
+- **`--format table`** doesn't have its own renderer yet (falls back to
+  `text`).
 
-2. **Only support JSON, drop YAML**  
-   YAML is already a dependency (`js-yaml`) and is convenient for humans inspecting CI logs.
+## Alternatives considered
 
-3. **Protobuf / MessagePack**  
-   Overkill for a CLI tool; JSON + Schema is the pragmatic choice.
-
-## Acceptance Criteria
-
-- [ ] Every listed command accepts `--format json` and `--format yaml`.
-- [ ] Every successful JSON response contains `"schemaVersion": 1`.
-- [ ] Error responses use the
-      ...
+1. **Ad-hoc JSON per command.** Rejected — tooling authors have to
+   special-case every command instead of parsing one envelope shape.
+2. **JSON only, no YAML.** `js-yaml` was already a dependency, and YAML is
+   more convenient than JSON for a human skimming CI logs.
+3. **Protobuf/MessagePack.** Overkill for a CLI tool; JSON (+ eventually a
+   published schema) is the pragmatic choice.

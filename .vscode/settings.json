@@ -4,6 +4,10 @@
   "editor.codeActionsOnSave": {
     "source.fixAll.eslint": "explicit"
   },
+  "editor.tabSize": 2, // اندازهٔ تب برابر با ۲ فاصله
+  "files.eol": "\n", // استفاده از خط‌پایان LF
+  "files.trimTrailingWhitespace": true, // حذف فاصله‌های انتهای خط هنگام ذخیره
+
   // "typescript.preferences.importModuleSpecifier": "relative",
   "files.exclude": {
     "**/node_modules": false,
@@ -11,5 +15,51 @@
     "**/coverage": true
   },
   "vitest.commandLine": "npm run test",
-  "vitest.enable": true
+  "vitest.enable": true,
+
+  // =============================================
+  // ۱. تنظیمات پایه GitHub Copilot
+  // =============================================
+  // فعال/غیرفعال کردن Copilot بر اساس نوع فایل
+  "github.copilot.enable": {
+    "*": true, // برای همهٔ انواع فایل فعال است
+    "plaintext": false, // در فایل‌های متنی ساده غیرفعال
+    "markdown": true, // در فایل‌های مارک‌داون فعال
+    "scminput": false // در جعبهٔ ورودی کنترل نسخه (SCM) غیرفعال
+  },
+
+  // فعال‌سازی تکمیل خودکار درون‌خطی (مشابه قابلیت Tab در Cursor)
+  "github.copilot.editor.enableAutoCompletions": true,
+
+  // =============================================
+  // ۲. تنظیمات پیشرفتهٔ Copilot Chat (اختیاری)
+  // =============================================
+  // ارائهٔ زمینهٔ اضافی به Copilot برای تولید کد (مثلاً راهنمای کدنویسی پروژه)
+  // "github.copilot.chat.experimental.codeGeneration.instructions": [
+  //   {
+  //     "file": ".vscode/codestyle.md" // مسیر فایل حاوی راهنمای سبک کدنویسی
+  //   }
+  // ],
+
+  // تنظیم قوانین تولید پیام commit
+  // "github.copilot.chat.commitMessageGeneration.instructions": [
+  //   {
+  //     "text": "لطفاً پیام commit را با فرمت Conventional Commits بنویسید."
+  //   }
+  // ],
+
+  // =============================================
+  // ۳. تنظیمات یکپارچه‌سازی OmniRoute
+  // =============================================
+  // اگر از افزونه‌هایی مانند Cline یا KiloCode استفاده می‌کنید،
+  // می‌توانید OmniRoute را از طریق این تنظیمات پیکربندی کنید.
+
+  // مثال برای افزونهٔ Cline
+  "cline.apiProvider": "openai",
+  "cline.openAiBaseUrl": "http://localhost:20128/v1",
+  "cline.openAiApiKey": "sk-your-omniroute-key",
+
+  // مثال برای افزونهٔ KiloCode
+  "kilo-code.openAiBaseUrl": "http://localhost:20128/v1",
+  "kilo-code.apiKey": "sk-your-omniroute-key"
 }
