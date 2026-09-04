@@ -2,7 +2,7 @@ version: 1
 
 # Global settings
 default: origin
-fetch: [origin, upstream]
+fetch: [origin]
 push: [origin]
 autoFetch: true
 autoPush: false
@@ -17,8 +17,8 @@ baseOverrides:
     fetch: [origin]
     autoFetch: true
   develop:
-    remote: upstream
-    fetch: [upstream]
+    remote: origin
+    fetch: [origin]
     autoFetch: true
     autoPush: true
     pushOptions:
@@ -30,11 +30,11 @@ baseOverrides:
 # Branch type overrides
 typeOverrides:
   feature:
-    fetch: [origin, upstream]
+    fetch: [origin]
     push: [origin]
     autoFetch: true
   release:
-    push: [upstream]
+    push: [origin]
     autoPush: true
     pushOptions:
       followTags: false
