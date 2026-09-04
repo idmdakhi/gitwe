@@ -195,7 +195,7 @@ describe("StartBranchUseCase", () => {
   });
 
   it("fetches configured remotes before branching when fetch is requested", async () => {
-    const fetched: { remote: string; refspec?: string }[] = [];
+    const fetched: { remote: string; refspec?: string | undefined }[] = [];
     const useCase = new StartBranchUseCase(
       workflow,
       fakeGit({

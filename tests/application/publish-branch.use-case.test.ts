@@ -11,7 +11,7 @@ describe("PublishBranchUseCase", () => {
   const workflow = new WorkflowService(classicPreset());
 
   it("pushes the branch to every configured remote and sets upstream", async () => {
-    const pushed: { remote: string; branch: string; options?: PushOptions }[] = [];
+    const pushed: { remote: string; branch: string; options?: PushOptions | undefined }[] = [];
     const git = fakeGit({
       push: async (remote, branch, options) => void pushed.push({ remote, branch, options }),
     });

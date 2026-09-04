@@ -3,6 +3,7 @@
     "dbaeumer.vscode-eslint",
     "esbenp.prettier-vscode",
     "ms-vscode.vscode-typescript-next",
-    "vitest.explorer"
+    "vitest.explorer",
+    "idmdakhi.gitwe-vsce"
   ]
 }

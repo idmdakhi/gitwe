@@ -1,6 +1,6 @@
 {
   "name": "gitwe",
-  "version": "0.35.0",
+  "version": "0.35.1",
   "description": "A configurable git branching-workflow engine — define your workflow once, let gitwe run it.",
   "type": "module",
   "license": "MIT",
@@ -43,8 +43,13 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.14.0",
-    "typescript": "^5.5.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.0",
     "tsx": "^4.16.0",
+    "typescript": "^5.5.0",
     "vitest": "^2.0.0"
   }
 }

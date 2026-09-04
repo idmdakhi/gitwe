@@ -40,7 +40,7 @@ describe("UpdateBranchUseCase", () => {
   });
 
   it("fetches configured remotes first when fetch is requested", async () => {
-    const fetched: { remote: string; refspec?: string }[] = [];
+    const fetched: { remote: string; refspec?: string | undefined }[] = [];
     const git = fakeGit({
       fetch: async (remote, refspec) => void fetched.push({ remote, refspec }),
     });

@@ -32,7 +32,7 @@ describe("ShellGitRepository", () => {
 
   beforeAll(async () => {
     tempDir = await mkdtemp(join(tmpdir(), "gitwe-test-"));
-    initTestRepo(tempDir);
+    await initTestRepo(tempDir);
     await runGit(tempDir, ["commit", "--allow-empty", "-m", "initial"]);
     repo = new ShellGitRepository(tempDir);
   });
@@ -78,7 +78,7 @@ describe("ShellGitRepository", () => {
 
   it("throws ConflictError on merge conflict", async () => {
     const conflictDir = await mkdtemp(join(tmpdir(), "gitwe-conflict-"));
-    initTestRepo(conflictDir);
+    await initTestRepo(conflictDir);
     await runGit(conflictDir, ["commit", "--allow-empty", "-m", "base"]);
 
     await runGit(conflictDir, ["checkout", "-b", "feature/a"]);
@@ -90,6 +90,11 @@ describe("ShellGitRepository", () => {
     await runShell(conflictDir, 'echo "b" > file.txt');
     await runGit(conflictDir, ["add", "file.txt"]);
     await runGit(conflictDir, ["commit", "-m", "b"]);
+
+    // Bring feature/b's version of file.txt into main first, so that merging
+    // feature/a afterwards produces a real conflict on file.txt.
+    await runGit(conflictDir, ["checkout", "main"]);
+    await runGit(conflictDir, ["merge", "feature/b"]);
 
     const conflictRepo = new ShellGitRepository(conflictDir);
     await conflictRepo.checkout("main");

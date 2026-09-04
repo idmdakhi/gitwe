@@ -230,7 +230,7 @@ export class ConfigEditorService {
 
     // Update merge config references (deleteOnFinish, squash.branchTypes, branchTypes override)
     const merge = config.merge;
-    let newMerge = merge;
+    let newMerge: MergeConfig = merge as MergeConfig;
     if (merge) {
       const deleteOnFinish = merge.deleteOnFinish?.map((x) => (x === from ? to : x));
       const squash = merge.squash
@@ -243,7 +243,7 @@ export class ConfigEditorService {
       for (const [key, val] of Object.entries(merge.branchTypes ?? {})) {
         branchTypesOverride[key === from ? to : key] = val;
       }
-      const newMerge: MergeConfig = {
+      newMerge = {
         strategy: merge.strategy,
         deleteOnFinish: deleteOnFinish ?? [],
         ...(squash ? { squash } : {}),
@@ -325,7 +325,7 @@ export class ConfigEditorService {
 
     // Remove from merge config references
     const merge = config.merge;
-    let newMerge = merge;
+    let newMerge: MergeConfig = merge as MergeConfig;
     if (merge) {
       const deleteOnFinish = merge.deleteOnFinish?.filter((x) => x !== name);
       const squash = merge.squash
@@ -336,7 +336,7 @@ export class ConfigEditorService {
         : undefined;
       const branchTypesOverride = { ...merge.branchTypes };
       delete branchTypesOverride[name];
-      const newMerge: MergeConfig = {
+      newMerge = {
         strategy: merge.strategy,
         deleteOnFinish: deleteOnFinish ?? [],
         ...(squash ? { squash } : {}),
