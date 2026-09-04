@@ -260,3 +260,106 @@ over the global fields above.
 Referenced from the top-level `hooks` field. See the dedicated
 [hooks guide](./hooks.md) for the full lifecycle, `when` conditions,
 environment variables, and inline vs. filesystem vs. type-scoped hooks.
+
+
+# Workflow Definition
+
+The workflow is defined in `.gitwe/gitwe.yaml`. This file controls all branch types, merge strategies, versioning, and hooks.
+
+## Schema Overview
+
+```yaml
+schemaVersion: 1
+
+# Long-lived base branches
+baseBranches:
+  - name: main
+    remote: origin
+  - name: develop
+    remote: origin
+
+# Topic branch types (feature, release, hotfix, etc.)
+branchTypes:
+  - name: feature          # CLI uses this: gitwe start feature
+    extends: develop       # base branch it starts from
+    target: develop        # where it merges back
+    prefix: feature/       # branch name prefix
+    merge:
+      strategy: merge      # merge | squash | rebase | cherry-pick | rebase-merge
+      squash: false        # force squash for this type?
+    hooks:
+      pre-start: ./scripts/pre-feature.sh
+
+versioning:
+  enabled: true
+  files: [ "package.json" ]
+  tagFormat: "v{{version}}"
+  bumpRules:               # semantic rules
+    - type: release
+      bump: minor
+    - type: hotfix
+      bump: patch
+
+# Custom hooks
+hooks:
+  post-finish: ./scripts/notify.sh
+```
+
+## Fields
+
+### `baseBranches`
+List of long-lived branches. They must exist in the repository.
+
+### `branchTypes`
+Defines the topic branch lifecycle.
+- `name`: Unique identifier (used in CLI).
+- `extends`: Which base branch this type starts from.
+- `target`: Which branch it is merged into on `finish`.
+- `prefix` (optional): String prepended to the branch name.
+- `merge`: Override global merge strategy.
+- `hooks`: Specific hooks for this branch type.
+
+### `versioning`
+Controls semantic versioning and tagging.
+- `files`: List of files to bump (e.g., `package.json`).
+- `tagFormat`: Templated string. Use `{{version}}` or `{{name}}`.
+- `bumpRules`: Map branch types to semantic bump levels.
+
+## Example: GitHub Flow
+
+```yaml
+schemaVersion: 1
+baseBranches:
+  - name: main
+branchTypes:
+  - name: feature
+    extends: main
+    target: main
+    prefix: feature/
+    merge:
+      strategy: squash
+```
+
+## Validation
+
+Always validate your file after editing:
+
+```bash
+gitwe config validate
+```
+
+For a quick preview of the effective config, use:
+
+```bash
+gitwe config list
+```
+
+## Environment Variable Override
+
+You can override the config path using:
+
+```bash
+GITWE_CONFIG=./custom/path.yaml gitwe start feature test
+```
+
+Or via the `--config` flag.

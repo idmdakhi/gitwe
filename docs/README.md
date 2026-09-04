@@ -1,37 +1,43 @@
-# gitwe documentation
+# gitwe Documentation
 
-Start with the [project README](../README.md) for an overview and installation.
-Everything else is organised by audience below.
+Welcome to the gitwe documentation. gitwe is a configurable Git branching-workflow engine.
 
-## Guides — using gitwe
+## User Guides
 
-| Doc | What's in it |
-| --- | --- |
-| [Quickstart](./guides/quickstart.md) | Install, initialise a workflow, run your first `start` → `finish` cycle |
-| [Command reference](./guides/commands.md) | Every CLI command, flag, exit code and example |
-| [Workflow definition reference](./guides/workflow-definition.md) | The full schema of `.gitwe/gitwe.yaml`: base branches, topic types, merge, versioning, remotes |
-| [Hooks](./guides/hooks.md) | Hook lifecycle, inline/advanced/per-type hooks, `GITWE_*` environment variables, `when` conditions |
-| [Using gitwe in CI](./guides/ci.md) | GitHub Actions and GitLab CI recipes, the official Action, exit-code conventions |
+- **[Quickstart](getting-started/quickstart.md)** – Get started in 5 minutes.
+- **[Installation](getting-started/installation.md)** – Install via npm, npx, or build from source.
+- **[First Workflow](getting-started/first-workflow.md)** – Walk through your first project setup.
+- **[CI Guide](user-guide/ci.md)** – Use gitwe in GitHub Actions and GitLab CI.
 
-## Architecture — how gitwe is built
+## Daily Usage
 
-| Doc | What's in it |
-| --- | --- |
-| [Architecture overview](./architecture/overview.md) | Clean Architecture layers, dependency rules, the resumable `finish` state machine |
-| [Project structure](./architecture/project-structure.md) | Annotated `src/`/`tests/` tree |
+- **[Commands Reference](user-guide/commands.md)** – All CLI commands, flags, and exit codes.
+- **[Workflow Definition](user-guide/workflow-definition.md)** – Full schema for `.gitwe/gitwe.yaml`.
+- **[Hooks Guide](user-guide/hooks.md)** – Scripts and environment variables for automation.
+- **[Troubleshooting](user-guide/troubleshooting.md)** – Common errors and solutions.
 
-## Development — contributing to gitwe
+## Concepts
 
-| Doc | What's in it |
-| --- | --- |
-| [Contributing](./development/contributing.md) | Setup, workflow, PR checklist |
-| [Coding style](./development/coding-style.md) | TypeScript conventions, layer rules, naming, errors |
-| [Testing](./development/testing.md) | Vitest layout, domain vs. application tests, fakes over mocks |
-| [Roadmap](./development/roadmap.md) | Where gitwe is going, by phase and priority |
-| [Specification draft](./development/specification.md) | Outline for a vendor-neutral git-workflow specification gitwe could implement |
-| [RFCs](./development/rfcs/README.md) | Design proposals for larger features |
+- **[Branching Models](concepts/branching-models.md)** – Classic, GitHub Flow, GitLab Flow, and custom models.
+- **[Merge Strategies](concepts/merge-strategies.md)** – Merge, squash, rebase, cherry-pick, and rebase-merge.
+- **[Versioning & Changelog](concepts/versioning.md)** – TagFormat, bump rules, and prerelease.
+- **[State Machine](concepts/state-machine.md)** – The resumable finish operation (diagram).
+
+## Architecture & Development
+
+- **[Architecture Overview](architecture/overview.md)** – Clean Architecture layers.
+- **[Project Structure](architecture/project-structure.md)** – Annotated `src/` tree.
+- **[Boundary Enforcement](architecture/boundary-enforcement.md)** – How we keep layers clean.
+- **[Contributing](development/contributing.md)** – Setup, PR checklist.
+- **[Testing](development/testing.md)** – Vitest layout and fakes.
+- **[Roadmap](development/roadmap.md)** – P0, P1, P2, P3 priorities.
 
 ## Reference
 
-- [Changelog](../CHANGELOG.md)
-- [Pull request template](../.github/pull_request_template.md)
+- **[Migration Guide](reference/migration-guide.md)** – From nvie/gitflow, AVH, and git-flow-next.
+- **[Glossary](reference/glossary.md)** – Definitions of key terms.
+- **[Changelog](https://github.com/idmdakhi/gitwe/blob/develop/CHANGELOG.md)** – Version history.
+
+---
+
+**Found an error?** Please [open an issue](https://github.com/idmdakhi/gitwe/issues) or submit a PR.

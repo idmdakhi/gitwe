@@ -1,97 +1,112 @@
 # gitwe
 
-A configurable git branching-workflow engine. Define your workflow once — base
-branches, topic types, merge rules, tagging, hooks — and gitwe generates a
-consistent CLI and library API around it: `gitwe start`, `gitwe finish`,
-`gitwe update`, `gitwe publish`, and more.
+**Configurable Git branching-workflow engine.**
 
-gitwe is not git-flow. git-flow (and GitHub Flow, GitLab Flow, trunk-based
-development, ...) are just *presets* — starting points you can rename, extend,
-or replace entirely by editing one definition file.
+[![npm version](https://img.shields.io/npm/v/gitwe)](https://www.npmjs.com/package/gitwe)
+[![Node.js CI](https://github.com/idmdakhi/gitwe/actions/workflows/ci.yaml/badge.svg)](https://github.com/idmdakhi/gitwe/actions/workflows/ci.yaml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Why gitwe
+gitwe is a modern, configurable Git branching workflow engine. Define your workflow once — base branches, topic types, merge rules, tagging, hooks — and gitwe generates a consistent CLI and library API around it.
 
-- **One definition, one tool.** Base branches and topic types live in
-  `.gitwe/gitwe.yaml`. Everything else — branch naming, merge targets, tag
-  bumps, hooks — is derived from that file.
-- **Not locked to git-flow.** Ship the `classic` (git-flow), `github`, or
-  `gitlab` preset, or describe a custom workflow from scratch.
-- **Safe by default.** `finish` checks the topic branch is in sync with its
-  remote before merging, and is resumable: a merge conflict persists progress
-  to `.git/gitwe/operation.json` so you can fix the conflict and run
-  `gitwe finish --continue` (or `--abort` to roll back) — even from a
-  different terminal session.
-- **Usable as a library.** Every command is a thin wrapper around `Engine`,
-  which you can import directly in a Node/TypeScript script or a custom tool.
-- **Clean Architecture under the hood.** Domain logic has zero I/O and is
-  covered by fast unit tests; see [docs/architecture](./docs/architecture/overview.md).
+Inspired by the original [`nvie/gitflow`](https://github.com/nvie/gitflow), [`gitflow-avh`](https://github.com/petervanderdoes/gitflow-avh), and [`git-flow-next`](https://github.com/gittower/git-flow-next), but designed with extensibility and modern DX at its core.
 
-## Install
+---
+
+## Key Features
+
+- **Workflow-Agnostic** – Ships with `classic`, `github`, and `gitlab` presets, but you can fully customize `.gitwe/gitwe.yaml`.
+- **Resumable Operations** – `gitwe finish` pauses on conflicts; resolve and resume with `--continue` or abort with `--abort`.
+- **Hooks** – Run custom scripts at lifecycle events (`pre-start`, `post-finish`, etc.).
+- **Versioning & Changelog** – Automatic semantic version bumps and changelog generation.
+- **Clean Architecture** – Domain, Application, Infrastructure layers strictly enforced.
+- **Multi-Format Output** – Supports `json`, `yaml`, and `table` output formats.
+- **GitHub Action** – Use gitwe seamlessly in CI/CD pipelines.
+
+---
+
+## Quick Start
+
+### Installation
 
 ```bash
 npm install -g gitwe
 ```
 
-Requires **Node.js ≥ 20** and `git` on `PATH`.
-
-## Quick start
+Or run it without installing via `npx`:
 
 ```bash
-cd your-repo
-gitwe init --preset classic     # writes .gitwe/gitwe.yaml, creates main/develop
-gitwe start feature login       # creates and checks out feature/login
-# ... commit work ...
-gitwe finish feature/login --push
+npx gitwe --help
 ```
 
-Run `gitwe init` with no `--defaults` flag in an interactive terminal for a
-short wizard instead of accepting the preset as-is. See the
-[quickstart guide](./docs/guides/quickstart.md) for a walkthrough and the
-[command reference](./docs/guides/commands.md) for every flag.
+### Initialize a Workflow
 
-## Library usage
-
-```ts
-import {
-  Engine,
-  ShellGitRepository,
-  YamlConfigRepository,
-  FileHookRunner,
-  FileOperationStateStore,
-  ConsoleLogger,
-} from "gitwe";
-
-const root = process.cwd();
-const engine = await Engine.create({
-  configRepo: new YamlConfigRepository(root),
-  git: new ShellGitRepository(root),
-  hooks: new FileHookRunner(root, { enabled: true, path: ".gitwe/hooks", config: ".gitwe/hooks.yaml" }),
-  stateStore: new FileOperationStateStore(root),
-  logger: new ConsoleLogger(),
-});
-
-const resolved = await engine.start("feature", "login");
-console.log(resolved.branch); // "feature/login"
+```bash
+gitwe init --preset classic
 ```
 
-`Engine.create` throws `NotInitializedError` if no workflow definition exists
-yet — call `Engine.init(deps, { preset: "classic" })` first, or pass an
-explicit `config`. See [`src/cli/container.ts`](./src/cli/container.ts) for
-how the CLI itself wires these same adapters together.
+### Start a Feature Branch
+
+```bash
+gitwe start feature login-page
+```
+
+### Finish and Push
+
+```bash
+gitwe finish feature/login-page --push
+```
+
+If conflicts arise, resolve them and run:
+
+```bash
+gitwe finish --continue
+```
+
+---
 
 ## Documentation
 
-Full documentation lives in [`docs/`](./docs/README.md):
+Full documentation is available in the [`docs/`](./docs) folder.
 
-- [Quickstart](./docs/guides/quickstart.md)
-- [Command reference](./docs/guides/commands.md)
-- [Workflow definition reference](./docs/guides/workflow-definition.md)
-- [Hooks](./docs/guides/hooks.md)
-- [Using gitwe in CI](./docs/guides/ci.md)
-- [Architecture](./docs/architecture/overview.md)
-- [Contributing](./docs/development/contributing.md)
-- [Changelog](./CHANGELOG.md)
+- **[Quickstart](./docs/getting-started/quickstart.md)** – Get started in 5 minutes.
+- **[Installation](./docs/getting-started/installation.md)** – Install via npm, npx, or build from source.
+- **[Commands Reference](./docs/user-guide/commands.md)** – All CLI commands, flags, and exit codes.
+- **[Workflow Definition](./docs/user-guide/workflow-definition.md)** – Full schema for `.gitwe/gitwe.yaml`.
+- **[Hooks Guide](./docs/user-guide/hooks.md)** – Scripts and environment variables for automation.
+- **[Troubleshooting](./docs/user-guide/troubleshooting.md)** – Common errors and solutions.
+- **[Branching Models](./docs/concepts/branching-models.md)** – Classic, GitHub Flow, GitLab Flow, and custom models.
+- **[Merge Strategies](./docs/concepts/merge-strategies.md)** – Merge, squash, rebase, cherry-pick, and rebase-merge.
+- **[State Machine](./docs/concepts/state-machine.md)** – The resumable finish operation (diagram).
+- **[Architecture Overview](./docs/architecture/overview.md)** – Clean Architecture and boundary enforcement.
+- **[Migration Guide](./docs/reference/migration-guide.md)** – From nvie/gitflow, AVH, and git-flow-next.
+
+You can also browse the **[Wiki](https://github.com/idmdakhi/gitwe/wiki)** for a quick overview.
+
+---
+
+## Contributing
+
+We welcome contributions! Please read our [Contributing Guide](./docs/development/contributing.md) and [Roadmap](./docs/development/roadmap.md) to get started.
+
+### Development Setup
+
+```bash
+git clone https://github.com/idmdakhi/gitwe.git
+cd gitwe
+npm install
+npm run build
+npm link
+```
+
+### Run Tests
+
+```bash
+npm test          # Unit tests
+npm run test:e2e  # End-to-end tests
+```
+
+---
 
 ## License
 
-MIT
+MIT © [Iman Dakhili](https://github.com/idmdakhi)
