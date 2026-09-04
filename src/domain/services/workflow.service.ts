@@ -242,11 +242,11 @@ export class WorkflowService {
 
   shouldAutoFetchFor(type: BranchType): boolean {
     const autoFetch = this.resolveOverride(type, "autoFetch");
-    return autoFetch !== undefined ? autoFetch : (this.config.remote?.autoFetch ?? true);
+    return autoFetch !== undefined ? autoFetch : this.config.remote?.autoFetch ?? true;
   }
 
   shouldAutoPushFor(type: BranchType): boolean {
     const autoPush = this.resolveOverride(type, "autoPush");
-    return autoPush !== undefined ? autoPush : (this.config.remote?.autoPush ?? false);
+    return autoPush !== undefined ? autoPush : this.config.remote?.autoPush ?? false;
   }
 }

@@ -141,7 +141,7 @@ export function configCommand(): Command {
           noProtected?: boolean;
         }>();
 
-        const protectedVal = opts.noProtected ? false : (opts.protected ?? undefined);
+        const protectedVal = opts.noProtected ? false : opts.protected ?? undefined;
 
         if (kind === "base") {
           const updated = await engine.configEdit(

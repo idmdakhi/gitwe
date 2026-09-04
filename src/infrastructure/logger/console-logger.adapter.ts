@@ -1,11 +1,18 @@
 import type { Logger } from "../../domain/ports/logger.port.js";
 
 const colors = {
-  reset: "\x1b[0m", dim: "\x1b[2m", red: "\x1b[31m", yellow: "\x1b[33m", cyan: "\x1b[36m",
+  reset: "\x1b[0m",
+  dim: "\x1b[2m",
+  red: "\x1b[31m",
+  yellow: "\x1b[33m",
+  cyan: "\x1b[36m",
 };
 
 export class ConsoleLogger implements Logger {
-  constructor(private readonly color = true, private readonly verbose = false) {}
+  constructor(
+    private readonly color = true,
+    private readonly verbose = false,
+  ) {}
 
   private paint(code: string, text: string): string {
     return this.color ? `${code}${text}${colors.reset}` : text;

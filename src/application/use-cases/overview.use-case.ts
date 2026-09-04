@@ -16,13 +16,21 @@ export interface WorkflowOverview {
 }
 
 export class OverviewUseCase {
-  constructor(private readonly workflow: WorkflowService, private readonly git: GitRepository) {}
+  constructor(
+    private readonly workflow: WorkflowService,
+    private readonly git: GitRepository,
+  ) {}
 
   async execute(): Promise<WorkflowOverview> {
     const branchTypes: BranchTypeSummary[] = [];
     for (const type of this.workflow.branchTypes) {
       const branches = await this.git.listBranches(`${type.prefix}*`);
-      branchTypes.push({ type: type.name, base: type.base, target: type.target, count: branches.length });
+      branchTypes.push({
+        type: type.name,
+        base: type.base,
+        target: type.target,
+        count: branches.length,
+      });
     }
 
     const currentBranch = await this.git.currentBranch();

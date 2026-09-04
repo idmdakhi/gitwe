@@ -8,11 +8,16 @@ export interface ListBranchesInput {
 }
 
 export class ListBranchesUseCase {
-  constructor(private readonly workflow: WorkflowService, private readonly git: GitRepository) {}
+  constructor(
+    private readonly workflow: WorkflowService,
+    private readonly git: GitRepository,
+  ) {}
 
   async execute(input: ListBranchesInput = {}): Promise<readonly ResolvedBranch[]> {
-    const type = input.typeNameOrAlias ? this.workflow.requireBranchType(input.typeNameOrAlias) : undefined;
-    const glob = type ? `${type.prefix}${input.pattern ?? "*"}` : (input.pattern ?? "*");
+    const type = input.typeNameOrAlias
+      ? this.workflow.requireBranchType(input.typeNameOrAlias)
+      : undefined;
+    const glob = type ? `${type.prefix}${input.pattern ?? "*"}` : input.pattern ?? "*";
 
     const branches = await this.git.listBranches(glob);
     return branches

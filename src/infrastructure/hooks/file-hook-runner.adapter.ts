@@ -378,9 +378,7 @@ export class FileHookRunner implements HookRunner {
     if (!condition || !condition.trim()) return true;
 
     const type = context.branchType ?? context.type ?? "";
-    const target = Array.isArray(context.target)
-      ? context.target.join(",")
-      : (context.target ?? "");
+    const target = Array.isArray(context.target) ? context.target.join(",") : context.target ?? "";
     const tagName = context.tagName ?? "";
     const branch = context.branch ?? "";
 

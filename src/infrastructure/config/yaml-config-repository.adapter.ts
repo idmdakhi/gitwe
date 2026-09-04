@@ -25,8 +25,8 @@ export class YamlConfigRepository implements ConfigRepository {
   constructor(root: string, explicitPath?: string) {
     this.path = explicitPath
       ? join(root, explicitPath)
-      : (CANDIDATE_NAMES.map((name) => join(root, name)).find(existsSync) ??
-        join(root, ".gitwe/gitwe.yaml"));
+      : CANDIDATE_NAMES.map((name) => join(root, name)).find(existsSync) ??
+        join(root, ".gitwe/gitwe.yaml");
   }
 
   async load(): Promise<WorkflowConfig | undefined> {
