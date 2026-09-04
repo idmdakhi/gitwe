@@ -25,7 +25,7 @@ export async function runInitWizard(
   let config: WorkflowConfig = structuredClone(presets[preset]());
 
   // حذف بخش‌های اضافی (hooks, changelog, cli) برای سادگی
-  const { hooks, changelog, cli, ...baseConfig } = config as any;
+  const { hooks: _hooks, changelog: _changelog, cli: _cli, ...baseConfig } = config as any;
   config = baseConfig as WorkflowConfig;
 
   // ---- نام workflow ----
@@ -63,7 +63,7 @@ export async function runInitWizard(
       },
     };
   } else {
-    const { versioning, ...rest } = config;
+    const { versioning: _versioning, ...rest } = config;
     config = rest as WorkflowConfig;
   }
 

@@ -44,8 +44,8 @@ function fakeGit(overrides: Partial<GitRepository> = {}): GitRepository {
     deleteTag: async () => undefined,
     pushTags: async () => undefined,
     deleteRemoteTag: async () => undefined,
-    raw: async (args: string[]) => "",
-    graph: async (root?: string) => "",
+    raw: async (_args: string[]) => "",
+    graph: async (_root?: string) => "",
     ...overrides,
   };
 }

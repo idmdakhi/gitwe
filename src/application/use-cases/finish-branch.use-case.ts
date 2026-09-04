@@ -22,6 +22,7 @@ import type {
 } from "../../domain/ports/operation-state-store.port.js";
 import { omitUndefined } from "../../utils.js";
 import { join } from "node:path";
+import { writeFile } from "node:fs/promises";
 import { BranchType } from "../../domain/entities/branch-type.entity.js";
 import yaml from "js-yaml";
 
@@ -269,7 +270,7 @@ export class FinishBranchUseCase {
         if (state.squash && state.squashMessage) {
           mergeOptions.message = state.squashMessage;
         } else if (state.mergeMessage) {
-          let msg = state.mergeMessage.replace(/%b/g, state.branch).replace(/%p/g, target);
+          const msg = state.mergeMessage.replace(/%b/g, state.branch).replace(/%p/g, target);
           mergeOptions.message = msg;
         }
         await this.git.merge(state.branch, mergeOptions);
@@ -505,6 +506,7 @@ export class FinishBranchUseCase {
       const updatedYaml = yaml.dump(currentContent, { lineWidth: 100 });
 
       // نوشتن فایل (از طریق git یا fs)
+      await writeFile(versionFilePath, updatedYaml, "utf8");
       await this.git.raw(["add", versionFilePath]);
       const message =
         versioning.commitMessage?.replace(/{{version}}/g, newVersion) ??

@@ -1,8 +1,6 @@
 import { Command } from "commander";
 import { loadEngine, action } from "./shared.js";
 import { style } from "../output.js";
-import { existsSync } from "node:fs";
-import { join } from "node:path";
 
 /**
  * Doctor command: checks repository health against the workflow definition.
@@ -19,7 +17,6 @@ export function doctorCommand(): Command {
       action(async function (this: Command, out) {
         const engine = await loadEngine(this);
         const opts = this.opts<{ fix: boolean; yes: boolean }>();
-        const cwd = engine["deps"].git.cwd; // access the repo root
 
         const overview = await engine.overview();
         const validation = engine.validate();
@@ -132,7 +129,7 @@ export function doctorCommand(): Command {
         }
 
         // ---- Fix logic -----------------------------------------------------
-        let fixed: string[] = [];
+        const fixed: string[] = [];
         if (opts.fix) {
           const fixable = findings.filter((f) => f.fixable && f.severity !== "ok");
           const requireConfirm = !opts.yes && fixable.length > 0;

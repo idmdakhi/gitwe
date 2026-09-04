@@ -95,7 +95,7 @@ function applyOverrides(
   }
 
   // حذف بخش‌های اضافی (hooks, changelog, cli) در صورت وجود
-  const { hooks, changelog, cli, ...cleanConfig } = next as any;
+  const { hooks: _hooks, changelog: _changelog, cli: _cli, ...cleanConfig } = next as any;
   return cleanConfig as WorkflowConfig;
 }
 

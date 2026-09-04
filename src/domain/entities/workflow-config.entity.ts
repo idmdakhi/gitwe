@@ -1,4 +1,3 @@
-import { HookName } from "../ports/hook-runner.port.js";
 import type { BaseBranch } from "./base-branch.entity.js";
 import type { BranchType } from "./branch-type.entity.js";
 import { HookConfig } from "./hook-config.entity.js";

@@ -26,7 +26,6 @@ import {
   EditBaseOptions,
   EditBranchTypeOptions,
 } from "../domain/services/config-editor.service.js";
-import { omitUndefined } from "../utils.js";
 import { VersionConfigLoader } from "../infrastructure/config/version-config-loader.js";
 import { RemoteConfigLoader } from "../infrastructure/config/remote-config-loader.js";
 import { HookConfigLoader } from "../infrastructure/config/hook-config-loader.js";
@@ -602,7 +601,7 @@ export class Engine {
       | (AddBranchTypeOptions & { kind?: "branchType" }),
   ): Promise<WorkflowConfig> {
     const editor = new ConfigEditorService();
-    let current = await this.deps.configRepo.load();
+    const current = await this.deps.configRepo.load();
     if (!current) throw new NotInitializedError();
 
     let updated: WorkflowConfig;
@@ -626,7 +625,7 @@ export class Engine {
       | (EditBranchTypeOptions & { kind?: "branchType" }),
   ): Promise<WorkflowConfig> {
     const editor = new ConfigEditorService();
-    let current = await this.deps.configRepo.load();
+    const current = await this.deps.configRepo.load();
     if (!current) throw new NotInitializedError();
 
     let updated: WorkflowConfig;
@@ -648,7 +647,7 @@ export class Engine {
     to: string,
   ): Promise<WorkflowConfig> {
     const editor = new ConfigEditorService();
-    let current = await this.deps.configRepo.load();
+    const current = await this.deps.configRepo.load();
     if (!current) throw new NotInitializedError();
 
     let updated: WorkflowConfig;
@@ -664,7 +663,7 @@ export class Engine {
 
   async configDelete(kind: "base" | "branchType", name: string): Promise<WorkflowConfig> {
     const editor = new ConfigEditorService();
-    let current = await this.deps.configRepo.load();
+    const current = await this.deps.configRepo.load();
     if (!current) throw new NotInitializedError();
 
     let updated: WorkflowConfig;

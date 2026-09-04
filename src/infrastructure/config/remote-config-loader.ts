@@ -11,7 +11,6 @@ import type {
 } from "../../domain/entities/remote-config.entity.js";
 import type { WorkflowConfig } from "../../domain/entities/workflow-config.entity.js";
 import type { PushOptions } from "../../domain/ports/git-repository.port.js";
-import { omitUndefined } from "../../utils.js";
 
 export interface RemoteConfigLoaderOptions {
   root: string;

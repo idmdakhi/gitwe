@@ -1,13 +1,9 @@
-import { execFile, exec, ExecFileOptions, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { promisify } from "node:util";
 import type { HookContext, HookName, HookRunner } from "../../domain/ports/hook-runner.port.js";
 import type { HookConfig, HookDefinition } from "../../domain/entities/hook-config.entity.js";
 import { GitweError } from "../../domain/errors/index.js";
-
-// const execFileAsync = promisify(execFile);
-// const execAsync = promisify(exec);
 
 export interface HookRunnerOptions {
   root: string;
@@ -428,7 +424,7 @@ export class FileHookRunner implements HookRunner {
     }
 
     // Fallback: very constrained rewrite (same fields only, no free identifiers)
-    let expr = condition
+    const expr = condition
       .replace(/\btype\b/g, JSON.stringify(type))
       .replace(/\btarget\b/g, JSON.stringify(target))
       .replace(/\btagName\b/g, JSON.stringify(tagName))
