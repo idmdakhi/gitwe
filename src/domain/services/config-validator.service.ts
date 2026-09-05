@@ -32,7 +32,15 @@ export class ConfigValidatorService {
     const issues: ValidationIssue[] = [];
     if (config.versioning?.tagTargets) {
       for (const target of config.versioning.tagTargets) {
-        if (!config.baseBranches.some((b) => b.name === target)) {
+        if (target === "root") {
+          const root = config.baseBranches.find((b) => b.base === undefined);
+          if (!root) {
+            issues.push({
+              path: "versioning.tagTargets",
+              message: `target branch "${target}" not found in baseBranches`,
+            });
+          }
+        } else if (!config.baseBranches.some((b) => b.name === target)) {
           issues.push({
             path: "versioning.tagTargets",
             message: `target branch "${target}" not found in baseBranches`,
