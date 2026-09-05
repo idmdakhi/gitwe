@@ -1,12 +1,24 @@
 {
   "name": "gitwe",
-  "version": "0.35.2",
+  "version": "0.35.3",
   "description": "A configurable git branching-workflow engine — define your workflow once, let gitwe run it.",
   "type": "module",
   "license": "MIT",
-  "author": "Mohammad Amanalikhani",
+  "author": {
+    "name": "Mohammad Amanalikhani",
+    "email": "idmdakhi@gmail.com",
+    "url": "http://akhi.ir/"
+  },
   "engines": {
     "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/idmdakhi/gitwe.git"
+  },
+  "bugs": {
+    "url": "https://github.com/idmdakhi/gitwe/issues",
+    "email": "idmdakhi@gmail.com"
   },
   "bin": {
     "gitwe": "./dist/cli/index.js"
