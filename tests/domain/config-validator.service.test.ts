@@ -44,39 +44,56 @@ describe("ConfigValidatorService", () => {
     const result = validator.validate(config);
     expect(result.issues.some((i) => i.message.includes("does-not-exist"))).toBe(true);
   });
+});
+
+describe("ConfigValidatorService", () => {
+  let service: ConfigValidatorService;
+  let preset: WorkflowConfig;
+
+  beforeEach(() => {
+    service = new ConfigValidatorService();
+    preset = classicPreset();
+  });
 
   describe("validate versioning.tagTargets", () => {
     it('should accept "root" when a root branch exists', () => {
       const config: WorkflowConfig = {
-        ...classicPreset(),
+        ...preset,
         baseBranches: [{ name: "main" }, { name: "develop", base: "main" }],
         versioning: { enabled: true, tagTargets: ["root"] },
+        // برای جلوگیری از خطاهای دیگر، branchTypes را خالی یا معتبر بگذارید
       };
-      const issues = validator.validate(config);
-      expect(issues).not.toContainEqual(expect.objectContaining({ path: "versioning.tagTargets" }));
+      const result = service.validate(config);
+      // مطمئن شوید خطایی با path="versioning.tagTargets" وجود ندارد
+      expect(result.issues).not.toContainEqual(
+        expect.objectContaining({ path: "versioning.tagTargets" }),
+      );
     });
 
     it('should accept ["root", "develop"] when both exist', () => {
       const config: WorkflowConfig = {
-        ...classicPreset(),
+        ...preset,
         baseBranches: [{ name: "main" }, { name: "develop", base: "main" }],
         versioning: { enabled: true, tagTargets: ["root", "develop"] },
       };
-      const issues = validator.validate(config);
-      expect(issues).not.toContainEqual(expect.objectContaining({ path: "versioning.tagTargets" }));
+      const result = service.validate(config);
+      expect(result.issues).not.toContainEqual(
+        expect.objectContaining({ path: "versioning.tagTargets" }),
+      );
     });
 
     it('should reject "root" when no root branch exists', () => {
+      // کانفیگی که هیچ برنچ ریشه‌ای ندارد (همه base دارند)
       const config: WorkflowConfig = {
-        ...classicPreset(),
+        ...preset,
         baseBranches: [
-          { name: "develop", base: "main" },
-          { name: "feature", base: "develop" },
+          { name: "develop", base: "main" }, // main وجود ندارد -> باعث خطای دیگر می‌شود
         ],
         versioning: { enabled: true, tagTargets: ["root"] },
       };
-      const issues = validator.validate(config);
-      expect(issues).toContainEqual(
+      const result = service.validate(config);
+      // انتظار داریم حداقل یک خطا با path="versioning.tagTargets" و شامل "root" باشد
+      expect(result.issues).toContainEqual(
         expect.objectContaining({
           path: "versioning.tagTargets",
           message: expect.stringContaining("root"),
@@ -86,12 +103,12 @@ describe("ConfigValidatorService", () => {
 
     it("should reject a non-existent target branch", () => {
       const config: WorkflowConfig = {
-        ...classicPreset(),
-        baseBranches: [{ name: "main" }],
+        ...preset,
+        baseBranches: [{ name: "main" }, { name: "develop", base: "main" }],
         versioning: { enabled: true, tagTargets: ["nonexistent"] },
       };
-      const issues = validator.validate(config);
-      expect(issues).toContainEqual(
+      const result = service.validate(config);
+      expect(result.issues).toContainEqual(
         expect.objectContaining({
           path: "versioning.tagTargets",
           message: expect.stringContaining("nonexistent"),
@@ -101,7 +118,7 @@ describe("ConfigValidatorService", () => {
 
     it('should accept multiple targets including "root" and other valid branches', () => {
       const config: WorkflowConfig = {
-        ...classicPreset(),
+        ...preset,
         baseBranches: [
           { name: "main" },
           { name: "develop", base: "main" },
@@ -109,18 +126,21 @@ describe("ConfigValidatorService", () => {
         ],
         versioning: { enabled: true, tagTargets: ["root", "develop", "release"] },
       };
-      const issues = validator.validate(config);
-      expect(issues).not.toContainEqual(expect.objectContaining({ path: "versioning.tagTargets" }));
+      const result = service.validate(config);
+      expect(result.issues).not.toContainEqual(
+        expect.objectContaining({ path: "versioning.tagTargets" }),
+      );
     });
 
     it("should reject when one of multiple targets is invalid", () => {
       const config: WorkflowConfig = {
-        ...classicPreset(),
+        ...preset,
         baseBranches: [{ name: "main" }, { name: "develop", base: "main" }],
         versioning: { enabled: true, tagTargets: ["root", "invalid"] },
       };
-      const issues = validator.validate(config);
-      expect(issues).toContainEqual(
+      const result = service.validate(config);
+      // حداقل یک خطا با path="versioning.tagTargets" و شامل "invalid" باشد
+      expect(result.issues).toContainEqual(
         expect.objectContaining({
           path: "versioning.tagTargets",
           message: expect.stringContaining("invalid"),
