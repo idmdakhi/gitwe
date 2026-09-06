@@ -75,11 +75,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - registry: https://npm.pkg.github.com
-            package_name: "@idmdakhi/gitwe"
-            token_secret: GITHUB_TOKEN
-            use_oidc: false
-            provenance: false
           - registry: https://registry.npmjs.org
             package_name: "@idmdakhi/gitwe"
             token_secret: NPM_TOKEN
@@ -90,6 +85,12 @@ jobs:
             token_secret: NPM_TOKEN
             use_oidc: true
             provenance: true
+          # GitHub Packages (token-based)
+          - registry: https://npm.pkg.github.com
+            package_name: "@idmdakhi/gitwe"
+            token_secret: GITHUB_TOKEN
+            use_oidc: false
+            provenance: false
 
     permissions:
       contents: read
