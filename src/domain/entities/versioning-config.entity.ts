@@ -25,6 +25,12 @@ export interface VersioningConfig {
   pushTags?: boolean;
   autoCommit?: boolean;
   commitMessage?: string;
+  /**
+   * Version to start from when versioning is enabled, no --current-version
+   * was given, and no existing "${tagPrefix}X.Y.Z" tag can be found (i.e.
+   * this is the very first release). Defaults to "0.1.0".
+   */
+  initialVersion?: string;
   prerelease?: {
     enabled: boolean;
     format: string;

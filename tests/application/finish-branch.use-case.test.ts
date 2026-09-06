@@ -131,6 +131,88 @@ describe("FinishBranchUseCase", () => {
     await expect(stateStore.exists()).resolves.toBe(false);
   });
 
+  it("discovers the current version from existing tags when --current-version is omitted", async () => {
+    const git = fakeGit({
+      branchExists: async (b) => new Set(["main", "develop", "release/2.0"]).has(b),
+      listTags: async () => ["v0.35.2", "v1.2.0", "v1.2.0-beta.1", "not-a-version"],
+    });
+    let createdTag: string | undefined;
+    const gitWithTagCapture = {
+      ...git,
+      createTag: async (name: string) => void (createdTag = name),
+    };
+
+    const useCase = new FinishBranchUseCase(
+      workflow,
+      gitWithTagCapture,
+      noopHooks,
+      silentLogger,
+      memoryStateStore(),
+    );
+
+    const result = await useCase.execute({ kind: "start", branch: "release/2.0" });
+
+    // highest stable tag is v1.2.0 (v1.2.0-beta.1 and the malformed tag are
+    // ignored); "release" bumps minor per classicPreset -> v1.3.0, not a
+    // Date.now() timestamp.
+    expect(createdTag).toBe("v1.3.0");
+    expect(result.tag).toBe("v1.3.0");
+  });
+
+  it("uses a sensible initial version (0.1.0 by default) for the very first tag ever", async () => {
+    const git = fakeGit({
+      branchExists: async (b) => new Set(["main", "develop", "release/2.0"]).has(b),
+      listTags: async () => [], // nothing tagged yet in this repo
+    });
+    let createdTag: string | undefined;
+    const gitWithTagCapture = {
+      ...git,
+      createTag: async (name: string) => void (createdTag = name),
+    };
+
+    const useCase = new FinishBranchUseCase(
+      workflow,
+      gitWithTagCapture,
+      noopHooks,
+      silentLogger,
+      memoryStateStore(),
+    );
+
+    const result = await useCase.execute({ kind: "start", branch: "release/2.0" });
+
+    expect(createdTag).toBe("v0.1.0");
+    expect(result.tag).toBe("v0.1.0");
+  });
+
+  it("honours a custom versioning.initialVersion for the first tag", async () => {
+    const customWorkflow = new WorkflowService({
+      ...classicPreset(),
+      versioning: { ...classicPreset().versioning, enabled: true, initialVersion: "1.0.0" },
+    });
+    const git = fakeGit({
+      branchExists: async (b) => new Set(["main", "develop", "release/2.0"]).has(b),
+      listTags: async () => [],
+    });
+    let createdTag: string | undefined;
+    const gitWithTagCapture = {
+      ...git,
+      createTag: async (name: string) => void (createdTag = name),
+    };
+
+    const useCase = new FinishBranchUseCase(
+      customWorkflow,
+      gitWithTagCapture,
+      noopHooks,
+      silentLogger,
+      memoryStateStore(),
+    );
+
+    const result = await useCase.execute({ kind: "start", branch: "release/2.0" });
+
+    expect(createdTag).toBe("v1.0.0");
+    expect(result.tag).toBe("v1.0.0");
+  });
+
   it("aborts an in-progress merge and clears state", async () => {
     let aborted = false;
     const git = fakeGit({

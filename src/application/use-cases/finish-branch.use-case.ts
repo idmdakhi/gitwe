@@ -110,6 +110,46 @@ export class FinishBranchUseCase {
     private readonly stateStore: OperationStateStore,
   ) {}
 
+  /**
+   * Best-effort discovery of the "current version" to bump from, used when
+   * the caller doesn't pass --current-version explicitly. Scans existing
+   * git tags matching `${tagPrefix}X.Y.Z` and returns the highest stable
+   * (non-prerelease) one found, without the prefix. Returns undefined if no
+   * matching tag exists yet (e.g. this is the very first release), in which
+   * case the caller must fall back to something else.
+   */
+  private async discoverCurrentVersion(tagPrefix: string): Promise<string | undefined> {
+    const tags = await this.git.listTags();
+    let best: SemVer | undefined;
+    let bestRaw: string | undefined;
+
+    for (const tag of tags) {
+      if (!tag.startsWith(tagPrefix)) continue;
+      const withoutPrefix = tag.slice(tagPrefix.length);
+
+      let parsed: SemVer;
+      try {
+        parsed = this.versions.parse(withoutPrefix);
+      } catch {
+        continue; // not a semver tag (e.g. an unrelated tag) — skip it
+      }
+      if (parsed.prerelease) continue; // only stable releases count as the "current" baseline
+
+      const isNewer =
+        !best ||
+        parsed.major > best.major ||
+        (parsed.major === best.major && parsed.minor > best.minor) ||
+        (parsed.major === best.major && parsed.minor === best.minor && parsed.patch > best.patch);
+
+      if (isNewer) {
+        best = parsed;
+        bestRaw = withoutPrefix;
+      }
+    }
+
+    return bestRaw;
+  }
+
   async execute(action: FinishAction): Promise<FinishResult> {
     if (action.kind === "abort") return this.abort();
     if (action.kind === "continue") return this.resume();
@@ -295,12 +335,38 @@ export class FinishBranchUseCase {
       if (state.tagname) {
         tagName = state.tagname;
       } else {
+        const tagPrefix = this.workflow.tagPrefix();
         const bump = state.bump ?? this.workflow.versionBumpFor(type);
-        if (state.currentVersion && bump !== "none") {
-          const next = this.versions.bump(state.currentVersion, bump);
-          tagName = this.versions.format(next, this.workflow.tagPrefix());
+
+        let baseVersion = state.currentVersion;
+        if (!baseVersion && bump !== "none") {
+          baseVersion = await this.discoverCurrentVersion(tagPrefix);
+          if (baseVersion) {
+            this.logger.info(
+              `no --current-version given; using latest existing tag ${tagPrefix}${baseVersion} as the base for this ${bump} bump`,
+            );
+          }
+        }
+
+        if (baseVersion && bump !== "none") {
+          const next = this.versions.bump(baseVersion, bump);
+          tagName = this.versions.format(next, tagPrefix);
+        } else if (bump !== "none") {
+          // No --current-version, and no existing "${tagPrefix}X.Y.Z" tag at
+          // all — this is the very first release, so start from a sensible,
+          // configurable initial version instead of a meaningless timestamp.
+          const initialVersionRaw = this.workflow.config.versioning?.initialVersion ?? "0.1.0";
+          this.logger.info(
+            `no --current-version given and no existing "${tagPrefix}X.Y.Z" tags found; ` +
+              `treating this as the first release and starting from ${tagPrefix}${initialVersionRaw}`,
+          );
+          tagName = this.versions.format(this.versions.parse(initialVersionRaw), tagPrefix);
         } else {
-          tagName = `${this.workflow.tagPrefix()}${Date.now()}`;
+          this.logger.warn(
+            `versioning is enabled but bump is "none" and no --tagname was given — ` +
+              `falling back to a timestamp-based tag name.`,
+          );
+          tagName = `${tagPrefix}${Date.now()}`;
         }
       }
       if (!(await this.git.tagExists(tagName))) {

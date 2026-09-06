@@ -23,3 +23,5 @@ prerelease:
   enabled: false
   format: "{{type}}.{{number}}"
   types: ["alpha", "beta", "rc"]
+
+initialVersion: "1.0.0"
