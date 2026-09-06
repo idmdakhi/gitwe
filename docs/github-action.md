@@ -1,7 +1,7 @@
 # GitHub Action — gitwe
 
 > ⚠️ **Compatibility notice.** The root [`action.yaml`](../action.yaml)
-> described on this page targets the CLI as it existed *before* the 1.0 Clean
+> described on this page targets the CLI as it existed _before_ the 1.0 Clean
 > Architecture rewrite: it invokes `dist/cli/index.js` with flags like
 > `--json`, `--workflow`, `--no-delete`, `--abort-on-conflict`, `--strategy`
 > and commands like `status`, `graph`, `doctor`, `config`. The rewritten CLI
@@ -10,8 +10,8 @@
 > `doctor`, `graph`, `config`, `status`'s `--root`, and most flags below are
 > **not implemented in the current CLI** (see the "Not yet available" section
 > of [commands.md](./commands.md)). Re-aligning the Action with the rewrite is
-> tracked in [TODO.md](./development/TODO.md) under *"Verify `publish.yaml`
-> matrix ... still works after the 1.0 rewrite"* and the CI-hygiene items
+> tracked in [TODO.md](./development/TODO.md) under _"Verify `publish.yaml`
+> matrix ... still works after the 1.0 rewrite"_ and the CI-hygiene items
 > above it. Until that's done, treat everything below as the Action's
 > **intended/target interface**, not a guarantee of what will run against
 > today's `main`. For a workflow you can rely on right now, use the plain
@@ -73,7 +73,7 @@ jobs:
   gitwe:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@main
         with:
           fetch-depth: 0
 
@@ -168,7 +168,7 @@ All demo steps use `continue-on-error: true` so a failure does not block the res
 ### When to change `gitwe.yaml`
 
 | Goal                   | What to edit                                    |
-| ---------------------- | ------------------------------------------------ |
+| ---------------------- | ----------------------------------------------- |
 | Test a new command     | Add another `uses: ./` step                     |
 | Change config path     | `config:` input                                 |
 | Disable demos          | Remove or guard the PR-only steps               |
@@ -192,7 +192,7 @@ All demo steps use `continue-on-error: true` so a failure does not block the res
 ## Differences: `action.yaml` vs `.github/actions/setup`
 
 |           | `action.yaml` (root)                    | `.github/actions/setup`                 |
-| --------- | ---------------------------------------- | ---------------------------------------- |
+| --------- | --------------------------------------- | --------------------------------------- |
 | Audience  | Any consumer of gitwe                   | Only this repo's CI                     |
 | Purpose   | Run gitwe **commands**                  | Install Node + deps + build             |
 | Used by   | External workflows + `gitwe.yaml`       | `test`, `ci`, `e2e`, `compatibility`, … |
@@ -213,10 +213,10 @@ Do **not** mix them: CI jobs that only need Node/npm should use `setup`; jobs th
 
 ## Troubleshooting
 
-| Symptom                   | Likely cause                   | Fix                                                                  |
-| -------------------------- | ------------------------------- | ---------------------------------------------------------------------- |
-| `NotInitializedError`     | No workflow config in the repo | Run `gitwe init` or pass `config:`                                   |
-| Slow Action               | Cold cache                     | Second run is faster; cache key is `package-lock.json` of the Action |
-| Permission denied on push | Missing `contents: write`      | Add `permissions: contents: write` to the job                        |
-| Wrong branch created      | `short-name` contains `/`      | Use a simple name; prefix comes from the workflow definition         |
+| Symptom                         | Likely cause                                                                            | Fix                                                                                                                          |
+| ------------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `NotInitializedError`           | No workflow config in the repo                                                          | Run `gitwe init` or pass `config:`                                                                                           |
+| Slow Action                     | Cold cache                                                                              | Second run is faster; cache key is `package-lock.json` of the Action                                                         |
+| Permission denied on push       | Missing `contents: write`                                                               | Add `permissions: contents: write` to the job                                                                                |
+| Wrong branch created            | `short-name` contains `/`                                                               | Use a simple name; prefix comes from the workflow definition                                                                 |
 | `Unknown command`-style failure | Command isn't wired into the rewritten CLI yet (see the notice at the top of this page) | Use one of the nine commands in [commands.md](./commands.md), or run gitwe directly as in [using-in-ci.md](./using-in-ci.md) |

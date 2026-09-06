@@ -1,6 +1,5 @@
 import { Command } from "commander";
 import { loadEngine, action } from "./shared.js";
-import { style } from "../output.js";
 import {
   AddBaseOptions,
   AddBranchTypeOptions,
