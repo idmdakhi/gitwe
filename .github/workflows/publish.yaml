@@ -24,9 +24,9 @@ jobs:
           registry-url: "https://registry.npmjs.org"
           package-manager-cache: false # never use caching in release builds
 
-      - run: npm pkg set name="@idmdakhi/gitwe"
+      - run: npm pkg set name="gitwe-ts"
 
       - run: npm ci
-      - run: npm run build --if-present
+      - run: npm run build
       # - run: npm test
       - run: npm publish --access public # Or: npm stage publish
