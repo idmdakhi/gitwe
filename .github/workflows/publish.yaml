@@ -3,6 +3,7 @@ name: Publish Package
 on:
   push:
     branches: [main]
+    tags: ["v*"]
   workflow_dispatch:
 
 concurrency:
@@ -22,7 +23,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@main
+        uses: actions/checkout@v6
 
       - name: Setup
         uses: ./.github/actions/setup
@@ -41,11 +42,10 @@ jobs:
         run: npm pack --dry-run
 
       - name: Upload package artifact
-        uses: actions/upload-artifact@main
+        uses: actions/upload-artifact@v4
         with:
           name: package
           retention-days: 1
-          # Include everything npm needs; dist is critical
           path: |
             dist/**
             .gitwe/**
@@ -57,23 +57,25 @@ jobs:
 
   publish:
     needs: build
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         include:
+          # GitHub Packages (token-based)
           - registry: https://npm.pkg.github.com
             package_name: "@idmdakhi/gitwe"
             token_secret: GITHUB_TOKEN
             use_oidc: false
             provenance: false
+          # npmjs – scoped package (OIDC + provenance)
           - registry: https://registry.npmjs.org
             package_name: "@idmdakhi/gitwe"
             token_secret: NPM_TOKEN
             use_oidc: true
             provenance: true
+          # npmjs – unscoped package (OIDC + provenance)
           - registry: https://registry.npmjs.org
             package_name: "gitwe-ts"
             token_secret: NPM_TOKEN
@@ -82,15 +84,15 @@ jobs:
 
     permissions:
       contents: read
-      id-token: write
-      packages: write
+      id-token: write # required for OIDC / trusted publishing
+      packages: write # required for GitHub Packages
 
     steps:
       - name: Checkout
-        uses: actions/checkout@main
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@main
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: ${{ matrix.registry }}
@@ -99,12 +101,11 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-fund --no-audit
 
-      # Rebuild here so publish never depends only on artifact layout
       - name: Build
         run: npm run build
 
       - name: Download package artifact
-        uses: actions/download-artifact@main
+        uses: actions/download-artifact@v4
         with:
           name: package
           path: artifact
@@ -112,24 +113,18 @@ jobs:
       - name: Set package name
         run: npm pkg set name="${{ matrix.package_name }}"
 
-      # - name: Publish
-      #   run: |
-      #     if [ "${{ matrix.provenance }}" = "true" ]; then
-      #       npm publish --provenance --access public
-      #     else
-      #       npm publish --access public
-      #     fi
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets[matrix.token_secret] }}
-
-      - name: Publish (OIDC / npm)
+      # OIDC / trusted publishing (npmjs) – no NODE_AUTH_TOKEN
+      - name: Publish (OIDC)
         if: matrix.use_oidc
-        run:
-          npm publish --access public
-          # بدون NODE_AUTH_TOKEN — احراز هویت از OIDC می‌آید
-          # provenance معمولاً خودکار است
+        run: |
+          if [ "${{ matrix.provenance }}" = "true" ]; then
+            npm publish --provenance --access public
+          else
+            npm publish --access public
+          fi
 
-      - name: Publish (token / GitHub Packages)
+      # Token-based (GitHub Packages)
+      - name: Publish (token)
         if: ${{ !matrix.use_oidc }}
         run: npm publish --access public
         env:
