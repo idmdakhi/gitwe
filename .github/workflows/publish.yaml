@@ -10,6 +10,7 @@ on:
 permissions:
   id-token: write # Required for OIDC
   contents: read
+  packages: write
 
 jobs:
   publish:
@@ -28,4 +29,4 @@ jobs:
       - run: npm ci
       - run: npm run build --if-present
       - run: npm test
-      - run: npm publish # Or: npm stage publish
+      - run: npm publish --access public # Or: npm stage publish
