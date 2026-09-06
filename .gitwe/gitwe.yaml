@@ -61,7 +61,6 @@ changelog:
 
 remote:
   config: .gitwe/remote.yaml
-  name: origin # for gitwe vscode < v0.23 [deprecated]
   default: origin
   fetch: [origin]
   autoFetch: true
