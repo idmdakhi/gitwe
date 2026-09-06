@@ -119,10 +119,15 @@ jobs:
       - name: Remove empty authToken line (let OIDC take over)
         if: matrix.use_oidc
         run: |
+          set -x
+          echo "NPM_CONFIG_USERCONFIG=${NPM_CONFIG_USERCONFIG:-<unset>}"
           npmrc="${NPM_CONFIG_USERCONFIG:-$HOME/.npmrc}"
-          echo "Before:"; cat "$npmrc" || true
+          touch "$npmrc"
+          echo "--- npmrc before ---"
+          cat "$npmrc"
           sed -i '/_authToken=$/d' "$npmrc"
-          echo "After:"; cat "$npmrc" || true
+          echo "--- npmrc after ---"
+          cat "$npmrc"
 
       - name: Ensure npm supports OIDC trusted publishing
         if: matrix.use_oidc
