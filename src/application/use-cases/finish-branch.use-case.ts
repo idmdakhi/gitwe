@@ -9,6 +9,15 @@ import {
   SemVer,
   VersionCalculatorService,
 } from "../../domain/services/version-calculator.service.js";
+import { BranchVersionResolverService } from "../../domain/services/branch-version-resolver.service.js";
+import { VersionTargetsService } from "../../domain/services/version-targets.service.js";
+import {
+  ChangelogGeneratorService,
+  DEFAULT_CHANGELOG_LINE_TEMPLATE,
+  type ChangelogCommit,
+} from "../../domain/services/changelog-generator.service.js";
+import type { VersioningConfig } from "../../domain/entities/versioning-config.entity.js";
+import type { ChangelogConfig } from "../../domain/entities/changelog-config.entity.js";
 import type {
   GitRepository,
   PushOptions,
@@ -20,11 +29,13 @@ import type {
   OperationState,
   OperationStateStore,
 } from "../../domain/ports/operation-state-store.port.js";
+import type { VersionPrompter } from "../../domain/ports/version-prompter.port.js";
+import { noopVersionPrompter } from "../../domain/ports/version-prompter.port.js";
 import { omitUndefined } from "../../utils.js";
 import { join } from "node:path";
-import { writeFile } from "node:fs/promises";
-import { BranchType } from "../../domain/entities/branch-type.entity.js";
+import { readFile, writeFile } from "node:fs/promises";
 import yaml from "js-yaml";
+
 
 export interface FinishBranchInput {
   readonly branch: string;
@@ -71,6 +82,12 @@ interface FinishStateData {
   readonly push: boolean;
   readonly tag?: string | undefined;
   readonly currentVersion?: string | undefined;
+  /**
+   * When `versioning.branchVersion` resolved a version from the branch name
+   * AND `overrideBumpRules` is true, this holds that version verbatim; the
+   * final tag/target version is used as-is, skipping the bumpRules math.
+   */
+  readonly branchVersionFinal?: string | undefined;
   readonly rebase: boolean;
   readonly noFF: boolean;
   readonly mergeMessage?: string | undefined;
@@ -101,6 +118,9 @@ const OPERATION = "finish";
  */
 export class FinishBranchUseCase {
   private readonly versions = new VersionCalculatorService();
+  private readonly branchVersionResolver = new BranchVersionResolverService();
+  private readonly versionTargets = new VersionTargetsService();
+  private readonly changelogGenerator = new ChangelogGeneratorService();
 
   constructor(
     private readonly workflow: WorkflowService,
@@ -108,7 +128,132 @@ export class FinishBranchUseCase {
     private readonly hooks: HookRunner,
     private readonly logger: Logger,
     private readonly stateStore: OperationStateStore,
+    private readonly prompter: VersionPrompter = noopVersionPrompter,
   ) {}
+
+  /**
+   * Best-effort discovery of the "current version" to bump from, used when
+   * the caller doesn't pass --current-version explicitly. Scans existing
+   * git tags matching `${tagPrefix}X.Y.Z` and returns the highest stable
+   * (non-prerelease) one found, without the prefix. Returns undefined if no
+   * matching tag exists yet (e.g. this is the very first release), in which
+   * case the caller must fall back to something else.
+   */
+  private async discoverCurrentVersion(tagPrefix: string): Promise<string | undefined> {
+    const tags = await this.git.listTags();
+    let best: SemVer | undefined;
+    let bestRaw: string | undefined;
+
+    for (const tag of tags) {
+      if (!tag.startsWith(tagPrefix)) continue;
+      const withoutPrefix = tag.slice(tagPrefix.length);
+
+      let parsed: SemVer;
+      try {
+        parsed = this.versions.parse(withoutPrefix);
+      } catch {
+        continue; // not a semver tag (e.g. an unrelated tag) — skip it
+      }
+      if (parsed.prerelease) continue; // only stable releases count as the "current" baseline
+
+      const isNewer =
+        !best ||
+        parsed.major > best.major ||
+        (parsed.major === best.major && parsed.minor > best.minor) ||
+        (parsed.major === best.major && parsed.minor === best.minor && parsed.patch > best.patch);
+
+      if (isNewer) {
+        best = parsed;
+        bestRaw = withoutPrefix;
+      }
+    }
+
+    return bestRaw;
+  }
+
+  /**
+   * Walks `versioning.tagSource` (default `["branch", "tag"]`) in order and
+   * returns the first strategy that resolves a version, or `undefined` if
+   * none do (the caller then falls back to `versioning.currentVersion` /
+   * a timestamp, same as before this existed).
+   */
+  private async resolveCurrentVersion(
+    branchName: string,
+    versioning: VersioningConfig,
+  ): Promise<{ version: string; final: boolean } | undefined> {
+    const sources = versioning.tagSource ?? ["branch", "tag"];
+    const tagPrefix = versioning.tagPrefix ?? "v";
+
+    for (const source of sources) {
+      switch (source) {
+        case "branch": {
+          const branchVersionCfg = versioning.branchVersion;
+          if (!branchVersionCfg?.patterns?.length) break;
+          const resolution = this.branchVersionResolver.resolve(
+            branchName,
+            branchVersionCfg,
+            tagPrefix,
+          );
+          if (resolution) {
+            return { version: resolution.version, final: branchVersionCfg.overrideBumpRules === true };
+          }
+          break;
+        }
+        case "config": {
+          const version = await this.readVersionFromFile(versioning);
+          if (version) return { version, final: false };
+          break;
+        }
+        case "tag": {
+          const version = await this.discoverCurrentVersion(tagPrefix);
+          if (version) return { version, final: false };
+          break;
+        }
+        case "manual": {
+          if (!this.prompter.isAvailable()) break;
+          const answer = await this.prompter.promptVersion(
+            "Enter the current version to bump from",
+            versioning.currentVersion,
+          );
+          if (!answer) break;
+          try {
+            this.versions.parse(answer);
+          } catch {
+            throw new ValidationError(`"${answer}" is not a valid semantic version`);
+          }
+          return { version: answer, final: false };
+        }
+        case "error":
+          throw new ValidationError(
+            `could not determine the current version from any configured "versioning.tagSource" (${sources.join(", ")})`,
+            `pass --current-version explicitly, or add "manual"/adjust versioning.tagSource in your config`,
+          );
+      }
+    }
+    return undefined;
+  }
+
+  /** Reads `currentVersion` out of `.gitwe/version.yaml` (or `versioning.config`), if present and valid. */
+  private async readVersionFromFile(versioning: VersioningConfig): Promise<string | undefined> {
+    const versionFilePath = join(this.git.cwd, versioning.config ?? ".gitwe/version.yaml");
+    let raw: string;
+    try {
+      raw = await readFile(versionFilePath, "utf8");
+    } catch {
+      return undefined; // file doesn't exist (yet) — not an error, just nothing to read
+    }
+
+    const parsed = yaml.load(raw) as Record<string, unknown> | undefined;
+    const value = parsed?.["currentVersion"];
+    if (typeof value !== "string") return undefined;
+
+    try {
+      this.versions.parse(value);
+    } catch {
+      return undefined; // not a valid semver — treat as "nothing found", try the next source
+    }
+    return value;
+  }
 
   async execute(action: FinishAction): Promise<FinishResult> {
     if (action.kind === "abort") return this.abort();
@@ -150,6 +295,23 @@ export class FinishBranchUseCase {
     const fetch = input.fetch ?? true; // default: fetch
     const bump = input.bump;
 
+    // ---- Determine the "current version" baseline (or final override) ----
+    let currentVersion = input.currentVersion;
+    let branchVersionFinal: string | undefined;
+    const versioningCfg = this.workflow.config.versioning;
+    const willTag = tagOverride ?? this.workflow.shouldTagForFinish(resolved.type, resolved.type.target);
+
+    if (versioningCfg?.enabled && willTag && !input.currentVersion) {
+      const resolution = await this.resolveCurrentVersion(resolved.branch, versioningCfg);
+      if (resolution) {
+        if (resolution.final) {
+          branchVersionFinal = resolution.version;
+        } else {
+          currentVersion = resolution.version;
+        }
+      }
+    }
+
     const state: FinishStateData = {
       branch: resolved.branch,
       typeName: resolved.type.name,
@@ -157,7 +319,8 @@ export class FinishBranchUseCase {
       mergedInto: [],
       squash,
       push: input.push ?? false,
-      currentVersion: input.currentVersion,
+      currentVersion,
+      branchVersionFinal,
       rebase,
       noFF,
       mergeMessage,
@@ -289,18 +452,63 @@ export class FinishBranchUseCase {
 
     // ---- Tagging ----------------------------------------------------------
     const shouldTag = state.tagOverride ?? this.workflow.shouldTagForFinish(type, state.targets);
+    const versioningCfg = this.workflow.config.versioning;
 
     if (shouldTag && !done.has("tag")) {
       let tagName: string;
+      // Bare version (no tagPrefix), used for versioning.targetVersion/version.yaml
+      // updates. Left undefined when a custom --tagname or the timestamp
+      // fallback is used, since neither is a real semantic version.
+      let bareVersion: string | undefined;
+      // The tag we bumped FROM, if any — used to scope changelog commit
+      // gathering to "since the last release" instead of full history.
+      let previousTagName: string | undefined;
+
       if (state.tagname) {
         tagName = state.tagname;
       } else {
+        const tagPrefix = this.workflow.tagPrefix();
         const bump = state.bump ?? this.workflow.versionBumpFor(type);
-        if (state.currentVersion && bump !== "none") {
-          const next = this.versions.bump(state.currentVersion, bump);
-          tagName = this.versions.format(next, this.workflow.tagPrefix());
+
+        if (state.branchVersionFinal) {
+          // versioning.branchVersion.overrideBumpRules: use the version
+          // extracted from the branch name as-is, skipping bumpRules.
+          const parsed = this.versions.parse(state.branchVersionFinal);
+          bareVersion = this.versions.format(parsed);
+          tagName = this.versions.format(parsed, tagPrefix);
         } else {
-          tagName = `${this.workflow.tagPrefix()}${Date.now()}`;
+          const baseVersion = state.currentVersion;
+
+          if (baseVersion && bump !== "none") {
+            const next = this.versions.bump(baseVersion, bump);
+            bareVersion = this.versions.format(next);
+            tagName = this.versions.format(next, tagPrefix);
+            const candidatePreviousTag = this.versions.format(
+              this.versions.parse(baseVersion),
+              tagPrefix,
+            );
+            if (await this.git.tagExists(candidatePreviousTag)) {
+              previousTagName = candidatePreviousTag;
+            }
+          } else if (bump !== "none") {
+            // No --current-version, and no existing "${tagPrefix}X.Y.Z" tag at
+            // all — this is the very first release, so start from the
+            // persisted/seed currentVersion instead of a meaningless timestamp.
+            const seedVersionRaw = versioningCfg?.currentVersion ?? "0.1.0";
+            this.logger.info(
+              `no --current-version given and no existing "${tagPrefix}X.Y.Z" tags found; ` +
+                `treating this as the first release and starting from ${tagPrefix}${seedVersionRaw}`,
+            );
+            const parsedSeed = this.versions.parse(seedVersionRaw);
+            bareVersion = this.versions.format(parsedSeed);
+            tagName = this.versions.format(parsedSeed, tagPrefix);
+          } else {
+            this.logger.warn(
+              `versioning is enabled but bump is "none" and no --tagname was given — ` +
+                `falling back to a timestamp-based tag name.`,
+            );
+            tagName = `${tagPrefix}${Date.now()}`;
+          }
         }
       }
       if (!(await this.git.tagExists(tagName))) {
@@ -316,6 +524,17 @@ export class FinishBranchUseCase {
       }
       (state as { tag?: string }).tag = tagName;
       done.add("tag");
+
+      // ---- Update .gitwe/version.yaml + versioning.targetVersion (+ changelog), then commit ---
+      if (versioningCfg?.autoCommit && bareVersion && !done.has("version-files")) {
+        await this.applyVersionToFiles(
+          versioningCfg,
+          this.workflow.config.changelog,
+          bareVersion,
+          previousTagName,
+        );
+        done.add("version-files");
+      }
     }
 
     // ---- Push (if requested) ----------------------------------------------
@@ -438,88 +657,133 @@ export class FinishBranchUseCase {
     await this.stateStore.write(record);
   }
 
-  private async createTag(state: FinishStateData, type: BranchType): Promise<string> {
-    const versioning = this.workflow.config.versioning;
-    if (!versioning?.enabled) {
-      throw new Error("Versioning is disabled");
+  /**
+   * Updates `.gitwe/version.yaml`'s (or `versioning.config`'s) `currentVersion`
+   * field, every configured `versioning.targetVersion` file, and (when
+   * `changelog.enabled`) the changelog file, to `newVersion` (a bare semver,
+   * no tagPrefix) — then commits everything staged. Called right after a
+   * release tag is created, when `versioning.autoCommit` is enabled.
+   */
+  private async applyVersionToFiles(
+    versioning: VersioningConfig,
+    changelog: ChangelogConfig | undefined,
+    newVersion: string,
+    previousTagName: string | undefined,
+  ): Promise<void> {
+    const versionFilePath = join(this.git.cwd, versioning.config ?? ".gitwe/version.yaml");
+    let raw = "";
+    try {
+      raw = await readFile(versionFilePath, "utf8");
+    } catch {
+      // first release / file not created yet — start from an empty document
+    }
+    const currentContent = (yaml.load(raw) as Record<string, unknown>) ?? {};
+    currentContent.currentVersion = newVersion;
+    const updatedYaml = yaml.dump(currentContent, { lineWidth: 100 });
+
+    await writeFile(versionFilePath, updatedYaml, "utf8");
+    await this.git.raw(["add", versionFilePath]);
+
+    for (const target of versioning.targetVersion ?? []) {
+      const targetPath = join(this.git.cwd, target.file);
+      let rawTarget: string;
+      try {
+        rawTarget = await readFile(targetPath, "utf8");
+      } catch (error) {
+        throw new ValidationError(
+          `could not read versioning target "${target.file}": ${(error as Error).message}`,
+        );
+      }
+      const updatedTarget = this.versionTargets.apply(target, rawTarget, newVersion);
+      await writeFile(targetPath, updatedTarget, "utf8");
+      await this.git.raw(["add", targetPath]);
     }
 
-    const tagPrefix = versioning.tagPrefix ?? "v";
-    const format = versioning.format ?? "{{tagPrefix}}{{major}}.{{minor}}.{{patch}}";
-
-    // ۱. تعیین نوع افزایش نسخه
-    const bump = state.bump ?? this.workflow.versionBumpFor(type);
-    let version: SemVer;
-
-    if (state.currentVersion && bump !== "none") {
-      version = this.versions.bump(state.currentVersion, bump);
-    } else {
-      // fallback: استفاده از timestamp برای نسخه‌های بدون currentVersion
-      const now = new Date();
-      version = {
-        major: now.getFullYear(),
-        minor: now.getMonth() + 1,
-        patch: now.getDate(),
-      };
+    if (changelog?.enabled) {
+      await this.updateChangelog(changelog, newVersion, previousTagName);
     }
 
-    // ۲. جایگزینی در قالب اصلی
-    let tagName = format
-      .replace(/{{tagPrefix}}/g, tagPrefix)
-      .replace(/{{major}}/g, String(version.major))
-      .replace(/{{minor}}/g, String(version.minor))
-      .replace(/{{patch}}/g, String(version.patch));
+    const message =
+      versioning.commitMessage?.replace(/{{version}}/g, newVersion) ??
+      `chore: bump version to ${newVersion}`;
+    await this.git.raw(["commit", "-m", message]);
+  }
 
-    // ۳. افزودن prerelease (در صورت فعال بودن)
-    if (versioning.prerelease?.enabled && version.prerelease) {
-      const prereleaseFormat = versioning.prerelease.format || "{{type}}.{{number}}";
-      // استخراج نوع prerelease از bumpRules (مثلاً "alpha")
-      const prereleaseType = versioning.bumpRules?.prerelease?.[0] ?? "rc";
-      const numberMatch = version.prerelease.match(/\d+$/);
-      const number = numberMatch ? parseInt(numberMatch[0], 10) : 0;
-      const prereleaseStr = prereleaseFormat
-        .replace(/{{type}}/g, prereleaseType)
-        .replace(/{{number}}/g, String(number + 1));
-      tagName += `-${prereleaseStr}`;
+  /**
+   * Generates the changelog section for this release from commits since
+   * `previousTagName` (or full history, if this is the first release) and
+   * prepends it to `changelog.file`. Stages the file for the commit
+   * `applyVersionToFiles` is about to make, unless `changelog.autoCommit`
+   * is explicitly `false` — in which case the file is still written, just
+   * left unstaged for the user to review.
+   */
+  private async updateChangelog(
+    changelog: ChangelogConfig,
+    newVersion: string,
+    previousTagName: string | undefined,
+  ): Promise<void> {
+    const range = previousTagName ? `${previousTagName}..HEAD` : "HEAD";
+    const commits = await this.gatherChangelogCommits(range);
+    const lineTemplate = await this.readChangelogTemplate(changelog);
+    const date = new Date().toISOString().slice(0, 10);
+    const section = this.changelogGenerator.buildSection(
+      newVersion,
+      date,
+      commits,
+      changelog,
+      lineTemplate,
+    );
+
+    const outputPath = join(this.git.cwd, changelog.file ?? "CHANGELOG.md");
+    let existing = "";
+    try {
+      existing = await readFile(outputPath, "utf8");
+    } catch {
+      // no changelog yet — start fresh
     }
+    const updated = this.changelogGenerator.prepend(existing, section);
+    await writeFile(outputPath, updated, "utf8");
 
-    // ۴. ایجاد تگ در git
-    const tagOptions: TagOptions = {
-      annotated: versioning.annotated !== false,
-      sign: versioning.sign === true,
-      ...(versioning.signingKey ? { signingKey: versioning.signingKey } : {}),
-      message: state.tagMessage ?? `Release ${tagName}`,
-    };
-
-    await this.git.createTag(tagName, tagOptions);
-
-    // ۵. به‌روزرسانی فایل version.yaml (در صورت فعال بودن autoCommit)
-    if (versioning.autoCommit && state.currentVersion) {
-      const versionFilePath = join(this.git.cwd, ".gitwe/version.yaml");
-      // محاسبه نسخه جدید به‌صورت string
-      const newVersion = this.versions.format(version, tagPrefix);
-
-      // خواندن فایل فعلی، به‌روزرسانی فیلد version و ذخیره مجدد
-      const raw = await this.git.raw(["cat-file", "--textconv", versionFilePath]);
-      const currentContent = yaml.load(raw) as Record<string, any>;
-      currentContent.version = newVersion;
-      const updatedYaml = yaml.dump(currentContent, { lineWidth: 100 });
-
-      // نوشتن فایل (از طریق git یا fs)
-      await writeFile(versionFilePath, updatedYaml, "utf8");
-      await this.git.raw(["add", versionFilePath]);
-      const message =
-        versioning.commitMessage?.replace(/{{version}}/g, newVersion) ??
-        `chore: bump version to ${newVersion}`;
-      await this.git.raw(["commit", "-m", message]);
+    if (changelog.autoCommit ?? true) {
+      await this.git.raw(["add", outputPath]);
     }
+  }
 
-    // ۶. ارسال تگ به ریموت (در صورت فعال بودن pushTags)
-    if (versioning.pushTags) {
-      const remote = this.workflow.defaultRemote;
-      await this.git.pushTags(remote, tagName);
+  /** Reads commits in `range` via `git log`, using ASCII separators to survive arbitrary commit messages. */
+  private async gatherChangelogCommits(range: string): Promise<ChangelogCommit[]> {
+    const UNIT_SEP = "\x1f";
+    const RECORD_SEP = "\x1e";
+    let raw: string;
+    try {
+      raw = await this.git.raw(["log", range, `--pretty=format:%H${UNIT_SEP}%an${UNIT_SEP}%B${RECORD_SEP}`]);
+    } catch {
+      return []; // e.g. no commits at all yet
     }
+    return raw
+      .split(RECORD_SEP)
+      .map((record) => record.trim())
+      .filter(Boolean)
+      .map((record) => {
+        const [hash = "", author = "", ...rest] = record.split(UNIT_SEP);
+        return { hash, author, message: rest.join(UNIT_SEP) };
+      })
+      .filter((commit) => commit.hash);
+  }
 
-    return tagName;
+  /** Reads the first non-comment, non-blank line of `changelog.template.path` as the entry line template. */
+  private async readChangelogTemplate(changelog: ChangelogConfig): Promise<string> {
+    const templatePath = changelog.template?.path;
+    if (!templatePath) return DEFAULT_CHANGELOG_LINE_TEMPLATE;
+
+    try {
+      const raw = await readFile(join(this.git.cwd, templatePath), "utf8");
+      const line = raw
+        .split("\n")
+        .map((l) => l.trim())
+        .find((l) => l.length > 0 && !l.startsWith("#"));
+      return line ?? DEFAULT_CHANGELOG_LINE_TEMPLATE;
+    } catch {
+      return DEFAULT_CHANGELOG_LINE_TEMPLATE; // template file missing — fall back quietly
+    }
   }
 }

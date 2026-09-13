@@ -1,6 +1,0 @@
-# .gitwe/changelog.yaml
-version: 1
-
-enabled: false
-template:
-  path: ".gitwe/changelog.template"

@@ -4,6 +4,7 @@ import { isAbsolute, join } from "node:path";
 import type { HookContext, HookName, HookRunner } from "../../domain/ports/hook-runner.port.js";
 import type { HookConfig, HookDefinition } from "../../domain/entities/hook-config.entity.js";
 import { GitweError } from "../../domain/errors/index.js";
+import { toArray, toString } from "../../utils.js";
 
 export interface HookRunnerOptions {
   root: string;
@@ -186,7 +187,7 @@ export class FileHookRunner implements HookRunner {
     else if (context.type) env.GITWE_TYPE = context.type;
     if (context.base) env.GITWE_BASE = context.base;
     if (context.target !== undefined) {
-      env.GITWE_TARGET = Array.isArray(context.target) ? context.target.join(",") : context.target;
+      env.GITWE_TARGET = toString(context.target);
     }
     if (context.dryRun !== undefined) env.GITWE_DRY_RUN = String(context.dryRun);
     if (context.force !== undefined) env.GITWE_FORCE = String(context.force);
@@ -378,7 +379,7 @@ export class FileHookRunner implements HookRunner {
     if (!condition || !condition.trim()) return true;
 
     const type = context.branchType ?? context.type ?? "";
-    const target = Array.isArray(context.target) ? context.target.join(",") : context.target ?? "";
+    const target = toArray(context.target);
     const tagName = context.tagName ?? "";
     const branch = context.branch ?? "";
 
@@ -396,7 +397,7 @@ export class FileHookRunner implements HookRunner {
               ? tagName
               : branch;
       try {
-        return new RegExp(pattern).test(value);
+        return new RegExp(pattern).test(toString(value));
       } catch {
         return false;
       }

@@ -19,11 +19,11 @@ The most reliable way to use gitwe in CI is to install it and call the CLI —
 no dependency on a wrapper action's flag mapping staying in sync.
 
 ```yaml
-- uses: actions/checkout@v4
+- uses: actions/checkout@main
   with:
     fetch-depth: 0
 
-- uses: actions/setup-node@v4
+- uses: actions/setup-node@main
   with:
     node-version: "22"
     cache: npm
@@ -71,11 +71,11 @@ finish:
 
 The repository root ships `action.yaml`, referenced as:
 
-| Reference | When to use |
-| --- | --- |
-| `uses: idmdakhi/gitwe@v1` | from another repository, pinned to a release |
+| Reference                   | When to use                                                              |
+| --------------------------- | ------------------------------------------------------------------------ |
+| `uses: idmdakhi/gitwe@v1`   | from another repository, pinned to a release                             |
 | `uses: idmdakhi/gitwe@main` | from another repo, always latest `main` (not recommended for production) |
-| `uses: ./` | inside this repository (self-test / dogfooding) |
+| `uses: ./`                  | inside this repository (self-test / dogfooding)                          |
 
 > ⚠️ **Compatibility notice.** `action.yaml` predates several CLI changes and
 > still passes flags the current binary doesn't accept: a global `--json`
@@ -92,31 +92,31 @@ The repository root ships `action.yaml`, referenced as:
 
 ### Inputs
 
-| Input | Required | Default | Description |
-| --- | --- | --- | --- |
-| `command` | yes | — | `start`, `finish`, `status`, `graph`, `current`, `list`, `validate`, `doctor`, ... |
-| `type` | for `start` | — | branch type (`feature`, `release`, `hotfix`, ...) |
-| `short-name` | for `start` | — | short name (e.g. `login`) |
-| `branch-name` | for `finish` | — | full branch name (e.g. `feature/login`) |
-| `workflow` | no | `classic` | built-in preset: `classic` \| `github` \| `gitlab` |
-| `config` | no | — | path to a custom workflow file (overrides `workflow`) |
-| `delete-branch` | no | `true` | delete the topic branch after `finish` |
-| `push` | no | `false` | push updated branches/tags after `finish` |
-| `abort-on-conflict` | no | `false` | abort merge on conflict |
-| `root` | no | `main` | root branch for `status`/`graph` |
-| `working-directory` | no | `.` | directory of the git repository |
-| `dry-run` | no | `false` | only print what would happen |
-| `strategy` | no | `merge` | `merge` \| `squash` \| `rebase` |
-| `node-version` | no | `22` | Node.js version used to run gitwe |
+| Input               | Required     | Default   | Description                                                                        |
+| ------------------- | ------------ | --------- | ---------------------------------------------------------------------------------- |
+| `command`           | yes          | —         | `start`, `finish`, `status`, `graph`, `current`, `list`, `validate`, `doctor`, ... |
+| `type`              | for `start`  | —         | branch type (`feature`, `release`, `hotfix`, ...)                                  |
+| `short-name`        | for `start`  | —         | short name (e.g. `login`)                                                          |
+| `branch-name`       | for `finish` | —         | full branch name (e.g. `feature/login`)                                            |
+| `workflow`          | no           | `classic` | built-in preset: `classic` \| `github` \| `gitlab`                                 |
+| `config`            | no           | —         | path to a custom workflow file (overrides `workflow`)                              |
+| `delete-branch`     | no           | `true`    | delete the topic branch after `finish`                                             |
+| `push`              | no           | `false`   | push updated branches/tags after `finish`                                          |
+| `abort-on-conflict` | no           | `false`   | abort merge on conflict                                                            |
+| `root`              | no           | `main`    | root branch for `status`/`graph`                                                   |
+| `working-directory` | no           | `.`       | directory of the git repository                                                    |
+| `dry-run`           | no           | `false`   | only print what would happen                                                       |
+| `strategy`          | no           | `merge`   | `merge` \| `squash` \| `rebase`                                                    |
+| `node-version`      | no           | `22`      | Node.js version used to run gitwe                                                  |
 
 ### Outputs
 
-| Output | Description |
-| --- | --- |
-| `branch-name` | created or finished branch |
+| Output        | Description                                              |
+| ------------- | -------------------------------------------------------- |
+| `branch-name` | created or finished branch                               |
 | `merged-into` | comma-separated list of branches that received the merge |
-| `tags` | comma-separated list of tags created |
-| `result-json` | full JSON result of the command |
+| `tags`        | comma-separated list of tags created                     |
+| `result-json` | full JSON result of the command                          |
 
 ### Example
 
@@ -131,7 +131,7 @@ jobs:
   gitwe:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@main
         with:
           fetch-depth: 0
 
@@ -149,7 +149,7 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@main
         with:
           fetch-depth: 0
       - uses: idmdakhi/gitwe@v1
@@ -172,11 +172,11 @@ it in place of `action.yaml` if what you need is to execute gitwe.
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-| --- | --- | --- |
-| `NotInitializedError` | no workflow config in the repo | run `gitwe init`, or pass `--config`/`config:` |
-| Slow Action run | cold cache | second run is faster; cache key is the Action's `package-lock.json` |
-| Permission denied on push | missing `contents: write` | add `permissions: contents: write` to the job |
-| Wrong branch created | `short-name` contains `/` | use a simple short name; the prefix comes from the workflow definition |
-| Exit code `2` | a merge/rebase conflict | resolve it, then `gitwe finish --continue` or `gitwe finish --abort` |
-| Action rejects a flag it used to accept | `action.yaml` vs. current CLI mismatch, see the notice above | install gitwe directly instead of going through the Action |
+| Symptom                                 | Likely cause                                                 | Fix                                                                    |
+| --------------------------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| `NotInitializedError`                   | no workflow config in the repo                               | run `gitwe init`, or pass `--config`/`config:`                         |
+| Slow Action run                         | cold cache                                                   | second run is faster; cache key is the Action's `package-lock.json`    |
+| Permission denied on push               | missing `contents: write`                                    | add `permissions: contents: write` to the job                          |
+| Wrong branch created                    | `short-name` contains `/`                                    | use a simple short name; the prefix comes from the workflow definition |
+| Exit code `2`                           | a merge/rebase conflict                                      | resolve it, then `gitwe finish --continue` or `gitwe finish --abort`   |
+| Action rejects a flag it used to accept | `action.yaml` vs. current CLI mismatch, see the notice above | install gitwe directly instead of going through the Action             |

@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { loadEngine, action } from "./shared.js";
 import { style } from "../output.js";
+import { toArray } from "../../utils.js";
 
 export function typesCommand(): Command {
   return new Command("types").description("list topic types defined in the active workflow").action(
@@ -10,8 +11,8 @@ export function typesCommand(): Command {
         name: t.name,
         prefix: t.prefix,
         base: t.base,
-        target: [...t.target],
-        aliases: t.aliases ? [...t.aliases] : [],
+        target: toArray(t.target),
+        aliases: toArray(t.aliases),
       }));
 
       const data = { types };
@@ -29,7 +30,7 @@ export function typesCommand(): Command {
         details: types.map(
           (t) =>
             `${style.bold(t.name)}  ${style.dim(
-              `prefix=${t.prefix}  base=${t.base}  target=[${t.target.join(", ")}]`,
+              `prefix=${t.prefix}  base=${t.base}  target=[${toArray(t.target)}]`,
             )}`,
         ),
       });

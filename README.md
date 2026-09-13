@@ -2,7 +2,8 @@
 
 **Configurable Git branching-workflow engine.**
 
-[![npm version](https://img.shields.io/npm/v/gitwe)](https://www.npmjs.com/package/gitwe)
+[![npm version](https://img.shields.io/npm/v/gitwe-ts)](https://www.npmjs.com/package/gitwe-ts)
+[![npm version](https://img.shields.io/npm/v/@idmdakhi/gitwe)](https://www.npmjs.com/package/@idmdakhi/gitwe)
 [![Node.js CI](https://github.com/idmdakhi/gitwe/actions/workflows/ci.yaml/badge.svg)](https://github.com/idmdakhi/gitwe/actions/workflows/ci.yaml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -29,7 +30,9 @@ Inspired by the original [`nvie/gitflow`](https://github.com/nvie/gitflow), [`gi
 ### Installation
 
 ```bash
-npm install -g gitwe
+npm install -g gitwe-ts
+# OR
+npm install -g @idmdakhi/gitwe
 ```
 
 Or run it without installing via `npx`:
@@ -109,4 +112,4 @@ npm run test:e2e  # End-to-end tests
 
 ## License
 
-MIT © [Iman Dakhili](https://github.com/idmdakhi)
+MIT © [idmdakhi](https://github.com/idmdakhi)
